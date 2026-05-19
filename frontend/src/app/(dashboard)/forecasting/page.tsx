@@ -5,6 +5,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { BrainCircuit, AlertTriangle, TrendingUp, HelpCircle } from 'lucide-react';
 import { apiClient as api } from '@/lib/axios';
 import { format } from 'date-fns';
+import { FeatureGate } from '@/components/ui/FeatureGate';
 
 export default function ForecastingPage() {
   const [data, setData] = useState<any>(null);
@@ -56,7 +57,8 @@ export default function ForecastingPage() {
 
   return (
     <div className="flex-1 p-8 overflow-y-auto bg-[#FDFDFD] dark:bg-[#050505]">
-      <div className="max-w-6xl mx-auto space-y-8">
+      <FeatureGate feature="Forecasting IA" requiredPlan="PRO" currentPlan="STARTER">
+        <div className="max-w-6xl mx-auto space-y-8">
         
         {/* Header */}
         <div>
@@ -154,7 +156,8 @@ export default function ForecastingPage() {
           </div>
         </div>
 
-      </div>
+        </div>
+      </FeatureGate>
     </div>
   );
 }

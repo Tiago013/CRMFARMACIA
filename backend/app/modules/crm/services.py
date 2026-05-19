@@ -4,6 +4,7 @@ from app.modules.crm.repositories import PatientRepository, TimelineRepository
 from app.modules.crm.schemas import PatientCreate, TimelineEventCreate
 from app.modules.crm.models import Patient, PatientTimelineEvent
 from app.core.middleware import get_current_tenant_id
+from app.core.events import event_bus
 from fastapi import HTTPException
 
 class CRMService:
@@ -35,8 +36,16 @@ class CRMService:
             event_type="patient_created",
             event_data={"source": "manual_entry"}
         ))
-        
         await self.db.commit()
+        
+        # Publish event
+        await event_bus.publish("patient.created", {
+            "tenant_id": str(tenant_id),
+            "patient_id": str(patient.id),
+            "name": f"{patient.first_name} {patient.last_name or ''}".strip(),
+            "phone": patient.phone
+        })
+        
         return patient
 
     async def add_timeline_event(self, data: TimelineEventCreate) -> PatientTimelineEvent:

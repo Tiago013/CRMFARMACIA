@@ -7,6 +7,7 @@ from app.modules.inventory.repositories import ProductRepository, BatchRepositor
 from app.modules.inventory.models import StockMovement
 from app.core.middleware import get_current_tenant_id
 from app.core.redis import get_redis_client
+from app.core.events import event_bus
 from fastapi import HTTPException
 import json
 
@@ -104,7 +105,16 @@ class CheckoutService:
         await self.sale_repo.create(sale)
         await self.db.commit() # ALL OR NOTHING ACID COMMIT
         
-        # 6. Mark as processed in Redis
+        # 6. Emit event
+        sale_data = {
+            "sale_id": str(sale.id),
+            "patient_id": str(sale.patient_id) if sale.patient_id else None,
+            "total": sale.grand_total,
+            "tenant_id": str(tenant_id)
+        }
+        await event_bus.publish("sale.completed", sale_data)
+        
+        # 7. Mark as processed in Redis
         if redis:
             await redis.setex(idempotency_key, 86400, json.dumps({"sale_id": str(sale.id)})) # 24h TTL
             

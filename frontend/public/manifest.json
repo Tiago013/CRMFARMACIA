@@ -1,0 +1,16 @@
+{
+  "name": "FarmaAI Enterprise",
+  "short_name": "FarmaAI",
+  "description": "El CRM y POS Inteligente para droguerías.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#4F46E5",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}

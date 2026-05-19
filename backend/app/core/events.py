@@ -20,6 +20,11 @@ class EventBus:
         self._subscribers[topic].append(callback)
         logger.info(f"Suscrito al tópico: {topic}")
 
+    def unsubscribe(self, topic: str, callback: Callable):
+        if topic in self._subscribers and callback in self._subscribers[topic]:
+            self._subscribers[topic].remove(callback)
+            logger.info(f"Desuscrito del tópico: {topic}")
+
     async def publish(self, topic: str, payload: dict):
         """
         Publica un Domain Event para ser consumido asíncronamente por otros módulos.
@@ -28,16 +33,16 @@ class EventBus:
         if topic in self._subscribers:
             for callback in self._subscribers[topic]:
                 # Fire and forget
-                asyncio.create_task(self._safe_execute(callback, payload))
+                asyncio.create_task(self._safe_execute(callback, topic, payload))
 
-    async def _safe_execute(self, callback: Callable, payload: dict):
+    async def _safe_execute(self, callback: Callable, topic: str, payload: dict):
         try:
             if asyncio.iscoroutinefunction(callback):
-                await callback(payload)
+                await callback(topic, payload)
             else:
-                callback(payload)
+                callback(topic, payload)
         except Exception as e:
-            logger.error(f"Error procesando evento asíncrono: {str(e)}", exc_info=True)
+            logger.error(f"Error procesando evento asíncrono '{topic}': {str(e)}", exc_info=True)
 
 # Instancia global del Event Bus para el Monolito Modular
 event_bus = EventBus()

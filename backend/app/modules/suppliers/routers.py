@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+from app.core.local_db import query_all, query_one
 from app.modules.suppliers.schemas import SupplierCreate, SupplierResponse
 import uuid
 
@@ -6,9 +7,7 @@ router = APIRouter(prefix="/suppliers", tags=["Suppliers Management"])
 
 @router.post("/", response_model=SupplierResponse)
 async def create_supplier(supplier: SupplierCreate):
-    """
-    Registra un nuevo proveedor en el sistema para gestión de abastecimiento.
-    """
+    """Registra un nuevo proveedor."""
     return SupplierResponse(
         id=f"SUP-{uuid.uuid4().hex[:4]}",
         active=True,
@@ -17,10 +16,11 @@ async def create_supplier(supplier: SupplierCreate):
 
 @router.get("/")
 async def list_suppliers():
-    """
-    Lista los proveedores activos con sus calificaciones de desempeño.
-    """
-    return [
-        {"id": "SUP-1", "name": "Bayer S.A.", "rating": 5},
-        {"id": "SUP-2", "name": "Pfizer", "rating": 4}
-    ]
+    """Lista proveedores REALES desde la base de datos SQLite."""
+    return query_all("""
+        SELECT id as id, name, nit, contact_name, contact_phone, contact_email,
+               city, type, credit_days, early_payment_discount, rating
+        FROM suppliers
+        WHERE is_active = 1
+        ORDER BY rating DESC
+    """)

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useBranchStore } from '@/stores/useBranchStore';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
@@ -11,13 +12,19 @@ export const apiClient = axios.create({
   withCredentials: true, // If we move to cookies later
 });
 
-// Request Interceptor: Inject JWT Token
+// Request Interceptor: Inject JWT Token and Branch ID
 apiClient.interceptors.request.use(
   (config) => {
     const token = useAuthStore.getState().accessToken;
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
+    
+    const activeBranch = useBranchStore.getState().activeBranch;
+    if (activeBranch) {
+      config.headers['X-Branch-ID'] = activeBranch.id;
+    }
+    
     return config;
   },
   (error) => {

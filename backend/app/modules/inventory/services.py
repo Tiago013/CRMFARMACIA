@@ -4,6 +4,7 @@ from app.modules.inventory.repositories import ProductRepository, BatchRepositor
 from app.modules.inventory.schemas import StockMovementCreate
 from app.modules.inventory.models import StockMovement
 from app.core.middleware import get_current_tenant_id
+from app.core.events import event_bus
 from fastapi import HTTPException
 
 class InventoryService:
@@ -47,4 +48,14 @@ class InventoryService:
 
         self.db.add(movement)
         await self.db.commit()
+        
+        # Publish event
+        await event_bus.publish("inventory.stock_updated", {
+            "tenant_id": str(tenant_id),
+            "product_id": str(movement_data.product_id),
+            "batch_id": str(movement_data.batch_id) if movement_data.batch_id else None,
+            "quantity": movement_data.quantity,
+            "movement_type": movement_data.movement_type
+        })
+        
         return movement

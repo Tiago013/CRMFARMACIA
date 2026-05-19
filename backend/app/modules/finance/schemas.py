@@ -20,3 +20,5 @@ class FinancialMetrics(BaseModel):
     total_expenses: float
     net_profit: float
     profit_margin_percentage: float
+    iva_generated: float = 0.0
+    exempt_sales: float = 0.0

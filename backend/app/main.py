@@ -35,6 +35,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Redis init skipped: {e}")
         app.state.redis = None
+    
+    # Setup Event Bus Listeners
+    try:
+        from app.modules.crm.listeners import setup_crm_listeners
+        from app.modules.inventory.listeners import setup_inventory_listeners
+        setup_crm_listeners()
+        setup_inventory_listeners()
+    except Exception as e:
+        logger.warning(f"Event listener setup skipped: {e}")
+    
     yield
     # Shutdown: Close connections
     try:
@@ -52,7 +62,11 @@ app = FastAPI(
 # CORS Middleware (Crucial for SaaS frontend interaction)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://192.168.1.106:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://192.168.1.106:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -73,7 +87,7 @@ async def add_process_time_header(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; object-src 'none'"
+    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' http://localhost:8000 http://127.0.0.1:8000 http://192.168.1.106:8000; object-src 'none'"
     
     return response
 
