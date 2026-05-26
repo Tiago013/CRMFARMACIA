@@ -42,15 +42,24 @@ class InventoryService:
         
         # If it's a manual adjust or sale out, we must decrement the batch quantity
         if movement_data.batch_id and movement_data.quantity != 0:
-            # We would fetch the batch, update quantity, and save
-            # This is a simplified version for scaffolding
-            pass
+            batch = await self.batch_repo.get_by_id(movement_data.batch_id)
+            if not batch:
+                raise HTTPException(status_code=404, detail="Lote no encontrado")
+                
+            new_qty = batch.quantity + movement_data.quantity
+            if new_qty < 0:
+                raise HTTPException(status_code=400, detail="Stock insuficiente en este lote para realizar el egreso")
+                
+            batch.quantity = new_qty
+            self.db.add(batch)
 
         self.db.add(movement)
         await self.db.commit()
         
+        import uuid
         # Publish event
-        await event_bus.publish("inventory.stock_updated", {
+        event_bus.publish_on_commit(self.db, "inventory.stock_updated", {
+            "event_id": str(uuid.uuid4()),
             "tenant_id": str(tenant_id),
             "product_id": str(movement_data.product_id),
             "batch_id": str(movement_data.batch_id) if movement_data.batch_id else None,

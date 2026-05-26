@@ -6,11 +6,13 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useBranchStore } from '@/stores/useBranchStore';
 import { useRealtimeEvents } from '@/hooks/useRealtimeEvents';
+import { apiClient } from '@/lib/axios';
 import { 
   LayoutDashboard, Package, Users, ShoppingCart, Settings,
   Bell, Search, Menu, X, BrainCircuit, DollarSign,
   CreditCard, LogOut, Shield, ChevronDown, Moon, Sun, Monitor, MapPin
 } from 'lucide-react';
+import UpgradeModal from '@/components/ui/UpgradeModal';
 
 // Define which nav items are visible per role
 const NAV_ITEMS = [
@@ -60,11 +62,17 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   // Real-time events
   useRealtimeEvents();
 
-  // Auth Redirect
+  // Auth Redirect & Stale State Recovery
   useEffect(() => {
-    if (!isAuthenticated) router.push('/login');
+    if (!isAuthenticated) {
+      // Si la cookie existe pero el store dice que no estamos autenticados (estado corrupto o expirado localmente),
+      // forzamos la limpieza de la cookie para romper el bucle infinito del middleware.
+      if (typeof document !== 'undefined') {
+        document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      }
+      router.push('/login');
+    }
   }, [isAuthenticated, router]);
-
   // Command Palette Shortcut (⌘K / Ctrl+K)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -82,7 +90,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   // Theme Initializer
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | 'system' || 'system';
+    const savedTheme = (localStorage.getItem('theme') as 'light' | 'dark' | 'system') || 'system';
     setTheme(savedTheme);
     applyTheme(savedTheme);
   }, []);
@@ -339,6 +347,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
         )}
         
+        <UpgradeModal />
       </main>
     </div>
   );
@@ -364,7 +373,7 @@ function NavItem({ href, icon, label, active }: { href: string, icon: ReactNode,
 
 function BranchSelector({ showBranchMenu, setShowBranchMenu }: { showBranchMenu: boolean, setShowBranchMenu: (v: boolean) => void }) {
   const { activeBranch, availableBranches, setBranches, setActiveBranch } = useBranchStore();
-  const { apiClient } = require('@/lib/axios');
+
 
   useEffect(() => {
     // Fetch branches on mount

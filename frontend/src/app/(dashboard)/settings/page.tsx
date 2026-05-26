@@ -321,7 +321,7 @@ export default function SettingsPage() {
                   <label className="block text-xs font-bold text-neutral-500 mb-1">Templates Automáticos</label>
                   <div className="p-4 bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-lg">
                     <h5 className="font-bold text-sm mb-2 text-indigo-600">Refill Reminder</h5>
-                    <p className="text-xs font-mono text-neutral-600 dark:text-neutral-400">"Hola &#123;nombre&#125;, tu &#123;medicamento&#125; se agota en &#123;dias&#125; días. ¿Deseas que te lo reservemos?"</p>
+                    <p className="text-xs font-mono text-neutral-600 dark:text-neutral-400">&quot;Hola &#123;nombre&#125;, tu &#123;medicamento&#125; se agota en &#123;dias&#125; días. ¿Deseas que te lo reservemos?&quot;</p>
                   </div>
                 </div>
               </div>

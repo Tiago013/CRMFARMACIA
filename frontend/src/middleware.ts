@@ -16,14 +16,46 @@ export function middleware(request: NextRequest) {
   }
 
   // If going to a protected route and not logged in, redirect to login
-  // TEMPORARILY DISABLED FOR LOCAL DEMO
-  // if (!isAuthPage && !hasToken && request.nextUrl.pathname.startsWith('/dashboard')) {
-  //  return NextResponse.redirect(new URL('/login', request.url));
-  // }
+  if (!isAuthPage && !hasToken && request.nextUrl.pathname.startsWith('/dashboard')) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  // Basic RBAC from JWT payload
+  if (hasToken && request.nextUrl.pathname.startsWith('/dashboard') || request.nextUrl.pathname.startsWith('/finance') || request.nextUrl.pathname.startsWith('/saas')) {
+    try {
+      const token = request.cookies.get('auth_token')?.value || '';
+      const payloadBase64 = token.split('.')[1];
+      if (payloadBase64) {
+        const payloadStr = atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/'));
+        const payload = JSON.parse(payloadStr);
+        const role = payload.role;
+
+        const path = request.nextUrl.pathname;
+        
+        // Cajero can only access /sales and maybe /dashboard (limited)
+        if (role === 'cajero') {
+          const allowedCajeroPaths = ['/sales', '/dashboard'];
+          if (!allowedCajeroPaths.some(p => path.startsWith(p))) {
+            return NextResponse.redirect(new URL('/sales', request.url));
+          }
+        }
+        
+        // Regente cannot access /finance or /saas
+        if (role === 'regente') {
+          const restrictedRegentePaths = ['/finance', '/saas', '/billing'];
+          if (restrictedRegentePaths.some(p => path.startsWith(p))) {
+            return NextResponse.redirect(new URL('/dashboard', request.url));
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore decoding errors, let backend handle invalid tokens
+    }
+  }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/login'],
+  matcher: ['/dashboard/:path*', '/login', '/sales/:path*', '/finance/:path*', '/inventory/:path*', '/crm/:path*', '/saas/:path*', '/billing/:path*'],
 };

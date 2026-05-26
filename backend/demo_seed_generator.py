@@ -54,16 +54,6 @@ users = [
 ]
 
 # =====================================================================
-# 1.5 SUCURSALES (Branches)
-# =====================================================================
-branches = [
-    {"id": str(uuid.uuid4()), "tenant_id": main_tenant_id, "name": "Sede Principal", "is_active": 1},
-    {"id": str(uuid.uuid4()), "tenant_id": main_tenant_id, "name": "Sede Norte", "is_active": 1}
-]
-main_branch_id = branches[0]["id"]
-norte_branch_id = branches[1]["id"]
-
-# =====================================================================
 # 2. CATÁLOGO E INVENTARIO
 # =====================================================================
 categories = [
@@ -115,20 +105,14 @@ for i, p in enumerate(products_data):
         "cost": p["cost"], "tax_rate": p["tax"], "min_stock": settings["inventory"]["default_min_stock"]
     })
     
-    # 3 productos con stock crítico bajo (ej. 5 unidades)
-    initial_qty = 5 if i < 4 else random.randint(150, 500)
+    # 1 producto con stock crítico bajo (ej. 5 unidades)
+    initial_qty = 5 if i == 0 else random.randint(150, 500)
     exp_date = exp_close.pop() if exp_close else exp_far
 
-    # Creamos un lote para la Sede Principal y otro más pequeño para la Sede Norte
     batches.append({
-        "id": str(uuid.uuid4()), "tenant_id": main_tenant_id, "branch_id": main_branch_id, "product_id": prod_id,
-        "batch_number": f"LOTE-P-{i}", "expiration_date": exp_date.strftime("%Y-%m-%d"),
+        "id": str(uuid.uuid4()), "tenant_id": main_tenant_id, "product_id": prod_id,
+        "batch_number": f"LOTE-{i}", "expiration_date": exp_date.strftime("%Y-%m-%d"),
         "initial_qty": initial_qty, "current_qty": initial_qty
-    })
-    batches.append({
-        "id": str(uuid.uuid4()), "tenant_id": main_tenant_id, "branch_id": norte_branch_id, "product_id": prod_id,
-        "batch_number": f"LOTE-N-{i}", "expiration_date": exp_date.strftime("%Y-%m-%d"),
-        "initial_qty": initial_qty // 2, "current_qty": initial_qty // 2
     })
 
 # =====================================================================
@@ -148,9 +132,6 @@ chronic_conditions = [
 ]
 
 patients = []
-# Ensure 4 patients have no purchases in last 30 days
-churn_risk_patients_idx = {11, 12, 13, 14} 
-
 for i in range(15):
     first_name, last_name = colombian_names[i]
     conds = chronic_conditions[i]
@@ -163,8 +144,7 @@ for i in range(15):
         "phone": f"+5730{random.randint(0,9)}{random.randint(1000000,9999999)}", 
         "ltv": 0, "segment": "Regular",
         "last_purchase": None, "has_fiado": False,
-        "tags": tags_str, "preferences": '{"condiciones": "' + ';'.join(conds) + '"}',
-        "_is_churn_risk": i in churn_risk_patients_idx
+        "tags": tags_str, "preferences": '{"condiciones": "' + ';'.join(conds) + '"}'
     })
 
 # =====================================================================
@@ -179,42 +159,33 @@ current_day = base_date - timedelta(days=total_days)
 
 for day in range(total_days):
     num_sales = random.randint(5, 15)
-    days_since_start = (current_day - (base_date - timedelta(days=total_days))).days
-    is_last_30_days = (total_days - days_since_start) <= 30
-
     for _ in range(num_sales):
         sale_id = str(uuid.uuid4())
-        # Asignar la venta a una sede aleatoria (70% principal, 30% norte)
-        sale_branch_id = main_branch_id if random.random() < 0.7 else norte_branch_id
-        
         is_patient_sale = random.random() > 0.4
-        
-        # Select patient
-        patient = None
-        if is_patient_sale:
-            allowed_patients = [p for p in patients if not (p["_is_churn_risk"] and is_last_30_days)]
-            if allowed_patients:
-                patient = random.choice(allowed_patients)
+        patient = random.choice(patients) if is_patient_sale else None
         
         num_items = random.randint(1, 4)
         selected_products = []
         
         # Match products with conditions
         if patient and patient["preferences"]:
+            # Parse the basic preferences str manually since we built it
             cond_str = patient["preferences"].split('":"')[1].replace('"}', '') if '":"' in patient["preferences"] else ""
             conds = cond_str.split(";") if cond_str else []
             preferred_cats = []
             if "Hipertenso" in conds: preferred_cats.append("Antihipertensivos")
-            if "Diabético" in conds: preferred_cats.append("Antihipertensivos")
-            if "Tiroides" in conds: preferred_cats.append("Cuidado Personal")
+            if "Diabético" in conds: preferred_cats.append("Antihipertensivos") # Ej: Metformina
+            if "Tiroides" in conds: preferred_cats.append("Cuidado Personal") # Fallback
             if "Asma" in conds: preferred_cats.append("Cuidado Personal")
             
             if preferred_cats and random.random() > 0.3:
+                # 70% chance to buy something for their condition
                 matching_prods = [p for p in products if any(c["id"] == p["category_id"] and c["name"] in preferred_cats for c in categories)]
                 if matching_prods:
                     selected_products.append(random.choice(matching_prods))
                     num_items -= 1
                     
+        # Fill rest randomly
         if num_items > 0:
             selected_products.extend(random.sample(products, num_items))
         
@@ -223,12 +194,11 @@ for day in range(total_days):
         cogs_total = 0
         
         for sp in selected_products:
-            # Buscar el lote correspondiente A ESA SEDE
-            batch = next((b for b in batches if b["product_id"] == sp["id"] and b["branch_id"] == sale_branch_id), None)
-            if not batch: continue
-            
+            # Encontrar lote
+            batch = next(b for b in batches if b["product_id"] == sp["id"])
             qty = random.randint(1, 3)
             
+            # REGLA: Disminuir stock
             if batch["current_qty"] >= qty:
                 batch["current_qty"] -= qty
                 
@@ -246,16 +216,18 @@ for day in range(total_days):
                     "price": sp["price"], "cogs": item_cogs
                 })
 
-        if subtotal == 0: continue
+        if subtotal == 0: continue # No items added
 
         grand_total = subtotal + tax_total
+        
+        # Pagos y fiados
         payment_method = random.choice(["efectivo", "tarjeta", "nequi"])
-        if patient and random.random() < 0.05:
+        if patient and random.random() < 0.05: # 5% chance of fiado
             payment_method = "fiado"
             patient["has_fiado"] = True
             
         sales.append({
-            "id": sale_id, "tenant_id": main_tenant_id, "branch_id": sale_branch_id, "patient_id": patient["id"] if patient else None,
+            "id": sale_id, "tenant_id": main_tenant_id, "patient_id": patient["id"] if patient else None,
             "subtotal": subtotal, "tax_total": tax_total, "grand_total": grand_total, "cogs_total": cogs_total,
             "date": current_day.strftime("%Y-%m-%d %H:%M:%S"), "method": payment_method
         })
@@ -265,13 +237,14 @@ for day in range(total_days):
             "method": payment_method, "amount": grand_total
         })
         
+        # LTV Patient Update
         if patient:
             patient["ltv"] += grand_total
             patient["last_purchase"] = current_day.strftime("%Y-%m-%d")
 
     current_day += timedelta(days=1)
 
-# Asignar segmentos según LTV y cleanup de variable temp
+# Asignar segmentos según LTV
 for p in patients:
     if p["ltv"] >= settings["crm"]["ltv_vip"]:
         p["segment"] = "VIP"
@@ -279,37 +252,25 @@ for p in patients:
         p["segment"] = "Premium"
     else:
         p["segment"] = "Regular"
-    del p["_is_churn_risk"]
 
 # =====================================================================
 # 5. DEVOLUCIONES Y MERMAS
 # =====================================================================
-# Devoluciones (2 devoluciones)
-refund_sale = sales[-1]
+# Devolución
+refund_sale = sales[-1] # Refund last sale
 refund_sale["status"] = "refunded"
-if len(sales) > 50:
-    refund_sale2 = sales[-50]
-    refund_sale2["status"] = "refunded"
 
-# Mermas (3 registros de mermas)
-mermas = []
-for m_idx in range(3):
-    merma_batch = batches[-(m_idx+1)]
-    merma_qty = random.randint(1, 3)
-    merma_batch["current_qty"] -= merma_qty
-    mermas.append({
-        "id": str(uuid.uuid4()), 
-        "batch_id": merma_batch["id"], 
-        "qty": merma_qty, 
-        "reason": random.choice(["Dañado", "Vencido", "Pérdida"]), 
-        "loss": merma_qty * next(p["cost"] for p in products if p["id"] == merma_batch["product_id"])
-    })
+# Merma
+merma_batch = batches[-1]
+merma_qty = 2
+merma_batch["current_qty"] -= merma_qty
+mermas = [{"id": str(uuid.uuid4()), "batch_id": merma_batch["id"], "qty": merma_qty, "reason": "Dañado", "loss": merma_qty * next(p["cost"] for p in products if p["id"] == merma_batch["product_id"])}]
 
 # Gastos Operativos del mes
 expenses = [
-    {"id": str(uuid.uuid4()), "tenant_id": main_tenant_id, "branch_id": main_branch_id, "category": "Arriendo", "amount": 1500000, "date": base_date.strftime("%Y-%m-01")},
-    {"id": str(uuid.uuid4()), "tenant_id": main_tenant_id, "branch_id": norte_branch_id, "category": "Nómina", "amount": 3000000, "date": base_date.strftime("%Y-%m-05")},
-    {"id": str(uuid.uuid4()), "tenant_id": main_tenant_id, "branch_id": main_branch_id, "category": "Servicios Públicos", "amount": 450000, "date": base_date.strftime("%Y-%m-10")}
+    {"id": str(uuid.uuid4()), "tenant_id": main_tenant_id, "category": "Arriendo", "amount": 1500000, "date": base_date.strftime("%Y-%m-01")},
+    {"id": str(uuid.uuid4()), "tenant_id": main_tenant_id, "category": "Nómina", "amount": 3000000, "date": base_date.strftime("%Y-%m-05")},
+    {"id": str(uuid.uuid4()), "tenant_id": main_tenant_id, "category": "Servicios Públicos", "amount": 450000, "date": base_date.strftime("%Y-%m-10")}
 ]
 
 # =====================================================================
@@ -321,7 +282,7 @@ def insert_to_db():
     c = conn.cursor()
     
     # Limpiar
-    for table in ["sales", "sale_items", "payments", "batches", "products", "categories", "patients", "expenses", "users", "pharmacies"]:
+    for table in ["sales", "sale_items", "payments", "batches", "products", "categories", "patients", "expenses", "cash_sessions", "integration_sync_logs", "integration_configs", "users", "pharmacies"]:
         c.execute(f"DROP TABLE IF EXISTS {table}")
         
     c.executescript("""
@@ -333,14 +294,10 @@ def insert_to_db():
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         is_active INTEGER DEFAULT 1,
         plan TEXT,
-        status TEXT
-    );
-    CREATE TABLE IF NOT EXISTS branches (
-        id TEXT PRIMARY KEY,
-        tenant_id TEXT NOT NULL REFERENCES pharmacies(id),
-        name TEXT NOT NULL,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        is_active INTEGER DEFAULT 1
+        status TEXT,
+        trial_ends_at TEXT,
+        stripe_customer_id TEXT,
+        stripe_subscription_id TEXT
     );
     CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
@@ -380,7 +337,6 @@ def insert_to_db():
     CREATE TABLE IF NOT EXISTS batches (
         id TEXT PRIMARY KEY,
         tenant_id TEXT NOT NULL REFERENCES pharmacies(id),
-        branch_id TEXT REFERENCES branches(id),
         product_id TEXT NOT NULL REFERENCES products(id),
         batch_number TEXT NOT NULL,
         expiration_date TEXT NOT NULL,
@@ -402,13 +358,15 @@ def insert_to_db():
         tags TEXT DEFAULT '[]',
         ltv REAL DEFAULT 0,
         segment TEXT,
+        odoo_partner_id TEXT,
+        odoo_sync_status TEXT DEFAULT 'pending',
+        last_odoo_sync TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         is_active INTEGER DEFAULT 1
     );
     CREATE TABLE IF NOT EXISTS sales (
         id TEXT PRIMARY KEY,
         tenant_id TEXT NOT NULL REFERENCES pharmacies(id),
-        branch_id TEXT REFERENCES branches(id),
         user_id TEXT NOT NULL REFERENCES users(id),
         patient_id TEXT REFERENCES patients(id),
         subtotal REAL NOT NULL,
@@ -446,7 +404,6 @@ def insert_to_db():
     CREATE TABLE IF NOT EXISTS expenses (
         id TEXT PRIMARY KEY,
         tenant_id TEXT NOT NULL REFERENCES pharmacies(id),
-        branch_id TEXT REFERENCES branches(id),
         date TEXT NOT NULL,
         category TEXT NOT NULL,
         description TEXT,
@@ -460,7 +417,6 @@ def insert_to_db():
     CREATE TABLE IF NOT EXISTS cash_sessions (
         id TEXT PRIMARY KEY,
         tenant_id TEXT NOT NULL REFERENCES pharmacies(id),
-        branch_id TEXT REFERENCES branches(id),
         cashier_id TEXT NOT NULL REFERENCES users(id),
         cashier_name TEXT,
         date TEXT NOT NULL,
@@ -480,19 +436,39 @@ def insert_to_db():
         notes TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE TABLE IF NOT EXISTS integration_configs (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL REFERENCES pharmacies(id),
+        provider TEXT NOT NULL,
+        url TEXT,
+        db_name TEXT,
+        username TEXT,
+        encrypted_api_key TEXT,
+        is_active INTEGER DEFAULT 1,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS integration_sync_logs (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL REFERENCES pharmacies(id),
+        entity_type TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        action TEXT NOT NULL,
+        status TEXT NOT NULL,
+        error_details TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
     """)
 
-    for t in tenants: c.execute("INSERT INTO pharmacies (id, name, tax_id, country, plan, status) VALUES (?,?,?,?,?,?)", (t["id"], t["name"], "900123", "CO", t["plan"], t["status"]))
-    for b in branches: c.execute("INSERT INTO branches (id, tenant_id, name) VALUES (?,?,?)", (b["id"], b["tenant_id"], b["name"]))
+    for t in tenants: c.execute("INSERT INTO pharmacies (id, name, tax_id, country, plan, status, trial_ends_at, stripe_customer_id, stripe_subscription_id) VALUES (?,?,?,?,?,?,datetime('now', '+14 days'),NULL,NULL)", (t["id"], t["name"], "900123", "CO", t["plan"], t["status"]))
     for u in users: c.execute("INSERT INTO users (id, tenant_id, email, hashed_password, first_name, role) VALUES (?,?,?,?,?,?)", (u["id"], u["tenant_id"], u["email"], u["hashed"], u["name"], u["role"]))
     for cat in categories: c.execute("INSERT INTO categories (id, tenant_id, name) VALUES (?,?,?)", (cat["id"], main_tenant_id, cat["name"]))
     for p in products: c.execute("INSERT INTO products (id, tenant_id, category_id, sku, barcode, brand_name, unit_price, cost_price, tax_rate, min_stock, active_ingredient, presentation) VALUES (?,?,?,?, '770', ?,?,?,?,?, 'Paracetamol', 'Tabletas')", (p["id"], p["tenant_id"], p["category_id"], p["sku"], p["name"], p["price"], p["cost"], p["tax_rate"], p["min_stock"]))
-    for b in batches: c.execute("INSERT INTO batches (id, tenant_id, branch_id, product_id, batch_number, expiration_date, quantity, initial_qty) VALUES (?,?,?,?,?,?,?,?)", (b["id"], b["tenant_id"], b["branch_id"], b["product_id"], b["batch_number"], b["expiration_date"], b["current_qty"], b["initial_qty"]))
+    for b in batches: c.execute("INSERT INTO batches (id, tenant_id, product_id, batch_number, expiration_date, quantity, initial_qty) VALUES (?,?,?,?,?,?,?)", (b["id"], b["tenant_id"], b["product_id"], b["batch_number"], b["expiration_date"], b["current_qty"], b["initial_qty"]))
     for p in patients: c.execute("INSERT INTO patients (id, tenant_id, first_name, last_name, document_id, phone, ltv, segment, last_purchase_date, tags, preferences) VALUES (?,?,?,?,?,?,?,?,?,?,?)", (p["id"], p["tenant_id"], p["first_name"], p["last_name"], p["document"], p["phone"], p["ltv"], p["segment"], p["last_purchase"], p["tags"], p["preferences"]))
-    for s in sales: c.execute("INSERT INTO sales (id, tenant_id, branch_id, user_id, patient_id, subtotal, tax_total, grand_total, cogs_total, status, created_at, method) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", (s["id"], s["tenant_id"], s["branch_id"], users[1]["id"], s["patient_id"], s["subtotal"], s["tax_total"], s["grand_total"], s["cogs_total"], s.get("status", "completed"), s["date"], s["method"]))
+    for s in sales: c.execute("INSERT INTO sales (id, tenant_id, user_id, patient_id, subtotal, tax_total, grand_total, cogs_total, status, created_at, method) VALUES (?,?,?,?,?,?,?,?,?,?,?)", (s["id"], s["tenant_id"], users[1]["id"], s["patient_id"], s["subtotal"], s["tax_total"], s["grand_total"], s["cogs_total"], s.get("status", "completed"), s["date"], s["method"]))
     for si in sale_items: c.execute("INSERT INTO sale_items (id, tenant_id, sale_id, product_id, batch_id, quantity, unit_price_at_sale, cogs) VALUES (?,?,?,?,?,?,?,?)", (si["id"], si["tenant_id"], si["sale_id"], si["product_id"], si["batch_id"], si["qty"], si["price"], si["cogs"]))
     for p in payments: c.execute("INSERT INTO payments (id, tenant_id, sale_id, payment_method, amount_paid) VALUES (?,?,?,?,?)", (p["id"], p["tenant_id"], p["sale_id"], p["method"], p["amount"]))
-    for e in expenses: c.execute("INSERT INTO expenses (id, tenant_id, branch_id, category, amount, date) VALUES (?,?,?,?,?,?)", (e["id"], e["tenant_id"], e["branch_id"], e["category"], e["amount"], e["date"]))
+    for e in expenses: c.execute("INSERT INTO expenses (id, tenant_id, category, amount, date) VALUES (?,?,?,?,?)", (e["id"], e["tenant_id"], e["category"], e["amount"], e["date"]))
 
     
     conn.commit()

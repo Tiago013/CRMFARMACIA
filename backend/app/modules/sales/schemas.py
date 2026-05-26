@@ -4,18 +4,18 @@ from uuid import UUID
 from datetime import datetime
 
 class SaleItemCreate(BaseModel):
-    product_id: UUID
+    product_id: str
     quantity: int = Field(gt=0)
     # The frontend shouldn't send price, the backend looks it up!
     # But for a basic MVP without a complex pricing engine, we might allow it or fetch it.
     # In a real enterprise app, frontend only sends product_id and quantity.
 
 class PaymentCreate(BaseModel):
-    payment_method: str = Field(pattern="^(cash|credit_card|transfer)$")
+    payment_method: str = Field(pattern="^(cash|card|credit_card|transfer|mixed|fiado)$")
     amount_paid: float = Field(gt=0)
 
 class SaleCreate(BaseModel):
-    patient_id: Optional[UUID] = None
+    patient_id: Optional[str] = None
     items: List[SaleItemCreate] = Field(min_length=1)
     payments: List[PaymentCreate] = Field(min_length=1)
     idempotency_key: str

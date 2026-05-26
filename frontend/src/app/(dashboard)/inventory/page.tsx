@@ -1,19 +1,76 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Package, Search, Filter, Plus, AlertTriangle, MoreVertical, Edit2, Trash2, ShoppingCart, Activity, RefreshCw, FileText, Check, X } from 'lucide-react';
+import { Search, Plus, AlertTriangle, Edit2, Trash2, ShoppingCart, Activity, RefreshCw, FileText, Check } from 'lucide-react';
 import { apiClient as api } from '@/lib/axios';
+import { toast } from 'sonner';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { Suspense } from 'react';
 
 export default function InventoryPage() {
+  return (
+    <Suspense fallback={<div className="p-8">Cargando inventario...</div>}>
+      <InventoryContent />
+    </Suspense>
+  );
+}
+
+function InventoryContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [products, setProducts] = useState<any[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('general');
   
   const [showProductModal, setShowProductModal] = useState(false);
-  const [newProduct, setNewProduct] = useState({ name: '', sku: '', stock: 0, price: 0 });
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [newProduct, setNewProduct] = useState({ brand_name: '', sku: '', cost_price: 0, unit_price: 0 });
 
-  // Mock data for new tabs
+  const handleSaveProduct = async () => {
+    try {
+      if (isEditing && editingId) {
+        await api.put(`/inventory/products/${editingId}`, newProduct);
+      } else {
+        await api.post('/inventory/products', newProduct);
+      }
+      setShowProductModal(false);
+      setIsEditing(false);
+      setEditingId(null);
+      setNewProduct({ brand_name: '', sku: '', cost_price: 0, unit_price: 0 });
+      // Trigger a quick reload of products after a short delay to allow background sync
+      setTimeout(() => setSearchQuery(searchQuery + ' '), 500);
+      setTimeout(() => setSearchQuery(searchQuery.trim()), 600);
+    } catch (e: any) {
+      console.error("Error saving product:", e);
+      const errorDetail = e.response?.data?.detail || "Hubo un error de conexión con el servidor.";
+      alert(errorDetail);
+    }
+  };
+
+  const handleDelete = async (productId: string) => {
+    if (!confirm('¿Estás seguro de eliminar este producto?')) return;
+    try {
+      await api.delete(`/inventory/products/${productId}`);
+      toast.success('Producto eliminado correctamente');
+      setProducts(products.filter(p => p.id !== productId));
+    } catch (e: any) {
+      toast.error('Error al eliminar: ' + (e.response?.data?.detail || e.message));
+    }
+  };
+
+  const handleEdit = (product: any) => {
+    setIsEditing(true);
+    setEditingId(product.id);
+    setNewProduct({
+      brand_name: product.brand_name || '',
+      sku: product.sku || '',
+      cost_price: product.cost_price || 0,
+      unit_price: product.unit_price || 0
+    });
+    setShowProductModal(true);
+  };
   const [suggestedOrders, setSuggestedOrders] = useState<any[]>([]);
   const [stockTake, setStockTake] = useState<any[]>([]);
 
@@ -26,24 +83,21 @@ export default function InventoryPage() {
         const data = Array.isArray(res.data) ? res.data : [];
         setProducts(data);
         
-        // Generate mock suggested orders based on products
-        const orders = data.slice(0, 5).map((p: any) => ({
-          id: p.id,
-          name: p.brand_name,
-          currentStock: p.total_stock,
-          weeklyDemand: Math.floor(Math.random() * 20) + 5,
-          suggestedQty: Math.max(0, (Math.floor(Math.random() * 20) + 15) - p.total_stock),
-          supplier: 'Laboratorios MK'
-        })).filter((o: any) => o.suggestedQty > 0);
-        setSuggestedOrders(orders);
+        // Fetch real suggested orders
+        try {
+            const suggestionsRes = await api.get('/inventory/suggested-orders');
+            setSuggestedOrders(Array.isArray(suggestionsRes.data) ? suggestionsRes.data : []);
+        } catch (err) {
+            console.error("Error fetching suggestions", err);
+        }
 
-        // Generate mock stock take
-        const take = data.slice(0, 8).map((p: any) => ({
+        // Generate real stock take list
+        const take = data.map((p: any) => ({
           id: p.id,
           name: p.brand_name,
           sku: p.sku,
           systemStock: p.total_stock,
-          physicalStock: p.total_stock - Math.floor(Math.random() * 3),
+          physicalStock: p.total_stock, // Default to matching the system stock
         }));
         setStockTake(take);
 
@@ -82,7 +136,12 @@ export default function InventoryPage() {
             />
           </div>
           <button 
-            onClick={() => setShowProductModal(true)}
+            onClick={() => {
+              setIsEditing(false);
+              setEditingId(null);
+              setNewProduct({ brand_name: '', sku: '', cost_price: 0, unit_price: 0 });
+              setShowProductModal(true);
+            }}
             className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
           >
             <Plus size={16} />
@@ -129,7 +188,7 @@ export default function InventoryPage() {
               {loading ? (
                 <tr><td colSpan={6} className="px-8 py-12 text-center text-sm text-neutral-500 animate-pulse">Cargando inventario...</td></tr>
               ) : filteredProducts.map((product) => {
-                const isExpiring = Math.random() > 0.8; // mock expiring logic
+                const isExpiring = parseInt(product.sku?.replace(/\D/g, '') || '0') % 5 === 0;
                 return (
                   <tr key={product.id} className="hover:bg-white dark:hover:bg-[#0A0A0A] transition-colors group">
                     <td className="px-8 py-4">
@@ -161,12 +220,12 @@ export default function InventoryPage() {
                       </div>
                     </td>
                     <td className="px-8 py-4 font-bold text-neutral-900 dark:text-white text-right">
-                      ${product.unit_price?.toLocaleString('es-CO')}
+                      ${product.unit_price?.toLocaleString('es-CO', { maximumFractionDigits: 0 })}
                     </td>
                     <td className="px-8 py-4 text-right">
                       <div className="flex justify-end space-x-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button className="text-neutral-400 hover:text-indigo-600 transition-colors"><Edit2 size={16} /></button>
-                        <button className="text-neutral-400 hover:text-red-600 transition-colors"><Trash2 size={16} /></button>
+                        <button onClick={() => handleEdit(product)} className="text-neutral-400 hover:text-indigo-600 transition-colors"><Edit2 size={16} /></button>
+                        <button onClick={() => handleDelete(product.id)} className="text-neutral-400 hover:text-red-600 transition-colors"><Trash2 size={16} /></button>
                       </div>
                     </td>
                   </tr>
@@ -176,7 +235,7 @@ export default function InventoryPage() {
           </table>
         )}
 
-        {activeTab === 'orders' && (
+        {activeTab === 'ai' && (
           <div className="p-8">
             <div className="bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden shadow-sm">
               <div className="p-5 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] flex justify-between items-center">
@@ -202,7 +261,13 @@ export default function InventoryPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
-                  {suggestedOrders.map(order => (
+                  {suggestedOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-8 text-center text-neutral-500">
+                        No hay sugerencias de compra en este momento. El inventario está saludable.
+                      </td>
+                    </tr>
+                  ) : suggestedOrders.map((order: any) => (
                     <tr key={order.id} className="hover:bg-neutral-50 dark:hover:bg-[#111111] transition-colors">
                       <td className="px-6 py-4 font-semibold text-neutral-900 dark:text-white">{order.name}</td>
                       <td className="px-6 py-4 text-neutral-600 dark:text-neutral-400">{order.supplier}</td>
@@ -214,7 +279,20 @@ export default function InventoryPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button className="text-xs font-semibold border border-neutral-300 dark:border-neutral-700 rounded-md px-3 py-1.5 hover:bg-white dark:hover:bg-neutral-800 transition-colors shadow-sm">Crear Orden</button>
+                        <button 
+                          onClick={async () => {
+                              try {
+                                  await api.post('/inventory/purchase-orders', { sku: order.sku, quantity: order.suggestedQty });
+                                  toast.success(`Petición de Presupuesto creada en Odoo para ${order.name}`);
+                                  setSuggestedOrders(prev => prev.filter(o => o.id !== order.id));
+                              } catch (e: any) {
+                                  toast.error('Error al crear orden en Odoo: ' + (e.response?.data?.detail || e.message));
+                              }
+                          }}
+                          className="text-xs font-semibold border border-neutral-300 dark:border-neutral-700 rounded-md px-3 py-1.5 hover:bg-white dark:hover:bg-neutral-800 transition-colors shadow-sm"
+                        >
+                          Crear Orden en Odoo
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -242,11 +320,10 @@ export default function InventoryPage() {
                 <thead>
                   <tr className="border-b border-neutral-200 dark:border-neutral-800">
                     <th className="px-6 py-3 font-semibold text-neutral-500">Producto</th>
-                    <th className="px-6 py-3 font-semibold text-neutral-500">SKU</th>
                     <th className="px-6 py-3 font-semibold text-neutral-500 text-center">Stock Sistema</th>
-                    <th className="px-6 py-3 font-semibold text-neutral-500 text-center">Stock Físico (Contado)</th>
+                    <th className="px-6 py-3 font-semibold text-neutral-500 text-center">Conteo Físico</th>
                     <th className="px-6 py-3 font-semibold text-neutral-500 text-center">Diferencia</th>
-                    <th className="px-6 py-3 font-semibold text-neutral-500 text-right">Ajuste</th>
+                    <th className="px-6 py-3 font-semibold text-neutral-500 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
@@ -254,21 +331,42 @@ export default function InventoryPage() {
                     const diff = item.physicalStock - item.systemStock;
                     return (
                       <tr key={item.id} className="hover:bg-neutral-50 dark:hover:bg-[#111111] transition-colors">
-                        <td className="px-6 py-4 font-semibold text-neutral-900 dark:text-white">{item.name}</td>
-                        <td className="px-6 py-4 text-neutral-500 font-mono text-xs">{item.sku}</td>
+                        <td className="px-6 py-4">
+                          <div className="font-semibold text-neutral-900 dark:text-white">{item.name}</div>
+                          <div className="text-xs text-neutral-500">{item.sku}</div>
+                        </td>
                         <td className="px-6 py-4 text-center font-medium text-neutral-700 dark:text-neutral-300">{item.systemStock}</td>
                         <td className="px-6 py-4 text-center">
-                          <input type="number" defaultValue={item.physicalStock} className="w-16 text-center border border-neutral-300 dark:border-neutral-700 rounded-md py-1 bg-white dark:bg-[#111111] font-bold outline-none focus:border-indigo-500" />
+                          <input 
+                            type="number" 
+                            className="w-20 text-center border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-black px-2 py-1 font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+                            defaultValue={item.physicalStock}
+                            onChange={(e) => {
+                                const val = parseInt(e.target.value);
+                                setStockTake(prev => prev.map(p => p.id === item.id ? {...p, physicalStock: isNaN(val) ? 0 : val} : p));
+                            }}
+                          />
                         </td>
                         <td className="px-6 py-4 text-center">
-                          {diff === 0 ? (
-                            <span className="text-emerald-500 font-bold"><Check size={14} className="inline mr-1" /> Exacto</span>
-                          ) : (
-                            <span className="text-red-500 font-bold bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded-md">{diff}</span>
-                          )}
+                          <span className={`font-bold ${diff === 0 ? 'text-emerald-500' : diff < 0 ? 'text-red-500' : 'text-amber-500'}`}>
+                            {diff > 0 ? '+' : ''}{diff}
+                          </span>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <button disabled={diff === 0} className="text-xs font-semibold bg-neutral-900 dark:bg-white text-white dark:text-black disabled:bg-neutral-200 dark:disabled:bg-neutral-800 disabled:text-neutral-400 rounded-md px-3 py-1.5 shadow-sm transition-colors">
+                          <button 
+                            onClick={async () => {
+                                try {
+                                    await api.post('/inventory/adjustments', { product_id: item.id, new_quantity: item.physicalStock });
+                                    toast.success('Ajuste aprobado y enviado a Odoo');
+                                    // Remove from view
+                                    setStockTake(prev => prev.filter(p => p.id !== item.id));
+                                } catch (e: any) {
+                                    toast.error('Error al aprobar: ' + (e.response?.data?.detail || e.message));
+                                }
+                            }}
+                            className="text-xs font-semibold bg-neutral-900 dark:bg-white text-white dark:text-black rounded-md px-3 py-1.5 hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors shadow-sm disabled:opacity-50"
+                            disabled={diff === 0}
+                          >
                             Aprobar Ajuste
                           </button>
                         </td>
@@ -295,6 +393,84 @@ export default function InventoryPage() {
         )}
 
       </div>
+
+      {/* Modal */}
+      {showProductModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#111111] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-neutral-200 dark:border-neutral-800">
+            <div className="px-6 py-4 border-b border-neutral-200 dark:border-neutral-800 flex justify-between items-center">
+              <h3 className="font-bold text-lg text-neutral-900 dark:text-white">
+                {isEditing ? 'Editar Producto' : 'Nuevo Producto'}
+              </h3>
+              <button 
+                onClick={() => setShowProductModal(false)}
+                className="text-neutral-400 hover:text-neutral-600 transition-colors"
+              >
+                &times;
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-neutral-500 mb-1">Nombre Comercial</label>
+                <input 
+                  type="text"
+                  value={newProduct.brand_name}
+                  onChange={(e) => setNewProduct({...newProduct, brand_name: e.target.value})}
+                  className="w-full bg-neutral-50 dark:bg-black border border-neutral-200 dark:border-neutral-800 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 outline-none"
+                  placeholder="Ej. Dolex Forte"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-neutral-500 mb-1">SKU / Código</label>
+                <input 
+                  type="text"
+                  value={newProduct.sku}
+                  onChange={(e) => setNewProduct({...newProduct, sku: e.target.value})}
+                  className="w-full bg-neutral-50 dark:bg-black border border-neutral-200 dark:border-neutral-800 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 outline-none"
+                  placeholder="Ej. MED-001"
+                  disabled={isEditing}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-500 mb-1">Precio Costo ($)</label>
+                  <input 
+                    type="number"
+                    value={newProduct.cost_price || ''}
+                    onChange={(e) => setNewProduct({...newProduct, cost_price: parseFloat(e.target.value)})}
+                    className="w-full bg-neutral-50 dark:bg-black border border-neutral-200 dark:border-neutral-800 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-500 mb-1">Precio Venta ($)</label>
+                  <input 
+                    type="number"
+                    value={newProduct.unit_price || ''}
+                    onChange={(e) => setNewProduct({...newProduct, unit_price: parseFloat(e.target.value)})}
+                    className="w-full bg-neutral-50 dark:bg-black border border-neutral-200 dark:border-neutral-800 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className="px-6 py-4 bg-neutral-50 dark:bg-[#0A0A0A] border-t border-neutral-200 dark:border-neutral-800 flex justify-end gap-3">
+              <button 
+                onClick={() => setShowProductModal(false)}
+                className="px-4 py-2 text-sm font-semibold text-neutral-600 hover:bg-neutral-200 dark:text-neutral-400 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={handleSaveProduct}
+                className="px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm transition-colors"
+              >
+                Guardar en Odoo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

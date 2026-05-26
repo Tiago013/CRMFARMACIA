@@ -5,11 +5,37 @@ import uuid
 
 router = APIRouter(prefix="/suppliers", tags=["Suppliers Management"])
 
+from fastapi import HTTPException
+
 @router.post("/", response_model=SupplierResponse)
 async def create_supplier(supplier: SupplierCreate):
-    """Registra un nuevo proveedor."""
+    """Registra un nuevo proveedor en SQLite."""
+    import sqlite3
+    from app.core.local_db import DB_PATH
+    
+    sup_id = f"SUP-{uuid.uuid4().hex[:4].upper()}"
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''
+            INSERT INTO suppliers (id, name, nit, contact_name, contact_phone, contact_email, city, type, credit_days, early_payment_discount, rating, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+        ''', (
+            sup_id, supplier.name, supplier.nit, supplier.contact_name,
+            supplier.contact_phone, supplier.contact_email, supplier.city,
+            supplier.type, supplier.credit_days, supplier.early_payment_discount,
+            supplier.rating
+        ))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
     return SupplierResponse(
-        id=f"SUP-{uuid.uuid4().hex[:4]}",
+        id=sup_id,
         active=True,
         **supplier.model_dump()
     )

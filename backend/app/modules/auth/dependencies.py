@@ -57,6 +57,17 @@ def get_current_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cuenta desactivada. Contacte al administrador.",
         )
+        
+    # Verify tenant subscription
+    if tenant_id:
+        tenant = query_one("SELECT status FROM pharmacies WHERE id = ?", (tenant_id,))
+        if tenant:
+            tenant_status = tenant.get("status", "Active")
+            if tenant_status in ["Canceled", "Expired"]:
+                raise HTTPException(
+                    status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                    detail="Suscripción expirada o cancelada. Actualice su plan."
+                )
     
     return {
         "id": user["id"],

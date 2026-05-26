@@ -17,8 +17,8 @@ async def list_sales(
     from app.core.middleware import get_current_branch_id
     
     branch_id = get_current_branch_id()
-    branch_filter = "WHERE s.branch_id = ?" if branch_id else ""
-    params = (branch_id, limit) if branch_id else (limit,)
+    branch_filter = ""
+    params = (limit,)
     
     """Lista las ventas recientes REALES desde la base de datos."""
     rows = query_all(f"""
@@ -54,9 +54,9 @@ async def list_sales(
 async def get_sales_summary():
     from app.core.middleware import get_current_branch_id
     branch_id = get_current_branch_id()
-    branch_filter = "AND branch_id = ?" if branch_id else ""
-    branch_filter_where = "WHERE branch_id = ?" if branch_id else ""
-    params = (branch_id,) if branch_id else ()
+    branch_filter = ""
+    branch_filter_where = ""
+    params = ()
     
     """Resumen rápido de ventas para el POS."""
     today = query_one(f"""

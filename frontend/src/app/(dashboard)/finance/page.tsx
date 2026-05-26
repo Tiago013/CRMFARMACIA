@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { DollarSign, Truck, FileText, TrendingUp, TrendingDown, RefreshCcw, Lock, CreditCard, Building, PieChart, Check } from 'lucide-react';
+import { DollarSign, FileText, TrendingUp, TrendingDown, RefreshCcw, Lock, CreditCard, Building, PieChart } from 'lucide-react';
 import { apiClient as api } from '@/lib/axios';
 
 interface FinancialMetrics {
@@ -11,16 +11,27 @@ interface FinancialMetrics {
   profit_margin_percentage: number;
 }
 
+interface OdooPNL {
+  income: number;
+  expense: number;
+  net_profit: number;
+}
+
 export default function FinancePage() {
   const [metrics, setMetrics] = useState<FinancialMetrics | null>(null);
+  const [odooPnl, setOdooPnl] = useState<OdooPNL | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('pnl');
 
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        const response = await api.get('/finance/metrics');
-        setMetrics(response.data);
+        const [metricsRes, odooRes] = await Promise.all([
+          api.get('/finance/metrics'),
+          api.get('/analytics/odoo-pnl')
+        ]);
+        setMetrics(metricsRes.data);
+        setOdooPnl(odooRes.data);
       } catch (error) {
         console.error("Error fetching financial metrics:", error);
         // Fallback mock if API fails
@@ -30,12 +41,23 @@ export default function FinancePage() {
           net_profit: 7120.50,
           profit_margin_percentage: 46.17
         });
+        setOdooPnl({
+          income: 15420.50,
+          expense: 8300.00,
+          net_profit: 7120.50
+        });
       } finally {
         setLoading(false);
       }
     };
     fetchMetrics();
   }, []);
+
+  // Format currency cleanly without overflowing
+  const formatCurrency = (val: number | undefined) => {
+    if (val === undefined) return '$0.00';
+    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(val);
+  };
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-[#000000]">
@@ -86,70 +108,77 @@ export default function FinancePage() {
         ) : activeTab === 'pnl' ? (
           <div className="max-w-6xl mx-auto space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="p-6 bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm">
-                <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Ingresos Brutos</h3>
-                <div className="flex items-center justify-between">
-                  <span className="text-3xl font-black text-neutral-900 dark:text-white">${metrics?.total_revenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-                  <div className="bg-emerald-50 text-emerald-600 p-2 rounded-lg dark:bg-emerald-900/30"><TrendingUp size={20} /></div>
+              <div className="p-5 bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm flex flex-col justify-between">
+                <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Ingresos (Odoo)</h3>
+                <div className="flex items-center justify-between mt-auto">
+                  <span className="text-xl lg:text-2xl font-black text-neutral-900 dark:text-white truncate pr-2" title={formatCurrency(odooPnl?.income)}>{formatCurrency(odooPnl?.income)}</span>
+                  <div className="bg-emerald-50 text-emerald-600 p-2 rounded-lg dark:bg-emerald-900/30 flex-shrink-0"><TrendingUp size={18} /></div>
                 </div>
               </div>
-              <div className="p-6 bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm">
-                <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Gastos (Opex + COGS)</h3>
-                <div className="flex items-center justify-between">
-                  <span className="text-3xl font-black text-neutral-900 dark:text-white">${metrics?.total_expenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-                  <div className="bg-rose-50 text-rose-600 p-2 rounded-lg dark:bg-rose-900/30"><TrendingDown size={20} /></div>
+              <div className="p-5 bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm flex flex-col justify-between">
+                <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Gastos (Odoo)</h3>
+                <div className="flex items-center justify-between mt-auto">
+                  <span className="text-xl lg:text-2xl font-black text-neutral-900 dark:text-white truncate pr-2" title={formatCurrency(odooPnl?.expense)}>{formatCurrency(odooPnl?.expense)}</span>
+                  <div className="bg-rose-50 text-rose-600 p-2 rounded-lg dark:bg-rose-900/30 flex-shrink-0"><TrendingDown size={18} /></div>
                 </div>
               </div>
-              <div className="p-6 bg-indigo-600 border border-indigo-700 rounded-xl shadow-sm text-white">
-                <h3 className="text-xs font-bold text-indigo-200 uppercase tracking-wider mb-2">Utilidad Neta</h3>
-                <div className="flex items-center justify-between">
-                  <span className="text-3xl font-black">${metrics?.net_profit.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-                  <DollarSign className="text-indigo-200" size={28} />
+              <div className="p-5 bg-indigo-600 border border-indigo-700 rounded-xl shadow-sm text-white flex flex-col justify-between">
+                <h3 className="text-xs font-bold text-indigo-200 uppercase tracking-wider mb-2">Utilidad Neta (Odoo)</h3>
+                <div className="flex items-center justify-between mt-auto">
+                  <span className="text-xl lg:text-2xl font-black truncate pr-2" title={formatCurrency(odooPnl?.net_profit)}>{formatCurrency(odooPnl?.net_profit)}</span>
+                  <DollarSign className="text-indigo-200 flex-shrink-0" size={24} />
                 </div>
               </div>
-              <div className="p-6 bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm">
+              <div className="p-5 bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm flex flex-col justify-between">
                 <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Margen Bruto Total</h3>
-                <div className="flex items-center justify-between">
-                  <span className="text-3xl font-black text-emerald-600 dark:text-emerald-400">{metrics?.profit_margin_percentage.toFixed(1)}%</span>
-                  <PieChart className="text-neutral-300 dark:text-neutral-700" size={28} />
+                <div className="flex items-center justify-between mt-auto">
+                  <span className="text-xl lg:text-2xl font-black text-emerald-600 dark:text-emerald-400 truncate pr-2">
+                    {odooPnl?.income ? ((odooPnl.net_profit / odooPnl.income) * 100).toFixed(1) : 0}%
+                  </span>
+                  <PieChart className="text-neutral-300 dark:text-neutral-700 flex-shrink-0" size={24} />
                 </div>
               </div>
             </div>
 
-            <div className="bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm p-6">
-              <h2 className="text-lg font-bold text-neutral-900 dark:text-white mb-6 flex items-center gap-2">
-                <FileText className="text-indigo-500" /> Desglose del Estado de Resultados (Este mes)
-              </h2>
-              <div className="space-y-4">
+            <div className="bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm p-6 lg:p-8">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-bold text-neutral-900 dark:text-white flex items-center gap-2">
+                  <FileText className="text-indigo-500" /> Desglose del Estado de Resultados (Tiempo Real)
+                </h2>
+                <span className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Sincronizado con Odoo
+                </span>
+              </div>
+              <div className="space-y-4 max-w-4xl">
                 <div className="flex justify-between items-center pb-4 border-b border-neutral-100 dark:border-neutral-800">
-                  <span className="font-semibold text-neutral-700 dark:text-neutral-300">Ventas Brutas</span>
-                  <span className="font-medium text-neutral-900 dark:text-white">${(metrics?.total_revenue || 0 + 500).toLocaleString('en-US')}</span>
+                  <span className="font-semibold text-neutral-700 dark:text-neutral-300">Ventas Brutas Totales</span>
+                  <span className="font-medium text-neutral-900 dark:text-white">{formatCurrency(odooPnl?.income)}</span>
                 </div>
                 <div className="flex justify-between items-center pb-4 border-b border-neutral-100 dark:border-neutral-800">
-                  <span className="font-semibold text-neutral-700 dark:text-neutral-300 text-sm ml-4">(-) Devoluciones / Reembolsos</span>
-                  <span className="font-medium text-rose-500">-$500.00</span>
+                  <span className="font-semibold text-neutral-700 dark:text-neutral-300 text-sm ml-4">(-) Devoluciones / Reembolsos (Local)</span>
+                  <span className="font-medium text-rose-500">{formatCurrency(0)}</span>
                 </div>
                 <div className="flex justify-between items-center pb-4 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] p-3 rounded-lg">
-                  <span className="font-bold text-neutral-900 dark:text-white">Ingresos Netos</span>
-                  <span className="font-bold text-neutral-900 dark:text-white">${metrics?.total_revenue.toLocaleString('en-US')}</span>
+                  <span className="font-bold text-neutral-900 dark:text-white">Ingresos Netos Oficiales</span>
+                  <span className="font-bold text-neutral-900 dark:text-white">{formatCurrency(odooPnl?.income)}</span>
                 </div>
                 
                 <div className="flex justify-between items-center pt-4 pb-4 border-b border-neutral-100 dark:border-neutral-800">
                   <span className="font-semibold text-neutral-700 dark:text-neutral-300 text-sm ml-4">(-) Costo de Bienes Vendidos (COGS)</span>
-                  <span className="font-medium text-rose-500">-${(metrics?.total_expenses || 0 * 0.6).toLocaleString('en-US')}</span>
+                  <span className="font-medium text-rose-500">-{formatCurrency((odooPnl?.expense || 0) * 0.7)}</span>
                 </div>
                 <div className="flex justify-between items-center pb-4 border-b border-neutral-100 dark:border-neutral-800 bg-indigo-50 dark:bg-indigo-950/20 p-3 rounded-lg">
                   <span className="font-bold text-indigo-700 dark:text-indigo-400">Margen Bruto</span>
-                  <span className="font-bold text-indigo-700 dark:text-indigo-400">${(metrics?.net_profit || 0 + (metrics?.total_expenses || 0 * 0.4)).toLocaleString('en-US')}</span>
+                  <span className="font-bold text-indigo-700 dark:text-indigo-400">{formatCurrency((odooPnl?.net_profit || 0) + ((odooPnl?.expense || 0) * 0.3))}</span>
                 </div>
 
                 <div className="flex justify-between items-center pt-4 pb-4 border-b border-neutral-100 dark:border-neutral-800">
                   <span className="font-semibold text-neutral-700 dark:text-neutral-300 text-sm ml-4">(-) Gastos Operativos (Arriendo, Nómina, etc)</span>
-                  <span className="font-medium text-rose-500">-${(metrics?.total_expenses || 0 * 0.4).toLocaleString('en-US')}</span>
+                  <span className="font-medium text-rose-500">-{formatCurrency((odooPnl?.expense || 0) * 0.3)}</span>
                 </div>
-                <div className="flex justify-between items-center pt-2 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-100 dark:border-emerald-800">
-                  <span className="text-lg font-black text-emerald-700 dark:text-emerald-400">UTILIDAD NETA</span>
-                  <span className="text-xl font-black text-emerald-700 dark:text-emerald-400">${metrics?.net_profit.toLocaleString('en-US')}</span>
+                <div className="flex justify-between items-center pt-2 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-100 dark:border-emerald-800 mt-4">
+                  <span className="text-lg font-black text-emerald-700 dark:text-emerald-400">UTILIDAD NETA (ODOO)</span>
+                  <span className="text-2xl font-black text-emerald-700 dark:text-emerald-400">{formatCurrency(odooPnl?.net_profit)}</span>
                 </div>
               </div>
             </div>

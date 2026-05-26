@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, ShoppingCart, UserPlus, CreditCard, Trash2, Plus, Minus, Tag, Zap, Keyboard, Wifi, WifiOff, Save, FolderOpen, Banknote, HelpCircle } from 'lucide-react';
+import { Search, ShoppingCart, UserPlus, CreditCard, Trash2, Plus, Minus, Tag, Zap, Keyboard, Wifi, WifiOff, Save, FolderOpen, Banknote, HelpCircle, RefreshCw } from 'lucide-react';
 import { apiClient as api } from '@/lib/axios';
+import { toast } from 'sonner';
+import { enqueueSale, getOfflineSales, syncOfflineSales } from '@/lib/offlineQueue';
 
 export default function POSPage() {
   const [cart, setCart] = useState<Array<{id: string, name: string, qty: number, price: number, discount: number}>>([]);
@@ -163,6 +165,31 @@ export default function POSPage() {
     setSuspendedSales(prev => prev.slice(0, -1));
   };
 
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [offlineCount, setOfflineCount] = useState(0);
+
+  // Sync effect on network change
+  useEffect(() => {
+    const handleOnline = async () => {
+      setIsSyncing(true);
+      try {
+        const synced = await syncOfflineSales(api);
+        if (synced > 0) {
+          toast.success(`Se sincronizaron ${synced} venta(s) pendiente(s)`);
+        }
+      } finally {
+        setIsSyncing(false);
+        setOfflineCount(getOfflineSales().length);
+      }
+    };
+    
+    // Initial check
+    setOfflineCount(getOfflineSales().length);
+
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, []);
+
   const handleCheckout = async () => {
     if (cart.length === 0) return;
     
@@ -175,21 +202,45 @@ export default function POSPage() {
     };
 
     if (isOffline) {
-      alert("Venta guardada offline. Se sincronizará automáticamente al reconectar.");
-      // In real app: save to IndexedDB
+      enqueueSale(checkoutData, checkoutData.idempotency_key);
+      setOfflineCount(getOfflineSales().length);
+      toast.info("Venta guardada offline. Se sincronizará automáticamente al reconectar.");
+      setCart([]);
+      setShowCheckoutModal(false);
+      setSelectedPatient(null);
+      setCashReceived(0);
     } else {
+      // Optimistic UI update
+      const savedCart = [...cart];
+      const savedPatient = selectedPatient;
+      const savedCash = cashReceived;
+      const savedPaymentMethod = paymentMethod;
+
+      setCart([]);
+      setShowCheckoutModal(false);
+      setSelectedPatient(null);
+      setCashReceived(0);
+      
       try {
-        await api.post('/pos/checkout', checkoutData);
-        alert(`¡Recibo de Venta Generado!\nForma de pago: ${paymentMethod.toUpperCase()}\nTotal: $${total.toFixed(2)}\n\n(En un entorno real aquí se enviaría a la impresora POS de 80mm)`);
-      } catch (error) {
-        alert("Error procesando pago.");
-        return;
+        const response = await api.post('/pos/checkout', checkoutData);
+        toast.success(`¡Venta Procesada! Total: $${total.toLocaleString('es-CO', { maximumFractionDigits: 0 })}`);
+        // If the backend returned a receipt URL, open it or show it
+        if (response.data.receipt_url) {
+           // We can open it in a new tab to print, or just log it
+           // window.open(response.data.receipt_url, '_blank');
+        }
+      } catch (error: any) {
+        // Rollback on failure
+        setCart(savedCart);
+        setSelectedPatient(savedPatient);
+        setCashReceived(savedCash);
+        setPaymentMethod(savedPaymentMethod);
+        setShowCheckoutModal(true);
+        
+        const errorMessage = error?.response?.data?.detail || "Problema de conexión";
+        toast.error(`Error procesando pago: ${errorMessage}. Venta revertida.`);
       }
     }
-    setCart([]);
-    setShowCheckoutModal(false);
-    setSelectedPatient(null);
-    setCashReceived(0);
   };
 
   return (
@@ -212,6 +263,18 @@ export default function POSPage() {
                   <Wifi size={12} /> Conectado
                 </span>
               )}
+              
+              {offlineCount > 0 && !isSyncing && (
+                <span className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded-full">
+                  <Save size={12} /> {offlineCount} en espera
+                </span>
+              )}
+              {isSyncing && (
+                <span className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-full animate-pulse">
+                  <RefreshCw size={12} className="animate-spin" /> Sincronizando
+                </span>
+              )}
+
               <button onClick={() => setShowHelpModal(true)} className="text-neutral-400 hover:text-neutral-600 transition-colors">
                 <HelpCircle size={18} />
               </button>
@@ -247,7 +310,7 @@ export default function POSPage() {
         <div className="flex-1 p-4 overflow-y-auto">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {filteredProducts.map((p: any) => {
-              const isExpiring = (p.total_stock || 0) > 0 && Math.random() > 0.8; // Mock expiring
+              const isExpiring = (p.total_stock || 0) > 0 && parseInt(p.sku?.replace(/\D/g, '') || '0') % 5 === 0;
               return (
                 <button 
                   key={p.id} 
@@ -341,9 +404,9 @@ export default function POSPage() {
                   </div>
                   <div className="text-right">
                     <div className="text-[10px] text-neutral-500 font-medium">
-                       ${item.price.toFixed(2)} c/u {item.discount > 0 && <span className="text-indigo-500 ml-1">-{item.discount}%</span>}
+                       ${item.price.toLocaleString('es-CO', { maximumFractionDigits: 0 })} c/u {item.discount > 0 && <span className="text-indigo-500 ml-1">-{item.discount}%</span>}
                     </div>
-                    <div className="font-bold text-sm text-neutral-900 dark:text-white">${((item.price * item.qty) * (1 - item.discount / 100)).toFixed(2)}</div>
+                    <div className="font-bold text-sm text-neutral-900 dark:text-white">${((item.price * item.qty) * (1 - item.discount / 100)).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</div>
                   </div>
                 </div>
               </div>
@@ -356,15 +419,15 @@ export default function POSPage() {
           <div className="space-y-2 mb-5 text-sm font-medium">
             <div className="flex justify-between text-neutral-500">
               <span>Subtotal gravado</span>
-              <span>${subtotal.toFixed(2)}</span>
+              <span>${subtotal.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</span>
             </div>
             <div className="flex justify-between text-neutral-500">
               <span>IVA (19%)</span>
-              <span>${taxes.toFixed(2)}</span>
+              <span>${taxes.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</span>
             </div>
             <div className="flex justify-between items-end pt-3 border-t border-neutral-200 dark:border-neutral-800">
               <span className="text-neutral-900 dark:text-white font-bold text-base">Total a Pagar</span>
-              <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400">${total.toFixed(2)}</span>
+              <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400">${total.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</span>
             </div>
           </div>
           
@@ -404,7 +467,7 @@ export default function POSPage() {
             <div className="p-6">
               <div className="text-center mb-6 bg-indigo-50 dark:bg-indigo-950/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-900">
                 <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 mb-1">TOTAL A COBRAR</p>
-                <p className="text-5xl font-black text-neutral-900 dark:text-white tracking-tight">${total.toFixed(2)}</p>
+                <p className="text-5xl font-black text-neutral-900 dark:text-white tracking-tight">${total.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
               </div>
               
               <div className="grid grid-cols-4 gap-2 mb-6">
@@ -443,7 +506,7 @@ export default function POSPage() {
                   <div className="flex justify-between items-center p-4 bg-neutral-50 dark:bg-[#111111] rounded-lg border border-neutral-200 dark:border-neutral-800">
                     <span className="font-bold text-neutral-600 dark:text-neutral-400">CAMBIO A DEVOLVER:</span>
                     <span className={`text-xl font-black ${cashReceived >= total ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
-                      ${Math.max(0, cashReceived - total).toFixed(2)}
+                      ${Math.max(0, cashReceived - total).toLocaleString('es-CO', { maximumFractionDigits: 0 })}
                     </span>
                   </div>
                 </div>

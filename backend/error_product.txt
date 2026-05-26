@@ -1,0 +1,20 @@
+Traceback (most recent call last):
+  File "C:\Users\santi\Downloads\CRMFARMAIA\backend\app\modules\inventory\routers.py", line 73, in create_product
+    odoo_id = await service.push_product_creation(odoo_data)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\santi\Downloads\CRMFARMAIA\backend\app\modules\integrations\odoo\service.py", line 198, in push_product_creation
+    raise e
+  File "C:\Users\santi\Downloads\CRMFARMAIA\backend\app\modules\integrations\odoo\service.py", line 191, in push_product_creation
+    odoo_id = await self.transport.execute_kw(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\santi\Downloads\CRMFARMAIA\backend\app\modules\integrations\odoo\transport.py", line 70, in execute_kw
+    await self.authenticate()
+  File "C:\Users\santi\Downloads\CRMFARMAIA\backend\app\modules\integrations\odoo\transport.py", line 63, in authenticate
+    self.uid = await self._call_jsonrpc("/jsonrpc", payload)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\santi\Downloads\CRMFARMAIA\backend\app\modules\integrations\odoo\transport.py", line 48, in _call_jsonrpc
+    response.raise_for_status()
+  File "C:\Users\santi\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\httpx\_models.py", line 763, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '429 Too Many Requests' for url 'https://farmaia1.odoo.com/jsonrpc'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429

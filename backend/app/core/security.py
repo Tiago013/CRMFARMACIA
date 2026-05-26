@@ -41,3 +41,26 @@ def create_refresh_token(subject: Union[str, Any], jti: str, expires_delta: time
     }
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
+
+# --- Integration Security ---
+from cryptography.fernet import Fernet
+
+def get_fernet() -> Fernet:
+    """Returns a Fernet instance using the integration encryption key."""
+    # Ensure key is valid bytes
+    key = settings.INTEGRATION_ENCRYPTION_KEY.encode()
+    return Fernet(key)
+
+def encrypt_api_key(plain_api_key: str) -> str:
+    """Encrypts an API key for storage in the database."""
+    if not plain_api_key:
+        return ""
+    f = get_fernet()
+    return f.encrypt(plain_api_key.encode()).decode()
+
+def decrypt_api_key(encrypted_api_key: str) -> str:
+    """Decrypts an API key retrieved from the database."""
+    if not encrypted_api_key:
+        return ""
+    f = get_fernet()
+    return f.decrypt(encrypted_api_key.encode()).decode()

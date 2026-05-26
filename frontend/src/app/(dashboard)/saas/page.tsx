@@ -68,7 +68,7 @@ export default function SuperAdminDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <MetricCard 
             title="MRR (Ingreso Mensual)" 
-            value={`$${(metrics.mrr).toLocaleString('es-CO')}`} 
+            value={`$${(metrics.mrr).toLocaleString('es-CO', { maximumFractionDigits: 0 })}`} 
             trend="+12%" 
             isPositive={true} 
             icon={<DollarSign size={20} className="text-emerald-600" />} 
@@ -82,7 +82,7 @@ export default function SuperAdminDashboard() {
           />
           <MetricCard 
             title="ARPU (Promedio/Tenant)" 
-            value={`$${metrics.arpu.toLocaleString('es-CO')}`} 
+            value={`$${metrics.arpu.toLocaleString('es-CO', { maximumFractionDigits: 0 })}`} 
             trend="+2.1%" 
             isPositive={true} 
             icon={<TrendingUp size={20} className="text-blue-600" />} 
@@ -105,7 +105,7 @@ export default function SuperAdminDashboard() {
             <div className="grid grid-cols-3 gap-6 divide-x divide-neutral-100 dark:divide-neutral-800">
               <div className="px-4 text-center">
                 <p className="text-sm text-neutral-500 mb-1">Transacciones (Total)</p>
-                <p className="text-2xl font-black text-neutral-900 dark:text-white">{metrics.usage.total_transactions.toLocaleString()}</p>
+                <p className="text-2xl font-black text-neutral-900 dark:text-white">{metrics.usage.total_transactions.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
               </div>
               <div className="px-4 text-center">
                 <p className="text-sm text-neutral-500 mb-1">Adopción IA</p>
@@ -113,7 +113,7 @@ export default function SuperAdminDashboard() {
               </div>
               <div className="px-4 text-center">
                 <p className="text-sm text-neutral-500 mb-1">Usuarios Activos (MAU)</p>
-                <p className="text-2xl font-black text-neutral-900 dark:text-white">{metrics.usage.mau.toLocaleString()}</p>
+                <p className="text-2xl font-black text-neutral-900 dark:text-white">{metrics.usage.mau.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
               </div>
             </div>
             

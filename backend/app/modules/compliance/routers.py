@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Request
 from app.modules.compliance.schemas import PrivacyConsentRequest, DataSubjectAccessRequest
 from app.core.audit import log_security_event
+from app.modules.auth.dependencies import require_role
+from fastapi import APIRouter, Request, Depends
 
-router = APIRouter(prefix="/compliance", tags=["Security & Compliance"])
+router = APIRouter(prefix="/compliance", tags=["Security & Compliance"], dependencies=[Depends(require_role(["admin"]))])
 
 @router.post("/consent")
 async def register_privacy_consent(request: Request, consent: PrivacyConsentRequest):

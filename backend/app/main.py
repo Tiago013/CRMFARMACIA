@@ -40,12 +40,48 @@ async def lifespan(app: FastAPI):
     try:
         from app.modules.crm.listeners import setup_crm_listeners
         from app.modules.inventory.listeners import setup_inventory_listeners
+        from app.modules.integrations.odoo.listeners import setup_odoo_listeners
         setup_crm_listeners()
         setup_inventory_listeners()
+        setup_odoo_listeners()
     except Exception as e:
         logger.warning(f"Event listener setup skipped: {e}")
+        
+    # Background Odoo Sync Loop
+    import asyncio
+    async def odoo_sync_loop():
+        from app.modules.integrations.odoo.service import OdooIntegrationService
+        import httpx
+        while True:
+            await asyncio.sleep(60) # Sync every 60 seconds
+            try:
+                import sqlite3
+                from app.core.local_db import DB_PATH
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute("SELECT tenant_id FROM integration_configs WHERE provider = 'odoo'")
+                tenants = cursor.fetchall()
+                conn.close()
+                
+                for row in tenants:
+                    tenant_id = row[0]
+                    service = OdooIntegrationService(tenant_id)
+                    await service.pull_initial_inventory()
+                    # await service.pull_historical_sales() # Skipping to avoid API errors since not fully implemented
+                logger.info("Auto-sync from Odoo completed for all tenants")
+            except httpx.HTTPStatusError as he:
+                if he.response.status_code == 429:
+                    logger.warning("Odoo rate limit active. Waiting for next cycle.")
+                else:
+                    logger.warning(f"Auto-sync HTTP error: {he}")
+            except Exception as e:
+                logger.error(f"Auto-sync loop error: {e}")
+
+    sync_task = asyncio.create_task(odoo_sync_loop())
     
     yield
+    
+    sync_task.cancel()
     # Shutdown: Close connections
     try:
         await close_redis_pool()
@@ -64,9 +100,13 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:3002",
         "http://127.0.0.1:3000",
-        "http://192.168.1.106:3000",
+        "http://127.0.0.1:3001",
+        "http://127.0.0.1:3002",
     ],
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+):\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -87,7 +127,7 @@ async def add_process_time_header(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' http://localhost:8000 http://127.0.0.1:8000 http://192.168.1.106:8000; object-src 'none'"
+    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' http://localhost:8000 http://127.0.0.1:8000 http://localhost:8002 http://localhost:8003 http://192.168.1.106:8000; object-src 'none'"
     
     return response
 
@@ -134,6 +174,7 @@ routers_to_load = [
     "app.modules.saas.routers",
     "app.modules.auth.routers",
     "app.modules.events.routers",
+    "app.modules.integrations.routers",
 ]
 
 for router_module in routers_to_load:

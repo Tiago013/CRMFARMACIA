@@ -9,7 +9,7 @@ export default function BillingPage() {
   const [loadingPortal, setLoadingPortal] = useState(false);
 
   // Mocked data for the UI
-  const currentPlan = 'PRO';
+  const currentPlan: string = 'PRO';
   const planStatus = 'active'; // 'active', 'past_due', 'trialing'
   const nextBillingDate = '3/6/2026';
   

@@ -38,8 +38,10 @@ class CRMService:
         ))
         await self.db.commit()
         
+        import uuid
         # Publish event
-        await event_bus.publish("patient.created", {
+        event_bus.publish_on_commit(self.db, "patient.created", {
+            "event_id": str(uuid.uuid4()),
             "tenant_id": str(tenant_id),
             "patient_id": str(patient.id),
             "name": f"{patient.first_name} {patient.last_name or ''}".strip(),

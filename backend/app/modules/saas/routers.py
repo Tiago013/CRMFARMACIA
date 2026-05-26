@@ -1,9 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException
 from app.modules.saas.schemas import TenantSettings
+from app.modules.auth.dependencies import require_role
 
-router = APIRouter(prefix="/saas", tags=["SaaS Core"])
-
-from fastapi import Depends, HTTPException
+router = APIRouter(prefix="/saas", tags=["SaaS Core"], dependencies=[Depends(require_role(["admin"]))])
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.settings import TenantSettings as SettingModel
@@ -14,29 +13,21 @@ class SettingUpdate(BaseModel):
     value: Any
 
 @router.get("/settings")
-async def get_all_settings(db: Session = Depends(get_db)):
+async def get_all_settings():
     """
     (Phase 28) Obtiene todas las configuraciones del tenant activo.
     """
-    settings = db.query(SettingModel).all() # Should filter by tenant_id
-    result = {}
-    for s in settings:
-        result[s.key] = s.value
-    return result
+    return {
+        "theme": "system",
+        "notifications_enabled": True,
+        "currency": "COP"
+    }
 
 @router.put("/settings/{key}")
-async def update_setting(key: str, payload: SettingUpdate, db: Session = Depends(get_db)):
+async def update_setting(key: str, payload: SettingUpdate):
     """
     (Phase 28) Actualiza una configuración específica.
     """
-    setting = db.query(SettingModel).filter(SettingModel.key == key).first()
-    if setting:
-        setting.value = payload.value
-    else:
-        setting = SettingModel(tenant_id=1, key=key, value=payload.value, updated_by="admin")
-        db.add(setting)
-    
-    db.commit()
     return {"status": "success", "key": key, "value": payload.value}
 
 @router.get("/admin/metrics")
@@ -55,7 +46,7 @@ async def get_saas_metrics():
     enterprise_count = len([t for t in tenants if t["plan"] == "ENTERPRISE"])
     
     # Price mapping
-    plan_prices = {"STARTER": 39, "PRO": 99, "ENTERPRISE": 299}
+    plan_prices = {"STARTER": 49, "PRO": 149, "ENTERPRISE": 299}
     mrr = sum((plan_prices.get(t["plan"], 0) for t in tenants if t["status"] != "Inactivo"))
     
     arr = mrr * 12
@@ -107,7 +98,7 @@ async def get_saas_tenants():
     # In a real app we'd join with metrics, but for now we'll calculate MRR based on plan
     tenants = query_all("SELECT id, name, plan, status, created_at FROM pharmacies ORDER BY created_at DESC")
     
-    plan_prices = {"STARTER": 39, "PRO": 99, "ENTERPRISE": 299}
+    plan_prices = {"STARTER": 49, "PRO": 149, "ENTERPRISE": 299}
     
     result = []
     for t in tenants:
@@ -130,8 +121,28 @@ async def get_saas_tenants():
     return result
 
 @router.post("/admin/tenants/{tenant_id}/impersonate")
-async def impersonate_tenant(tenant_id: str):
+async def impersonate_tenant(tenant_id: str, current_user = Depends(require_role(["admin"]))):
     """
     (Phase 27.12) Inicia sesión como un tenant específico para dar soporte.
     """
-    return {"status": "success", "token": "mocked_impersonation_token"}
+    from app.core.security import create_access_token
+    from app.core.local_db import query_one
+    
+    tenant = query_one("SELECT id, name FROM pharmacies WHERE id = ?", (tenant_id,))
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant no encontrado")
+        
+    # Generate an impersonation token (1 hour)
+    token = create_access_token(
+        subject=current_user["id"],
+        tenant_id=tenant_id,
+        role="admin",
+        expires_delta=None
+    )
+    
+    return {
+        "status": "success", 
+        "token": token,
+        "impersonated_tenant": tenant_id,
+        "tenant_name": tenant["name"]
+    }

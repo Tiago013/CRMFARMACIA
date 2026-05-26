@@ -15,6 +15,7 @@ export function useRealtimeEvents(callbacks?: EventCallbacks) {
   const queryClient = useQueryClient();
   const hasLoggedError = useRef(false);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryCount = useRef(0);
 
   useEffect(() => {
     let eventSource: EventSource | null = null;
@@ -30,6 +31,7 @@ export function useRealtimeEvents(callbacks?: EventCallbacks) {
 
         eventSource.onopen = () => {
           hasLoggedError.current = false; // Reset on successful connection
+          retryCount.current = 0; // Reset exponential backoff
         };
 
         eventSource.onmessage = () => {
@@ -42,26 +44,26 @@ export function useRealtimeEvents(callbacks?: EventCallbacks) {
             queryClient.invalidateQueries({ queryKey: ['dashboard-snapshot'] });
             queryClient.invalidateQueries({ queryKey: ['sales'] });
             queryClient.invalidateQueries({ queryKey: ['inventory'] });
-            toast.success(`Nueva venta registrada por $${data.total?.toLocaleString()}`);
+            toast.success(`Nueva venta registrada por $${data?.total?.toLocaleString()}`);
           },
-          'inventory.stock_updated': (data) => {
+          'inventory.stock_updated': (_data) => {
             queryClient.invalidateQueries({ queryKey: ['inventory'] });
             queryClient.invalidateQueries({ queryKey: ['dashboard-snapshot'] });
             toast.info('Inventario actualizado');
           },
-          'patient.created': (data) => {
+          'patient.created': (_data) => {
             queryClient.invalidateQueries({ queryKey: ['patients'] });
             queryClient.invalidateQueries({ queryKey: ['dashboard-snapshot'] });
             toast.success('Nuevo paciente registrado');
           },
-          'patient.updated': (data) => {
+          'patient.updated': (_data) => {
             queryClient.invalidateQueries({ queryKey: ['patients'] });
           },
-          'expense.registered': (data) => {
+          'expense.registered': (_data) => {
             queryClient.invalidateQueries({ queryKey: ['finance'] });
             queryClient.invalidateQueries({ queryKey: ['dashboard-snapshot'] });
           },
-          'supplier.order_received': (data) => {
+          'supplier.order_received': (_data) => {
             queryClient.invalidateQueries({ queryKey: ['inventory'] });
             queryClient.invalidateQueries({ queryKey: ['finance'] });
           }
@@ -70,11 +72,12 @@ export function useRealtimeEvents(callbacks?: EventCallbacks) {
         const handlers = { ...defaultEventHandlers, ...callbacks };
 
         Object.keys(handlers).forEach(eventType => {
-          eventSource!.addEventListener(eventType, (e: any) => {
+          eventSource!.addEventListener(eventType, (e: unknown) => {
             try {
-              const data = JSON.parse(e.data);
+              const event = e as MessageEvent;
+              const data = JSON.parse(event.data);
               handlers[eventType](data);
-            } catch (err) {
+            } catch (_err) {
               // Silently ignore parse errors
             }
           });
@@ -89,14 +92,20 @@ export function useRealtimeEvents(callbacks?: EventCallbacks) {
           // Close and retry after delay
           eventSource?.close();
           eventSource = null;
+          
           if (!isCancelled) {
-            retryTimer.current = setTimeout(connect, 15000); // Retry every 15s
+            // Exponential backoff logic: 1s, 2s, 4s, 8s, max 15s
+            const delay = Math.min(1000 * Math.pow(2, retryCount.current), 15000);
+            retryCount.current += 1;
+            retryTimer.current = setTimeout(connect, delay);
           }
         };
       } catch {
         // Connection failed entirely, retry later
         if (!isCancelled) {
-          retryTimer.current = setTimeout(connect, 15000);
+          const delay = Math.min(1000 * Math.pow(2, retryCount.current), 15000);
+          retryCount.current += 1;
+          retryTimer.current = setTimeout(connect, delay);
         }
       }
     };

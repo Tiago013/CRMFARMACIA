@@ -9,7 +9,7 @@ import { Eye, EyeOff, Lock, Mail, AlertCircle } from 'lucide-react';
 export default function LoginPage() {
   const router = useRouter();
   const login = useAuthStore((s) => s.login);
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -24,9 +24,9 @@ export default function LoginPage() {
     try {
       const res = await api.post('/auth/login', { email, password });
       const { access_token, user } = res.data;
-      
+
       login(user, access_token);
-      
+
       // Redirect based on role
       if (user.role === 'cajero') {
         router.push('/sales');
@@ -45,7 +45,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA] dark:bg-[#000000] p-4">
       {/* Background subtle grid */}
       <div className="fixed inset-0 bg-[linear-gradient(rgba(0,0,0,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.02)_1px,transparent_1px)] dark:bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:60px_60px] pointer-events-none" />
-      
+
       <div className="w-full max-w-sm relative z-10">
         {/* Logo */}
         <div className="text-center mb-8">
@@ -63,7 +63,7 @@ export default function LoginPage() {
         {/* Login Card */}
         <div className="bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl p-6 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-4">
-            
+
             {/* Error Banner */}
             {error && (
               <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-lg text-red-700 dark:text-red-400 text-xs">
