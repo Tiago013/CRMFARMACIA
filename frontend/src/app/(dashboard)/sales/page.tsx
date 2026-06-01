@@ -790,13 +790,13 @@ function POSContent() {
                   </div>
                   {drawerMode === 'close' && (
                     <div className="space-y-2">
-                      <div className="flex justify-between items-center text-sm font-medium bg-emerald-50 dark:bg-emerald-950/20 p-3 rounded-lg border border-emerald-100 dark:border-emerald-900/50">
-                        <span className="text-emerald-700 dark:text-emerald-500">+ Efectivo Recibido:</span>
-                        <span className="text-emerald-800 dark:text-emerald-400 font-bold">${drawerCashIn.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</span>
+                      <div className="flex justify-between items-center text-sm font-medium bg-emerald-50 dark:bg-emerald-500/10 p-3 rounded-lg border border-emerald-100 dark:border-emerald-500/20">
+                        <span className="text-emerald-700 dark:text-emerald-400">+ Efectivo Recibido:</span>
+                        <span className="text-emerald-800 dark:text-emerald-300 font-bold">${drawerCashIn.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</span>
                       </div>
-                      <div className="flex justify-between items-center text-sm font-medium bg-rose-50 dark:bg-rose-950/20 p-3 rounded-lg border border-rose-100 dark:border-rose-900/50">
-                        <span className="text-rose-700 dark:text-rose-500">- Cambios Entregados:</span>
-                        <span className="text-rose-800 dark:text-rose-400 font-bold">-${drawerCashOut.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</span>
+                      <div className="flex justify-between items-center text-sm font-medium bg-rose-50 dark:bg-rose-500/10 p-3 rounded-lg border border-rose-100 dark:border-rose-500/20">
+                        <span className="text-rose-700 dark:text-rose-400">- Cambios Entregados:</span>
+                        <span className="text-rose-800 dark:text-rose-300 font-bold">-${drawerCashOut.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</span>
                       </div>
                       <div className="flex justify-between items-center text-xs font-bold text-neutral-500 pt-1 px-3">
                         <span>(= Ventas Netas: ${drawerSales.toLocaleString('es-CO', { maximumFractionDigits: 0 })})</span>
@@ -849,7 +849,7 @@ function POSContent() {
                       }
                       setShowDrawerModal(false);
                     }}
-                    className={`w-full py-4 text-white rounded-xl font-black text-lg shadow-xl transition-all ${drawerMode === 'open' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'}`}
+                    className={`w-full py-4 text-white rounded-xl font-black text-lg shadow-xl transition-all ${drawerMode === 'open' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20' : 'bg-neutral-900 hover:bg-black dark:bg-white dark:text-black dark:hover:bg-neutral-200 shadow-black/20'}`}
                   >
                     {drawerMode === 'open' ? 'Confirmar Apertura' : 'Finalizar Turno y Cerrar Caja'}
                   </button>
@@ -857,7 +857,7 @@ function POSContent() {
               </div>
 
               {/* Right Column: Physical Denominations */}
-              <div className="md:col-span-2 p-8 overflow-y-auto bg-white dark:bg-neutral-950">
+              <div className="md:col-span-2 p-8 overflow-y-auto bg-white dark:bg-[#0A0A0A]">
                 <h4 className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-6 pb-3 border-b border-neutral-200 dark:border-neutral-800 flex items-center gap-2">
                   <Banknote size={14} className="text-indigo-500" /> Desglose de Moneda Local (COP)
                 </h4>
