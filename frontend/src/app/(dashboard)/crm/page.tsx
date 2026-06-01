@@ -174,7 +174,10 @@ export default function CRMPage() {
     if (cached) {
       try {
         const parsedCache = JSON.parse(cached);
-        if (parsedCache?.recommendations?.length > 0) {
+        if (
+          parsedCache?.recommendations?.length > 0 && 
+          !parsedCache.recommendations[0]?.reason?.includes('Error')
+        ) {
           setAiContext(parsedCache);
           return;
         }
