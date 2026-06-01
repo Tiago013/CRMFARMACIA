@@ -283,7 +283,7 @@ export default function DashboardPage() {
                 <div className="flex-1 min-h-0 relative">
                   <ClientResponsiveContainer width="100%" height="100%">
                     <AreaChart 
-                      data={data.revenue_trend} 
+                      data={data.sales_trend} 
                       margin={{ top: 20, right: 10, left: -20, bottom: 0 }}
                       onClick={(e) => {
                         if (e && e.activeLabel) {
