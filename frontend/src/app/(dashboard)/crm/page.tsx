@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Users, Search, Plus, Phone, Calendar, HeartPulse, ShoppingCart, Send, Sparkles, TrendingDown, TrendingUp, AlertTriangle, MessageCircle, Activity, DollarSign, Clock, RefreshCw, FileText, CheckCircle2, ShieldAlert, CreditCard, ChevronRight, Edit2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import Link from 'next/link';
 import { apiClient as api } from '@/lib/axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
@@ -503,12 +504,12 @@ export default function CRMPage() {
                                 <span className="text-[9px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">{(rec.confidence_score*100).toFixed(0)}% MATCH</span>
                               </div>
                               <p className="text-[10px] text-neutral-500 mt-1 mb-3">{rec.reason}</p>
-                              <a 
+                              <Link 
                                 href={`/sales?add_query=${encodeURIComponent(rec.search_query || rec.product_name)}&patient_id=${selectedPatientId}`}
                                 className="w-full flex items-center justify-center gap-1 py-1.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors border border-indigo-100 dark:border-indigo-900/50"
                               >
                                 <ShoppingCart size={12} /> Agregar al POS
-                              </a>
+                              </Link>
                             </div>
                           ))}
                         </div>
