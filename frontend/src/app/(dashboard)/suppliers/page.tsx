@@ -245,45 +245,49 @@ export default function SuppliersPage() {
   return (
     <div className="flex flex-col h-full bg-neutral-50 dark:bg-black">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-8 py-6 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#0A0A0A]">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900 dark:text-white flex items-center gap-3">
-            <Truck className="text-indigo-600" /> Proveedores y Compras
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-8 py-8 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#0A0A0A] relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/5 dark:bg-indigo-500/10 blur-[80px] rounded-full translate-x-1/3 -translate-y-1/2 pointer-events-none"></div>
+        <div className="relative z-10">
+          <h1 className="text-3xl font-black text-neutral-900 dark:text-white flex items-center gap-3 tracking-tight">
+            <div className="p-3 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl border border-indigo-100 dark:border-indigo-500/20 shadow-inner">
+              <Truck className="text-indigo-600 dark:text-indigo-400" size={24} /> 
+            </div>
+            Proveedores y Compras
           </h1>
-          <p className="text-neutral-500 text-sm mt-1">
+          <p className="text-neutral-500 dark:text-neutral-400 text-sm mt-2 font-medium">
             Gestiona tus proveedores e ingresa mercadería al inventario.
           </p>
         </div>
         {activeTab === 'directory' && (
           <button 
             onClick={() => openSupplierModal()}
-            className="mt-4 sm:mt-0 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2"
+            className="mt-6 sm:mt-0 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-2 relative z-10 group"
           >
-            <Plus size={16} /> Nuevo Proveedor
+            <Plus size={18} className="group-hover:rotate-90 transition-transform" /> Nuevo Proveedor
           </button>
         )}
       </div>
 
       {/* Tabs */}
-      <div className="px-8 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#0A0A0A]">
-        <div className="flex space-x-6">
+      <div className="px-8 border-b border-neutral-200 dark:border-neutral-800 bg-white/50 dark:bg-[#0A0A0A]/50 backdrop-blur-md sticky top-0 z-20">
+        <div className="flex space-x-8">
           <button 
             onClick={() => setActiveTab('directory')} 
-            className={`pb-3 pt-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'directory' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}
+            className={`pb-4 pt-5 text-sm font-bold border-b-2 transition-colors flex items-center gap-2.5 ${activeTab === 'directory' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'}`}
           >
-            <Building2 size={16} /> Directorio
+            <Building2 size={18} className={activeTab === 'directory' ? '' : 'opacity-70'} /> Directorio
           </button>
           <button 
             onClick={() => setActiveTab('receive')} 
-            className={`pb-3 pt-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'receive' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}
+            className={`pb-4 pt-5 text-sm font-bold border-b-2 transition-colors flex items-center gap-2.5 ${activeTab === 'receive' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'}`}
           >
-            <PackagePlus size={16} /> Registrar Ingreso (Factura)
+            <PackagePlus size={18} className={activeTab === 'receive' ? '' : 'opacity-70'} /> Ingreso de Mercadería
           </button>
           <button 
             onClick={() => setActiveTab('history')} 
-            className={`pb-3 pt-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'history' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}
+            className={`pb-4 pt-5 text-sm font-bold border-b-2 transition-colors flex items-center gap-2.5 ${activeTab === 'history' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'}`}
           >
-            <FileText size={16} /> Historial de Compras
+            <FileText size={18} className={activeTab === 'history' ? '' : 'opacity-70'} /> Historial de Compras
           </button>
         </div>
       </div>
@@ -294,8 +298,8 @@ export default function SuppliersPage() {
         {/* TAB 1: DIRECTORY */}
         {activeTab === 'directory' && (
           <div className="space-y-6 max-w-6xl mx-auto">
-            <div className="relative w-full md:w-96">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <div className="relative w-full md:w-[400px]">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <Search className="text-neutral-400" size={18} />
               </div>
               <input 
@@ -303,7 +307,7 @@ export default function SuppliersPage() {
                 placeholder="Buscar proveedor o NIT..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all shadow-sm"
+                className="w-full pl-11 pr-4 py-3 bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-2xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all shadow-sm"
               />
             </div>
 
@@ -315,27 +319,55 @@ export default function SuppliersPage() {
                 <p>No se encontraron proveedores.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredSuppliers.map(sup => (
-                  <div key={sup.id} className="bg-white dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-indigo-500/30 transition-all group relative overflow-hidden">
-                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2 z-10">
-                      <button onClick={() => openSupplierModal(sup)} className="p-1.5 text-neutral-400 hover:text-indigo-600 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-500/20 bg-white/50 dark:bg-black/50 backdrop-blur-sm"><Edit2 size={14}/></button>
-                      <button onClick={() => handleDeleteSupplier(sup.id)} className="p-1.5 text-neutral-400 hover:text-red-600 rounded-md hover:bg-red-50 dark:hover:bg-red-500/20 bg-white/50 dark:bg-black/50 backdrop-blur-sm"><Trash2 size={14}/></button>
-                    </div>
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="w-12 h-12 rounded-full bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-black text-xl shadow-inner">
-                        {sup.name.charAt(0).toUpperCase()}
+                  <div key={sup.id} className="bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800/80 rounded-2xl p-6 shadow-sm hover:shadow-2xl hover:shadow-indigo-500/5 hover:-translate-y-1 transition-all duration-300 group relative overflow-hidden flex flex-col justify-between">
+                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/0 via-transparent to-indigo-500/0 group-hover:from-indigo-500/5 dark:group-hover:from-indigo-500/10 transition-colors pointer-events-none"></div>
+                    
+                    <div>
+                      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2 z-10">
+                        <button onClick={() => openSupplierModal(sup)} className="p-2 text-neutral-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-white dark:hover:bg-[#1A1A1A] bg-neutral-50/80 dark:bg-black/80 shadow-sm backdrop-blur-md transition-all"><Edit2 size={16}/></button>
+                        <button onClick={() => handleDeleteSupplier(sup.id)} className="p-2 text-neutral-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-white dark:hover:bg-[#1A1A1A] bg-neutral-50/80 dark:bg-black/80 shadow-sm backdrop-blur-md transition-all"><Trash2 size={16}/></button>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-neutral-900 dark:text-white leading-tight truncate pr-12">{sup.name}</h3>
-                        {sup.tax_id && <p className="text-xs text-neutral-500 mt-1 font-mono bg-neutral-100 dark:bg-[#1A1A1A] inline-block px-2 py-0.5 rounded-md">NIT: {sup.tax_id}</p>}
+                      
+                      <div className="flex items-start gap-4 mb-6">
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-500/20 dark:to-indigo-500/5 border border-indigo-200 dark:border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-black text-2xl shadow-inner shrink-0 relative overflow-hidden">
+                          <div className="absolute inset-0 bg-white/20 dark:bg-black/20 w-full h-full transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                          {sup.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0 pt-1">
+                          <h3 className="font-bold text-lg text-neutral-900 dark:text-white leading-tight truncate pr-16 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{sup.name}</h3>
+                          {sup.tax_id && (
+                            <div className="mt-2 flex items-center gap-1.5">
+                              <span className="text-[10px] uppercase font-black tracking-wider text-neutral-400 bg-neutral-100 dark:bg-[#141414] px-1.5 py-0.5 rounded">NIT</span>
+                              <span className="text-xs text-neutral-600 dark:text-neutral-400 font-mono font-medium truncate">{sup.tax_id}</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    <div className="space-y-2.5 mt-5 text-sm text-neutral-600 dark:text-neutral-400">
-                      {sup.phone && <div className="flex items-center gap-3"><Phone size={14} className="text-neutral-400 shrink-0"/> <span className="truncate">{sup.phone}</span></div>}
-                      {sup.email && <div className="flex items-center gap-3"><Mail size={14} className="text-neutral-400 shrink-0"/> <span className="truncate">{sup.email}</span></div>}
+                    
+                    <div className="space-y-3 pt-5 border-t border-neutral-100 dark:border-neutral-800/80">
+                      {sup.phone && (
+                        <div className="flex items-center gap-3 group/item">
+                          <div className="w-8 h-8 rounded-full bg-neutral-50 dark:bg-[#111111] flex items-center justify-center text-neutral-400 group-hover/item:text-indigo-500 transition-colors border border-neutral-200/50 dark:border-neutral-800/50">
+                            <Phone size={14} />
+                          </div>
+                          <span className="text-sm text-neutral-600 dark:text-neutral-300 truncate font-medium">{sup.phone}</span>
+                        </div>
+                      )}
+                      {sup.email && (
+                        <div className="flex items-center gap-3 group/item">
+                          <div className="w-8 h-8 rounded-full bg-neutral-50 dark:bg-[#111111] flex items-center justify-center text-neutral-400 group-hover/item:text-indigo-500 transition-colors border border-neutral-200/50 dark:border-neutral-800/50">
+                            <Mail size={14} />
+                          </div>
+                          <span className="text-sm text-neutral-600 dark:text-neutral-300 truncate font-medium">{sup.email}</span>
+                        </div>
+                      )}
+                      {!sup.phone && !sup.email && (
+                        <div className="text-xs text-neutral-400 italic py-2">Sin información de contacto</div>
+                      )}
                     </div>
-                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500/0 via-indigo-500/0 to-indigo-500/0 group-hover:from-indigo-500/50 group-hover:via-indigo-500/50 transition-all"></div>
                   </div>
                 ))}
               </div>
