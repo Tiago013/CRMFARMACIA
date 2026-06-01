@@ -346,12 +346,25 @@ function InventoryContent() {
                   >
                     <ShoppingCart size={16} /> Exportar (.csv)
                   </button>
-                  <Link 
-                    href="/suppliers"
+                  <button 
+                    onClick={() => {
+                      if (suggestedOrders.length === 0) return alert('No hay sugerencias para ordenar');
+                      
+                      const draftItems = suggestedOrders.map(o => ({
+                        product_id: o.id,
+                        product_name: o.name,
+                        quantity: o.suggestedQty,
+                        unit_cost: o.cost_price || 0,
+                        batch_number: '',
+                        expiration_date: ''
+                      }));
+                      localStorage.setItem('purchaseDraft', JSON.stringify(draftItems));
+                      router.push('/suppliers?tab=receive&draft=true');
+                    }}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors flex items-center gap-2"
                   >
-                    <Plus size={16} /> Registrar Ingreso
-                  </Link>
+                    <Plus size={16} /> Crear Orden
+                  </button>
                 </div>
               </div>
               <table className="w-full text-left text-sm">

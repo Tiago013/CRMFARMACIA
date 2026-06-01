@@ -74,6 +74,28 @@ export default function SuppliersPage() {
   const [submittingPurchase, setSubmittingPurchase] = useState(false);
 
   useEffect(() => {
+    // URL parsing for Drafts
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      if (tabParam === 'receive' && activeTab !== 'receive') {
+        setActiveTab('receive');
+      }
+      
+      if (params.get('draft') === 'true') {
+        const draftStr = localStorage.getItem('purchaseDraft');
+        if (draftStr) {
+          try {
+            const items = JSON.parse(draftStr);
+            setReceiveItems(items);
+            localStorage.removeItem('purchaseDraft');
+            // Clean URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+          } catch(e) {}
+        }
+      }
+    }
+    
     fetchData();
   }, [activeTab]);
 
