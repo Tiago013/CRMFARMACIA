@@ -90,14 +90,19 @@ export async function GET(request: NextRequest) {
 
     try {
       // Intentar conectar con la verdadera IA en Python (FastAPI + Prophet)
-      const response = await fetch('http://127.0.0.1:8000/predict', {
+      const aiUrl = process.env.AI_API_URL || 'http://127.0.0.1:8000';
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
+      const response = await fetch(`${aiUrl}/predict`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           historical_data: historical_data,
           days_to_predict: 15
-        })
+        }),
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const ai_data = await response.json();
