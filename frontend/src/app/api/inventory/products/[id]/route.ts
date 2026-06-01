@@ -25,8 +25,8 @@ export async function PUT(
       }
     });
 
-    // If expiration_date is provided, update the nearest batch or the most recently added batch
-    if (expiration_date) {
+    // If expiration_date or stock is provided, update the nearest batch or the most recently added batch
+    if (expiration_date || body.stock !== undefined) {
       const batches = await prisma.batch.findMany({
         where: { product_id: id },
         orderBy: { expiration_date: 'asc' }
@@ -35,7 +35,10 @@ export async function PUT(
         // Update the closest batch
         await prisma.batch.update({
           where: { id: batches[0].id },
-          data: { expiration_date: new Date(expiration_date) }
+          data: { 
+            ...(expiration_date ? { expiration_date: new Date(expiration_date) } : {}),
+            ...(body.stock !== undefined ? { quantity: parseInt(body.stock) || 0 } : {})
+          }
         });
       } else {
         // If somehow no batches exist, create one
@@ -46,8 +49,8 @@ export async function PUT(
               tenant_id: product.tenant_id,
               product_id: id,
               batch_number: 'LOTE-AJUSTE',
-              expiration_date: new Date(expiration_date),
-              quantity: 0
+              expiration_date: expiration_date ? new Date(expiration_date) : new Date(new Date().setFullYear(new Date().getFullYear() + 2)),
+              quantity: parseInt(body.stock) || 0
             }
           });
         }

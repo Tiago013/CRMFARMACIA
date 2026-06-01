@@ -100,14 +100,14 @@ export async function GET(request: NextRequest) {
         }
       });
 
-    if (expiration_date) {
+    if (expiration_date || body.stock !== undefined) {
       await prisma.batch.create({
         data: {
           tenant_id,
           product_id: newProduct.id,
           batch_number: 'LOTE-INICIAL',
-          expiration_date: new Date(expiration_date),
-          quantity: 0
+          expiration_date: expiration_date ? new Date(expiration_date) : new Date(new Date().setFullYear(new Date().getFullYear() + 2)),
+          quantity: parseInt(body.stock) || 0
         }
       });
     }

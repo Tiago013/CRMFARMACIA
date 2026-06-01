@@ -27,7 +27,7 @@ function InventoryContent() {
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [categories, setCategories] = useState<any[]>([]);
-  const [newProduct, setNewProduct] = useState({ brand_name: '', sku: '', cost_price: 0, unit_price: 0, active_ingredient: '', min_stock: 5, expiration_date: '', category_id: '' });
+  const [newProduct, setNewProduct] = useState({ brand_name: '', sku: '', cost_price: 0, unit_price: 0, active_ingredient: '', min_stock: 5, expiration_date: '', category_id: '', stock: 0 });
 
   const handleSaveProduct = async () => {
     try {
@@ -49,7 +49,7 @@ function InventoryContent() {
       setShowProductModal(false);
       setIsEditing(false);
       setEditingId(null);
-      setNewProduct({ brand_name: '', sku: '', cost_price: 0, unit_price: 0, active_ingredient: '', min_stock: 5, expiration_date: '', category_id: '' });
+      setNewProduct({ brand_name: '', sku: '', cost_price: 0, unit_price: 0, active_ingredient: '', min_stock: 5, expiration_date: '', category_id: '', stock: 0 });
       // Trigger a quick reload of products after a short delay to allow background sync
       setTimeout(() => setSearchQuery(searchQuery + ' '), 500);
       setTimeout(() => setSearchQuery(searchQuery.trim()), 600);
@@ -91,7 +91,8 @@ function InventoryContent() {
       active_ingredient: product.active_ingredient || '',
       min_stock: product.min_stock || 5,
       expiration_date: product.expiration_date || '',
-      category_id: product.category_id || ''
+      category_id: product.category_id || '',
+      stock: product.total_stock || 0
     });
     setShowProductModal(true);
   };
@@ -541,13 +542,22 @@ function InventoryContent() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-neutral-500 mb-1">Stock Mínimo</label>
                   <input 
                     type="number"
                     value={newProduct.min_stock || ''}
                     onChange={(e) => setNewProduct({...newProduct, min_stock: parseInt(e.target.value) || 0})}
+                    className="w-full bg-neutral-50 dark:bg-black border border-neutral-200 dark:border-neutral-800 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-500 mb-1">Stock Actual/Inicial</label>
+                  <input 
+                    type="number"
+                    value={newProduct.stock || ''}
+                    onChange={(e) => setNewProduct({...newProduct, stock: parseInt(e.target.value) || 0})}
                     className="w-full bg-neutral-50 dark:bg-black border border-neutral-200 dark:border-neutral-800 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 outline-none"
                   />
                 </div>
