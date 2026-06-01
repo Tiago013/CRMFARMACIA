@@ -173,8 +173,11 @@ export default function CRMPage() {
     const cached = sessionStorage.getItem(cacheKey);
     if (cached) {
       try {
-        setAiContext(JSON.parse(cached));
-        return;
+        const parsedCache = JSON.parse(cached);
+        if (parsedCache?.recommendations?.length > 0) {
+          setAiContext(parsedCache);
+          return;
+        }
       } catch (e) {
         // ignore cache error and fetch
       }
@@ -212,7 +215,9 @@ export default function CRMPage() {
       const res = await api.get(`/ai/patient/${selectedPatientId}?model=${selectedModel}`);
       setAiContext(res.data);
       sessionStorage.setItem(cacheKey, JSON.stringify(res.data));
-    } catch (e) {
+    } catch (e: any) {
+      console.error('Error generating AI recommendations:', e);
+      alert('Error generando recomendaciones: ' + (e.response?.data?.error || e.message));
       setAiContext(null);
     } finally {
       setLoadingAi(false);
