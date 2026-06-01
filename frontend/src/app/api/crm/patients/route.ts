@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
 
-    const includeSales = {
+    const includeSales: any = {
       sales: {
         take: 5,
         orderBy: { created_at: 'desc' },

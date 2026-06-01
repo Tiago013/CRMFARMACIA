@@ -121,11 +121,6 @@ export async function POST(request: NextRequest) {
       return newSale;
     });
 
-    return NextResponse.json({ success: true, sale });
-  } catch (error: any) {
-    console.error("Checkout error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  } finally {
     // Attempt WhatsApp Notification in background if patient exists
     try {
       if (body?.customer_id) {
@@ -151,5 +146,10 @@ export async function POST(request: NextRequest) {
         }
       }
     } catch(e) {}
+
+    return NextResponse.json({ success: true, sale });
+  } catch (error: any) {
+    console.error("Checkout error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

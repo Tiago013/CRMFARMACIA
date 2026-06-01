@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
 
     // Extraer campos de la farmacia
     const pharmacy = userProfile.pharmacy;
-    const settings = pharmacy.settings || {};
+    const settings = (pharmacy as any).settings || {};
     
     // Devolver un objeto combinado con configuración, datos de farmacia y usuarios
     return NextResponse.json({ 

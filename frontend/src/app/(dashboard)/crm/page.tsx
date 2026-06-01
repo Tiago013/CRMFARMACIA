@@ -935,7 +935,7 @@ export default function CRMPage() {
                 e.preventDefault();
                 setIsSaving(true);
                 try {
-                  const prefs = { email: addFormData.email, address: addFormData.address, eps: addFormData.eps, blood_type: addFormData.blood_type };
+                  const prefs = { email: addFormData.email, address: addFormData.address, eps: addFormData.eps, blood_type: addFormData.blood_group };
                   const res = await api.post('/crm/patients', {
                     first_name: addFormData.first_name,
                     last_name: addFormData.last_name,
@@ -946,7 +946,7 @@ export default function CRMPage() {
                   await fetchPatients();
                   setShowAddModal(false);
                   setSelectedPatientId(res.data.id);
-                  setAddFormData({ first_name: '', last_name: '', phone: '', document_id: '', email: '', address: '', eps: '', blood_type: '' });
+                  setAddFormData({ first_name: '', last_name: '', phone: '', document_id: '', email: '', address: '', eps: '', blood_group: '', birth_date: '', allergies: '', medical_notes: '', emergency_contact_name: '', emergency_contact_phone: '' });
                 } catch(err) {
                   alert('Error al crear');
                 } finally {

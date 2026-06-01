@@ -167,7 +167,7 @@ export async function GET(request: NextRequest) {
     });
 
     // 6. Executive Summary Metrics
-    const total_predicted_demand = forecast_data.reduce((sum, day) => sum + day.value, 0);
+    const total_predicted_demand = forecast_data.reduce((sum: number, day: any) => sum + day.value, 0);
     
     // Determine trend by comparing the first and last day of the forecast
     let trend_direction = "Estable";
@@ -181,7 +181,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Recommended stock based on the maximum daily upper bound expected in the next 15 days, plus a 20% safety net
-    const maxDailyExpected = forecast_data.reduce((max, day) => Math.max(max, day.upper_bound), 0);
+    const maxDailyExpected = forecast_data.reduce((max: number, day: any) => Math.max(max, day.upper_bound), 0);
     const recommended_stock = total_predicted_demand === 0 ? 0 : Math.ceil(maxDailyExpected * 3); // E.g., keep 3 days worth of the absolute worst-case peak scenario
 
     // Calculate Dynamic Confidence Level
