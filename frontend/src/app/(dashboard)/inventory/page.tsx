@@ -100,12 +100,20 @@ function InventoryContent() {
   const [suggestedOrders, setSuggestedOrders] = useState<any[]>([]);
   const [stockTake, setStockTake] = useState<any[]>([]);
 
+  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '');
+
+  // ...
+
   // Fetch Inventory
   useEffect(() => {
     const fetchProducts = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/inventory/products?search=${encodeURIComponent(searchQuery)}`);
+        const url = new URL('/api/inventory/products', window.location.origin);
+        url.searchParams.set('search', searchQuery);
+        if (selectedCategory) url.searchParams.set('category', selectedCategory);
+
+        const res = await fetch(url.toString());
         const data = await res.json();
         if (!Array.isArray(data)) {
           console.error("Failed to fetch products:", data);
@@ -158,7 +166,7 @@ function InventoryContent() {
 
     const timeout = setTimeout(fetchProducts, 300);
     return () => clearTimeout(timeout);
-  }, [searchQuery]);
+  }, [searchQuery, activeTab, selectedCategory]);
 
   const filteredProducts = products;
 
@@ -183,6 +191,18 @@ function InventoryContent() {
               placeholder="Buscar producto o lote..." 
               className="w-full pl-9 pr-3 py-2 bg-white dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-lg text-sm focus:border-indigo-500 outline-none transition-colors placeholder:text-neutral-400 shadow-sm"
             />
+          </div>
+          <div className="relative hidden sm:block">
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="w-48 px-3 py-2 bg-white dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-lg text-sm focus:border-indigo-500 outline-none transition-colors text-neutral-700 dark:text-neutral-300 shadow-sm"
+            >
+              <option value="">Todas las categorías</option>
+              {categories.map((cat: any) => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              ))}
+            </select>
           </div>
           <button 
             onClick={() => {

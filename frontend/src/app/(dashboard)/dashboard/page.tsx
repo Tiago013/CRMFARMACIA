@@ -283,44 +283,35 @@ export default function DashboardPage() {
                 <div className="flex-1 min-h-0 relative">
                   <ClientResponsiveContainer width="100%" height="100%">
                     <AreaChart 
-                      data={data.sales_trend} 
+                      data={data.revenue_trend} 
                       margin={{ top: 20, right: 10, left: -20, bottom: 0 }}
-                      onClick={async (e: any) => {
-                        if (e && e.activePayload && e.activePayload.length > 0) {
-                          const clickedDate = e.activePayload[0].payload.date;
-                          setSelectedDay(clickedDate);
-                          setDaySalesLoading(true);
-                          try {
-                            const res = await api.get(`/analytics/sales-by-date?date=${clickedDate}`);
-                            setDaySalesData(res.data);
-                          } catch (err) {
-                            console.error(err);
-                            setDaySalesData([]);
-                          } finally {
-                            setDaySalesLoading(false);
-                          }
+                      onClick={(e) => {
+                        if (e && e.activeLabel) {
+                          router.push(`/transactions?date=${e.activeLabel}`);
                         }
                       }}
                       style={{ cursor: 'pointer' }}
                     >
-                      <defs>
-                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#6366F1" stopOpacity={0.5}/>
-                          <stop offset="95%" stopColor="#4F46E5" stopOpacity={0.0}/>
-                        </linearGradient>
-                        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                          <feGaussianBlur stdDeviation="4" result="blur" />
-                          <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                        </filter>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff" opacity={0.05} />
-                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#737373', fontWeight: 500 }} dy={10} minTickGap={20} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#737373', fontWeight: 500 }} tickFormatter={(val) => `$${val/1000}k`} />
-                      <RechartsTooltip 
-                        contentStyle={{ backgroundColor: 'rgba(10, 10, 10, 0.8)', backdropFilter: 'blur(12px)', borderColor: '#262626', color: '#fff', fontSize: '13px', borderRadius: '12px', padding: '12px', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)' }}
-                        itemStyle={{ color: '#fff', fontWeight: 'bold' }}
-                        cursor={{ stroke: '#6366F1', strokeWidth: 1, strokeDasharray: '4 4', opacity: 0.5 }}
-                      />
+                        <defs>
+                          <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#6366F1" stopOpacity={0.5}/>
+                            <stop offset="95%" stopColor="#4F46E5" stopOpacity={0.0}/>
+                          </linearGradient>
+                          <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                            <feGaussianBlur stdDeviation="4" result="blur" />
+                            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                          </filter>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff" opacity={0.05} />
+                        <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#737373', fontWeight: 500 }} dy={10} minTickGap={20} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#737373', fontWeight: 500 }} tickFormatter={(val) => `$${val/1000}k`} />
+                        <RechartsTooltip 
+                          contentStyle={{ backgroundColor: 'rgba(10, 10, 10, 0.8)', backdropFilter: 'blur(12px)', borderColor: '#262626', color: '#fff', fontSize: '13px', borderRadius: '12px', padding: '12px', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)' }}
+                          itemStyle={{ color: '#fff', fontWeight: 'bold' }}
+                          cursor={{ stroke: '#6366F1', strokeWidth: 1, strokeDasharray: '4 4', opacity: 0.5 }}
+                          formatter={(value: any) => [new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value), 'Ingresos']}
+                          labelFormatter={(label) => `Fecha: ${label}`}
+                        />
 
                       <Area type="monotone" dataKey="revenue" stroke="#6366F1" strokeWidth={4} fillOpacity={1} fill="url(#colorRevenue)" activeDot={{ r: 6, fill: '#fff', stroke: '#6366F1', strokeWidth: 3, filter: 'url(#glow)' }} style={{ filter: 'url(#glow)' }} />
                     </AreaChart>
@@ -348,7 +339,7 @@ export default function DashboardPage() {
                           stroke="none"
                           onClick={(data) => {
                             if (data && data.name) {
-                              router.push(`/inventory?search=${encodeURIComponent(data.name)}`);
+                              router.push(`/inventory?category=${encodeURIComponent(data.name)}`);
                             }
                           }}
                           style={{ cursor: 'pointer' }}
@@ -360,6 +351,7 @@ export default function DashboardPage() {
                         <RechartsTooltip 
                           contentStyle={{ borderRadius: '12px', backgroundColor: 'rgba(10, 10, 10, 0.8)', backdropFilter: 'blur(12px)', borderColor: '#262626', padding: '12px', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)' }} 
                           itemStyle={{color: '#fff', fontWeight: 'bold'}} 
+                          formatter={(value: any) => [new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value), 'Ventas']}
                         />
                       </PieChart>
                     </ClientResponsiveContainer>
@@ -391,6 +383,8 @@ export default function DashboardPage() {
                       <RechartsTooltip 
                         contentStyle={{ backgroundColor: 'rgba(10, 10, 10, 0.8)', backdropFilter: 'blur(12px)', borderColor: '#262626', color: '#fff', fontSize: '13px', borderRadius: '12px' }}
                         cursor={{ fill: 'rgba(99, 102, 241, 0.1)' }}
+                        formatter={(value: any) => [new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value), 'Ingresos']}
+                        labelFormatter={(label) => `Hora: ${label}`}
                       />
                       <Bar yAxisId="left" dataKey="revenue" fill="#6366F1" radius={[4, 4, 0, 0]} />
                     </RechartsBarChart>
@@ -411,6 +405,7 @@ export default function DashboardPage() {
                       <RechartsTooltip 
                         contentStyle={{ backgroundColor: 'rgba(10, 10, 10, 0.8)', backdropFilter: 'blur(12px)', borderColor: '#262626', color: '#fff', fontSize: '13px', borderRadius: '12px' }}
                         cursor={{ fill: 'rgba(16, 185, 129, 0.1)' }}
+                        formatter={(value: any) => [new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value), 'Utilidad Neta']}
                       />
                       <Bar dataKey="net_profit" fill="#10B981" radius={[0, 4, 4, 0]} barSize={20}>
                         {data.top_profitable?.map((entry, index) => (

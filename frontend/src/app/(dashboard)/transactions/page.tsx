@@ -4,10 +4,19 @@ import { useState, useEffect } from 'react';
 import { ArrowRightLeft, Search, ShoppingCart, Plus, RefreshCw, FileText, X, AlertTriangle, Truck, Banknote, Calendar, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+
 export default function TransactionsPage() {
+  return (
+    <Suspense fallback={<div className="p-8">Cargando transacciones...</div>}>
+      <TransactionsContent />
+    </Suspense>
+  );
+}
+
+function TransactionsContent() {
   const [activeTab, setActiveTab] = useState<'sales' | 'purchases'>('sales');
-  
-  // Data States
   const [sales, setSales] = useState<any[]>([]);
   const [purchases, setPurchases] = useState<any[]>([]);
   const [inventory, setInventory] = useState<any[]>([]);
@@ -28,16 +37,22 @@ export default function TransactionsPage() {
     items: [] as any[]
   });
   const [searchQuery, setSearchQuery] = useState('');
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     fetchData();
-  }, [activeTab]);
+  }, [activeTab, searchParams]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
       if (activeTab === 'sales') {
-        const res = await fetch('/api/transactions/sales?limit=50');
+        let url = '/api/transactions/sales?limit=100';
+        const filterDate = searchParams.get('date');
+        if (filterDate) {
+          url += `&date=${filterDate}`;
+        }
+        const res = await fetch(url);
         const data = await res.json();
         setSales(Array.isArray(data) ? data : []);
       } else {

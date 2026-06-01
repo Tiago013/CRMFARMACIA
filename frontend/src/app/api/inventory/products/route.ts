@@ -9,17 +9,47 @@ export async function GET(request: NextRequest) {
     
     const searchParams = request.nextUrl.searchParams;
     const search = searchParams.get('search');
+    const category = searchParams.get('category');
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
     
+    // Build where clause
+    const whereClause: any = {};
+    if (search) {
+      whereClause.OR = [
+        { brand_name: { contains: search, mode: 'insensitive' } },
+        { sku: { contains: search, mode: 'insensitive' } },
+        { active_ingredient: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+    
+    if (category) {
+      // Support filtering by exact category ID or category name
+      whereClause.OR = whereClause.OR || []; // To not overwrite search OR. Wait, if we use AND?
+      // Better way:
+      whereClause.AND = [];
+      if (search) {
+        whereClause.AND.push({
+          OR: [
+            { brand_name: { contains: search, mode: 'insensitive' } },
+            { sku: { contains: search, mode: 'insensitive' } },
+            { active_ingredient: { contains: search, mode: 'insensitive' } },
+          ]
+        });
+      }
+      whereClause.AND.push({
+        OR: [
+          { category_id: category },
+          { category: { name: category } }
+        ]
+      });
+      delete whereClause.OR;
+    } else if (search) {
+      // If no category but there is search, keep the whereClause.OR
+    }
+
     // Fetch products with their batches to calculate total quantity
     const products = await prisma.product.findMany({
-      where: search ? {
-        OR: [
-          { brand_name: { contains: search, mode: 'insensitive' } },
-          { sku: { contains: search, mode: 'insensitive' } },
-          { active_ingredient: { contains: search, mode: 'insensitive' } },
-        ]
-      } : undefined,
+      where: (search || category) ? whereClause : undefined,
       take: limit,
       include: {
         category: true,

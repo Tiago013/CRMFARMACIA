@@ -84,7 +84,8 @@ export async function GET(request: NextRequest) {
         category: p.category?.name || 'Sin Categoría',
         currentStock: p.totalStock,
         weeklyDemand: weeklyDemand,
-        suggestedQty: suggestedQty
+        suggestedQty: suggestedQty,
+        cost_price: p.cost_price || 0
       };
     });
 

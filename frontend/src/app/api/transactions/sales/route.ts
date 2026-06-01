@@ -6,6 +6,7 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const limit = parseInt(searchParams.get('limit') || '50');
+    const filterDate = searchParams.get('date'); // format: YYYY-MM-DD
     
     // In MVP we just fetch all sales or default tenant
     let defaultPharmacy = await prisma.pharmacy.findFirst();
@@ -13,10 +14,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No pharmacy found' }, { status: 404 });
     }
 
+    const whereClause: any = { tenant_id: defaultPharmacy.id };
+    
+    if (filterDate) {
+      const startDate = new Date(filterDate);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(filterDate);
+      endDate.setHours(23, 59, 59, 999);
+      whereClause.created_at = {
+        gte: startDate,
+        lte: endDate
+      };
+    }
+
     const sales = await prisma.sale.findMany({
-      where: {
-        tenant_id: defaultPharmacy.id
-      },
+      where: whereClause,
       include: {
         patient: true,
         items: {
