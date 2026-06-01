@@ -323,12 +323,27 @@ function InventoryContent() {
                 <button 
                   onClick={() => {
                       if (suggestedOrders.length === 0) return alert('No hay sugerencias para ordenar');
-                      alert(`Orden de compra masiva generada para ${suggestedOrders.length} productos con éxito.`);
+                      
+                      const csvContent = [
+                        ['Producto', 'Categoria', 'Stock Actual', 'Sugerido IA'].join(','),
+                        ...suggestedOrders.map(o => `"${o.name}","${o.category}",${o.currentStock},${o.suggestedQty}`)
+                      ].join('\n');
+                      
+                      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                      const url = URL.createObjectURL(blob);
+                      const link = document.createElement("a");
+                      link.setAttribute("href", url);
+                      link.setAttribute("download", `Orden_Masiva_${new Date().toISOString().split('T')[0]}.csv`);
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+
+                      alert(`Orden de compra masiva exportada a Excel (.csv) para ${suggestedOrders.length} productos.`);
                       setSuggestedOrders([]);
                   }}
                   className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
                 >
-                  <ShoppingCart size={16} /> Generar Orden Masiva
+                  <ShoppingCart size={16} /> Exportar Orden Masiva (.csv)
                 </button>
               </div>
               <table className="w-full text-left text-sm">
@@ -369,16 +384,29 @@ function InventoryContent() {
                         <button 
                           onClick={async () => {
                               try {
-                                  // await fetch('/api/inventory/purchase-orders', { method: 'POST', body: JSON.stringify(...) });
-                                  alert(`Orden de compra interna creada para ${order.name}`);
+                                  const csvContent = [
+                                    ['Producto', 'Categoria', 'Stock Actual', 'Sugerido IA'].join(','),
+                                    `"${order.name}","${order.category}",${order.currentStock},${order.suggestedQty}`
+                                  ].join('\n');
+                                  
+                                  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                                  const url = URL.createObjectURL(blob);
+                                  const link = document.createElement("a");
+                                  link.setAttribute("href", url);
+                                  link.setAttribute("download", `Orden_Sugerida_${order.name}.csv`);
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  document.body.removeChild(link);
+
+                                  alert(`Orden de compra exportada para ${order.name}`);
                                   setSuggestedOrders(prev => prev.filter(o => o.id !== order.id));
                               } catch (e: any) {
-                                  alert('Error al crear orden: ' + e.message);
+                                  alert('Error al exportar orden: ' + e.message);
                               }
                           }}
                           className="text-xs font-semibold border border-neutral-300 dark:border-neutral-700 rounded-md px-3 py-1.5 hover:bg-white dark:hover:bg-neutral-800 transition-colors shadow-sm"
                         >
-                          Crear Orden
+                          Exportar Orden (.csv)
                         </button>
                       </td>
                     </tr>
