@@ -59,6 +59,15 @@ function InventoryContent() {
     }
   };
 
+  useEffect(() => {
+    const addProduct = searchParams.get('add_product');
+    if (addProduct) {
+      setNewProduct(prev => ({ ...prev, brand_name: addProduct }));
+      setShowProductModal(true);
+      router.replace('/inventory');
+    }
+  }, [searchParams, router]);
+
   const handleDelete = async (productId: string) => {
     if (!confirm('¿Estás seguro de eliminar este producto?')) return;
     try {

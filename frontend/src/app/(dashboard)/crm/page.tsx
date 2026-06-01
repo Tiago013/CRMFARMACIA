@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Users, Search, Plus, Phone, Calendar, HeartPulse, ShoppingCart, Send, Sparkles, TrendingDown, TrendingUp, AlertTriangle, MessageCircle, Activity, DollarSign, Clock, RefreshCw, FileText, CheckCircle2, ShieldAlert, CreditCard, ChevronRight, Edit2 } from 'lucide-react';
+import { Users, Search, Plus, Phone, Calendar, HeartPulse, ShoppingCart, Send, Sparkles, TrendingDown, TrendingUp, AlertTriangle, MessageCircle, Activity, DollarSign, Clock, RefreshCw, FileText, CheckCircle2, ShieldAlert, CreditCard, ChevronRight, Edit2, PackagePlus } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
@@ -504,12 +504,20 @@ export default function CRMPage() {
                                 <span className="text-[9px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">{(rec.confidence_score*100).toFixed(0)}% MATCH</span>
                               </div>
                               <p className="text-[10px] text-neutral-500 mt-1 mb-3">{rec.reason}</p>
-                              <Link 
-                                href={`/sales?add_query=${encodeURIComponent(rec.search_query || rec.product_name)}&patient_id=${selectedPatientId}`}
-                                className="w-full flex items-center justify-center gap-1 py-1.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors border border-indigo-100 dark:border-indigo-900/50"
-                              >
-                                <ShoppingCart size={12} /> Agregar al POS
-                              </Link>
+                              <div className="flex gap-2 w-full mt-2">
+                                <Link 
+                                  href={`/sales?add_query=${encodeURIComponent(rec.search_query || rec.product_name)}&patient_id=${selectedPatientId}`}
+                                  className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors border border-indigo-100 dark:border-indigo-900/50"
+                                >
+                                  <ShoppingCart size={12} /> Al POS
+                                </Link>
+                                <Link 
+                                  href={`/inventory?add_product=${encodeURIComponent(rec.search_query || rec.product_name)}`}
+                                  className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold rounded hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors border border-emerald-100 dark:border-emerald-900/50"
+                                >
+                                  <PackagePlus size={12} /> Comprar Lote
+                                </Link>
+                              </div>
                             </div>
                           ))}
                         </div>
