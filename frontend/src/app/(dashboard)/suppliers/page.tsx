@@ -295,13 +295,15 @@ export default function SuppliersPage() {
         {activeTab === 'directory' && (
           <div className="space-y-6 max-w-6xl mx-auto">
             <div className="relative w-full md:w-96">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="text-neutral-400" size={18} />
+              </div>
               <input 
                 type="text" 
                 placeholder="Buscar proveedor o NIT..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-white dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all shadow-sm"
               />
             </div>
 
@@ -313,26 +315,27 @@ export default function SuppliersPage() {
                 <p>No se encontraron proveedores.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                 {filteredSuppliers.map(sup => (
-                  <div key={sup.id} className="bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow group relative">
-                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2">
-                      <button onClick={() => openSupplierModal(sup)} className="p-1.5 text-neutral-400 hover:text-indigo-600 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-900/20"><Edit2 size={14}/></button>
-                      <button onClick={() => handleDeleteSupplier(sup.id)} className="p-1.5 text-neutral-400 hover:text-red-600 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 size={14}/></button>
+                  <div key={sup.id} className="bg-white dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-indigo-500/30 transition-all group relative overflow-hidden">
+                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2 z-10">
+                      <button onClick={() => openSupplierModal(sup)} className="p-1.5 text-neutral-400 hover:text-indigo-600 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-500/20 bg-white/50 dark:bg-black/50 backdrop-blur-sm"><Edit2 size={14}/></button>
+                      <button onClick={() => handleDeleteSupplier(sup.id)} className="p-1.5 text-neutral-400 hover:text-red-600 rounded-md hover:bg-red-50 dark:hover:bg-red-500/20 bg-white/50 dark:bg-black/50 backdrop-blur-sm"><Trash2 size={14}/></button>
                     </div>
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-lg">
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-12 h-12 rounded-full bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-black text-xl shadow-inner">
                         {sup.name.charAt(0).toUpperCase()}
                       </div>
-                      <div>
-                        <h3 className="font-bold text-neutral-900 dark:text-white leading-tight pr-12">{sup.name}</h3>
-                        {sup.tax_id && <p className="text-xs text-neutral-500 mt-0.5">NIT: {sup.tax_id}</p>}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-neutral-900 dark:text-white leading-tight truncate pr-12">{sup.name}</h3>
+                        {sup.tax_id && <p className="text-xs text-neutral-500 mt-1 font-mono bg-neutral-100 dark:bg-[#1A1A1A] inline-block px-2 py-0.5 rounded-md">NIT: {sup.tax_id}</p>}
                       </div>
                     </div>
-                    <div className="space-y-2 mt-4 text-sm text-neutral-600 dark:text-neutral-400">
-                      {sup.phone && <div className="flex items-center gap-2"><Phone size={14} className="text-neutral-400"/> {sup.phone}</div>}
-                      {sup.email && <div className="flex items-center gap-2"><Mail size={14} className="text-neutral-400"/> {sup.email}</div>}
+                    <div className="space-y-2.5 mt-5 text-sm text-neutral-600 dark:text-neutral-400">
+                      {sup.phone && <div className="flex items-center gap-3"><Phone size={14} className="text-neutral-400 shrink-0"/> <span className="truncate">{sup.phone}</span></div>}
+                      {sup.email && <div className="flex items-center gap-3"><Mail size={14} className="text-neutral-400 shrink-0"/> <span className="truncate">{sup.email}</span></div>}
                     </div>
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500/0 via-indigo-500/0 to-indigo-500/0 group-hover:from-indigo-500/50 group-hover:via-indigo-500/50 transition-all"></div>
                   </div>
                 ))}
               </div>
