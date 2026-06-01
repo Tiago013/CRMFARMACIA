@@ -4,8 +4,19 @@ import prisma from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
+    const url = new URL(request.url);
+    const period = url.searchParams.get('period') || '7d';
+
+    const now = new Date();
+    let startDate = new Date();
+    if (period === '7d') startDate.setDate(now.getDate() - 7);
+    else if (period === 'month') startDate.setMonth(now.getMonth() - 1);
+    else if (period === 'quarter') startDate.setMonth(now.getMonth() - 3);
+    else if (period === 'year') startDate.setFullYear(now.getFullYear() - 1);
+
     const expenses = await prisma.expense.findMany({
       where: {
+        date: { gte: startDate },
         category: {
           name: {
             notIn: ['Compras de Inventario', 'Compras a Proveedores']

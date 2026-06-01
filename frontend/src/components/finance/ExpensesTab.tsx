@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { DollarSign, Plus, Filter, FileText, PieChart as PieChartIcon } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
-export default function ExpensesTab() {
+export default function ExpensesTab({ period = '7d' }: { period?: string }) {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -15,7 +15,7 @@ export default function ExpensesTab() {
 
   const fetchExpenses = async () => {
     try {
-      const res = await fetch('/api/finance/expenses');
+      const res = await fetch(`/api/finance/expenses?period=${period}`);
       const data = await res.json();
       if (!Array.isArray(data)) {
         console.error('API Error:', data);
@@ -47,7 +47,7 @@ export default function ExpensesTab() {
 
   useEffect(() => {
     Promise.all([fetchExpenses(), fetchCategories()]).finally(() => setLoading(false));
-  }, []);
+  }, [period]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

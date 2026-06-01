@@ -9,14 +9,14 @@ const formatCurrency = (val: number) => {
   return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(val || 0);
 };
 
-export default function COGSTab() {
+export default function COGSTab({ period = '7d' }: { period?: string }) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch('/api/finance/cogs');
+        const res = await fetch(`/api/finance/cogs?period=${period}`);
         const json = await res.json();
         setData(json);
       } catch (e) {
@@ -26,7 +26,7 @@ export default function COGSTab() {
       }
     };
     fetchData();
-  }, []);
+  }, [period]);
 
   if (loading) {
     return (

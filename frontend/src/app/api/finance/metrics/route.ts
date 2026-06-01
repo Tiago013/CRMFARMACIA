@@ -7,9 +7,19 @@ export async function GET(request: NextRequest) {
     const pharmacy = await prisma.pharmacy.findFirst();
     if (!pharmacy) return NextResponse.json({ error: 'No pharmacy found' }, { status: 400 });
 
+    const url = new URL(request.url);
+    const period = url.searchParams.get('period') || '7d';
+
+    const now = new Date();
+    let startDate = new Date();
+    if (period === '7d') startDate.setDate(now.getDate() - 7);
+    else if (period === 'month') startDate.setMonth(now.getMonth() - 1);
+    else if (period === 'quarter') startDate.setMonth(now.getMonth() - 3);
+    else if (period === 'year') startDate.setFullYear(now.getFullYear() - 1);
+
     // Aggregate Sales for Revenue
     const salesAgg = await prisma.sale.aggregate({
-      where: { tenant_id: pharmacy.id, status: 'COMPLETED' },
+      where: { tenant_id: pharmacy.id, status: 'COMPLETED', created_at: { gte: startDate } },
       _sum: {
         grand_total: true
       }
@@ -19,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     // Calculate COGS (Cost of Goods Sold) as expenses for now
     const saleItems = await prisma.saleItem.findMany({
-      where: { sale: { tenant_id: pharmacy.id, status: 'COMPLETED' } },
+      where: { sale: { tenant_id: pharmacy.id, status: 'COMPLETED', created_at: { gte: startDate } } },
       include: { product: true }
     });
 
@@ -32,6 +42,7 @@ export async function GET(request: NextRequest) {
       where: { 
         tenant_id: pharmacy.id, 
         status: 'COMPLETED',
+        date: { gte: startDate },
         category: {
           name: {
             notIn: ['Compras de Inventario', 'Compras a Proveedores']

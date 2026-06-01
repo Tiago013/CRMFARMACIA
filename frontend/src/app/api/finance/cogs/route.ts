@@ -1,12 +1,22 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const url = new URL(request.url);
+    const period = url.searchParams.get('period') || '7d';
+
+    const now = new Date();
+    let startDate = new Date();
+    if (period === '7d') startDate.setDate(now.getDate() - 7);
+    else if (period === 'month') startDate.setMonth(now.getMonth() - 1);
+    else if (period === 'quarter') startDate.setMonth(now.getMonth() - 3);
+    else if (period === 'year') startDate.setFullYear(now.getFullYear() - 1);
+
     const pharmacy = await prisma.pharmacy.findFirst();
     if (!pharmacy) {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
@@ -17,7 +27,8 @@ export async function GET() {
     const sales = await prisma.sale.findMany({
       where: {
         tenant_id,
-        status: 'COMPLETED'
+        status: 'COMPLETED',
+        created_at: { gte: startDate }
       },
       include: {
         items: {

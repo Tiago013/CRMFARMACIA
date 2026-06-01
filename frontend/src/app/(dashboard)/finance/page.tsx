@@ -26,13 +26,15 @@ export default function FinancePage() {
   const [odooPnl, setOdooPnl] = useState<OdooPNL | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('pnl');
+  const [period, setPeriod] = useState('7d');
 
   useEffect(() => {
     const fetchMetrics = async () => {
+      setLoading(true);
       try {
         const [metricsRes, odooRes] = await Promise.all([
-          fetch('/api/finance/metrics'),
-          fetch('/api/analytics/odoo-pnl')
+          fetch(`/api/finance/metrics?period=${period}`),
+          fetch(`/api/analytics/odoo-pnl?period=${period}`)
         ]);
         
         if (!metricsRes.ok || !odooRes.ok) throw new Error('API Error');
@@ -44,25 +46,12 @@ export default function FinancePage() {
         setOdooPnl(odooData);
       } catch (error) {
         console.error("Error fetching financial metrics:", error);
-        // Fallback mock if API fails
-        setMetrics({
-          total_revenue: 15420.50,
-          total_expenses: 8300.00,
-          net_profit: 7120.50,
-          profit_margin_percentage: 46.17
-        });
-        setOdooPnl({
-          income: 15420.50,
-          cogs: 5300.00,
-          opex: 3000.00,
-          net_profit: 7120.50
-        });
       } finally {
         setLoading(false);
       }
     };
     fetchMetrics();
-  }, []);
+  }, [period]);
 
   // Format currency cleanly without overflowing
   const formatCurrency = (val: number | undefined) => {
@@ -82,6 +71,16 @@ export default function FinancePage() {
           <p className="text-neutral-500 text-sm mt-1">P&L, Arqueo de caja, Cuentas por cobrar y Gestión de Impuestos.</p>
         </div>
         <div className="flex gap-2">
+          <select 
+            value={period} 
+            onChange={(e) => setPeriod(e.target.value)}
+            className="bg-[#FDFDFD] dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 text-sm px-4 py-2 font-medium rounded-lg outline-none text-neutral-700 dark:text-neutral-300 shadow-sm"
+          >
+            <option value="7d">Últimos 7 días</option>
+            <option value="month">Este mes</option>
+            <option value="quarter">Este trimestre</option>
+            <option value="year">Año actual</option>
+          </select>
           <button className="flex items-center gap-2 border border-neutral-200 dark:border-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-900 px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-sm">
             <PieChart size={16} /> Exportar Excel
           </button>
@@ -313,7 +312,7 @@ export default function FinancePage() {
           </div>
         ) : activeTab === 'gastos' ? (
           <div className="py-4">
-            <ExpensesTab />
+            <ExpensesTab period={period} />
           </div>
         ) : activeTab === 'cxp' ? (
           <div className="max-w-5xl mx-auto space-y-6">
@@ -353,7 +352,7 @@ export default function FinancePage() {
           </div>
         ) : activeTab === 'cogs' ? (
           <div className="py-4">
-            <COGSTab />
+            <COGSTab period={period} />
           </div>
         ) : null}
 
