@@ -115,18 +115,18 @@ function InventoryContent() {
 
         setProducts(data);
         
-        // Generate Farma IA suggested orders based on low stock
-        const suggested = data.filter((p: any) => p.total_stock <= p.min_stock).map((p: any) => ({
-          id: p.id,
-          name: p.brand_name,
-          category: p.category_name || 'Sin Categoría',
-          expiration: p.expiration_date,
-          supplier: 'Laboratorios Nacionales',
-          currentStock: p.total_stock,
-          weeklyDemand: Math.floor(Math.random() * 20) + 5,
-          suggestedQty: p.min_stock > 0 ? p.min_stock * 3 : 15
-        }));
-        setSuggestedOrders(suggested);
+        // Fetch real Farma IA suggested orders based on low stock and sales history
+        if (activeTab === 'orders' || suggestedOrders.length === 0) {
+          try {
+            const resSug = await fetch('/api/inventory/suggested-purchases');
+            if (resSug.ok) {
+              const sugData = await resSug.json();
+              setSuggestedOrders(sugData);
+            }
+          } catch(err) {
+            console.error("Error fetching suggestions:", err);
+          }
+        }
 
         // Generate real stock take list
         const take = data.map((p: any) => ({
