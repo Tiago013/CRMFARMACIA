@@ -751,53 +751,58 @@ function POSContent() {
       {showDrawerModal && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-[#0A0A0A] rounded-xl shadow-2xl border border-neutral-200 dark:border-neutral-800 w-full max-w-4xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
-            <div className={`p-5 border-b border-neutral-100 dark:border-neutral-800 flex justify-between items-center ${drawerMode === 'open' ? 'bg-indigo-50 dark:bg-indigo-950/20' : 'bg-rose-50 dark:bg-rose-950/20'}`}>
+            <div className={`p-6 border-b flex justify-between items-center bg-white dark:bg-[#0F0F0F] ${drawerMode === 'open' ? 'border-indigo-500/20' : 'border-rose-500/20'}`}>
               <div>
-                <h3 className={`text-lg font-bold flex items-center gap-2 ${drawerMode === 'open' ? 'text-indigo-700 dark:text-indigo-400' : 'text-rose-700 dark:text-rose-400'}`}>
-                  <Lock size={20} /> {drawerMode === 'open' ? 'Apertura de Caja' : 'Cierre de Caja'}
+                <h3 className="text-xl font-black flex items-center gap-2 text-neutral-900 dark:text-white">
+                  <span className={`p-2 rounded-lg ${drawerMode === 'open' ? 'bg-indigo-100 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' : 'bg-rose-100 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>
+                    <Lock size={20} /> 
+                  </span>
+                  {drawerMode === 'open' ? 'Apertura de Caja' : 'Cierre de Caja'}
                 </h3>
-                <p className={`text-xs ${drawerMode === 'open' ? 'text-indigo-600/70 dark:text-indigo-400/70' : 'text-rose-600/70 dark:text-rose-400/70'}`}>
+                <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
                   {drawerMode === 'open' ? 'Ingresa el conteo físico de tu base inicial.' : 'Declara el conteo físico final para tu arqueo.'}
                 </p>
               </div>
-              <button onClick={() => setShowDrawerModal(false)} className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200">&times;</button>
+              <button onClick={() => setShowDrawerModal(false)} className="text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors bg-neutral-100 dark:bg-neutral-900 rounded-full p-2">
+                <Minus size={18} />
+              </button>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 h-full max-h-[70vh] overflow-hidden">
               {/* Left Column: Summary */}
-              <div className="md:col-span-1 p-6 border-r border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] overflow-y-auto flex flex-col">
-                <h4 className="text-sm font-bold text-neutral-900 dark:text-white uppercase tracking-wider mb-6 pb-2 border-b border-neutral-200 dark:border-neutral-800">
-                  Resumen de Sistema
+              <div className="md:col-span-1 p-6 border-r border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-[#141414] overflow-y-auto flex flex-col">
+                <h4 className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-6 pb-3 border-b border-neutral-200 dark:border-neutral-800 flex items-center gap-2">
+                  <Save size={14} /> Resumen de Sistema
                 </h4>
                 
                 <div className="space-y-4 flex-1">
-                  <div className="flex justify-between items-center text-sm font-medium">
+                  <div className="flex justify-between items-center text-sm font-medium bg-white dark:bg-[#1A1A1A] p-3 rounded-lg border border-neutral-200 dark:border-neutral-800">
                     <span className="text-neutral-500">Base Registrada:</span>
-                    <span className="text-neutral-900 dark:text-white">${drawerBase.toLocaleString()}</span>
+                    <span className="text-neutral-900 dark:text-white font-bold">${drawerBase.toLocaleString()}</span>
                   </div>
                   {drawerMode === 'close' && (
-                    <div className="flex justify-between items-center text-sm font-medium">
+                    <div className="flex justify-between items-center text-sm font-medium bg-white dark:bg-[#1A1A1A] p-3 rounded-lg border border-neutral-200 dark:border-neutral-800">
                       <span className="text-neutral-500">Ventas en Efectivo:</span>
-                      <span className="text-neutral-900 dark:text-white">${drawerSales.toLocaleString()}</span>
+                      <span className="text-neutral-900 dark:text-white font-bold">${drawerSales.toLocaleString()}</span>
                     </div>
                   )}
                   
-                  <div className="pt-4 border-t border-neutral-200 dark:border-neutral-800 mt-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="font-bold text-neutral-900 dark:text-white text-sm">TOTAL ESPERADO:</span>
-                      <span className="text-lg font-black text-neutral-900 dark:text-white">${(drawerMode === 'open' ? 0 : drawerBase + drawerSales).toLocaleString()}</span>
+                  <div className="pt-6 mt-6">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="font-bold text-neutral-500 text-xs tracking-wider uppercase">TOTAL ESPERADO:</span>
+                      <span className="text-xl font-black text-neutral-900 dark:text-white">${(drawerMode === 'open' ? 0 : drawerBase + drawerSales).toLocaleString()}</span>
                     </div>
                     
-                    <div className="flex justify-between items-center mb-6">
-                      <span className="font-bold text-neutral-900 dark:text-white text-sm">TOTAL DECLARADO:</span>
-                      <span className="text-lg font-black text-indigo-600 dark:text-indigo-400">${calculateDrawerTotal().toLocaleString()}</span>
+                    <div className="flex justify-between items-center mb-8">
+                      <span className="font-bold text-neutral-500 text-xs tracking-wider uppercase">TOTAL DECLARADO:</span>
+                      <span className={`text-xl font-black ${drawerMode === 'open' ? 'text-indigo-600 dark:text-indigo-400' : 'text-rose-600 dark:text-rose-400'}`}>${calculateDrawerTotal().toLocaleString()}</span>
                     </div>
 
                     {drawerMode === 'close' && (
-                      <div className={`p-4 rounded-lg flex flex-col gap-1 border ${calculateDrawerTotal() - (drawerBase + drawerSales) >= 0 ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-900' : 'bg-rose-50 border-rose-200 dark:bg-rose-950/30 dark:border-rose-900'}`}>
-                        <span className={`text-xs font-bold uppercase ${calculateDrawerTotal() - (drawerBase + drawerSales) >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>Diferencia (Descuadre)</span>
-                        <span className={`text-2xl font-black flex items-center gap-2 ${calculateDrawerTotal() - (drawerBase + drawerSales) >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
-                          {calculateDrawerTotal() - (drawerBase + drawerSales) >= 0 ? <Plus size={20} /> : <Minus size={20} />}
+                      <div className={`p-5 rounded-xl border flex flex-col gap-2 ${calculateDrawerTotal() - (drawerBase + drawerSales) >= 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-rose-500/10 border-rose-500/30'}`}>
+                        <span className={`text-xs font-black uppercase tracking-wider ${calculateDrawerTotal() - (drawerBase + drawerSales) >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>Diferencia (Descuadre)</span>
+                        <span className={`text-3xl font-black flex items-center gap-2 ${calculateDrawerTotal() - (drawerBase + drawerSales) >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
+                          {calculateDrawerTotal() - (drawerBase + drawerSales) >= 0 ? <Plus size={24} /> : <Minus size={24} />}
                           ${Math.abs(calculateDrawerTotal() - (drawerBase + drawerSales)).toLocaleString()}
                         </span>
                       </div>
@@ -818,7 +823,7 @@ function POSContent() {
                       }
                       setShowDrawerModal(false);
                     }}
-                    className={`w-full py-3 text-white rounded-lg font-bold shadow-md transition-colors ${drawerMode === 'open' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-neutral-900 hover:bg-black dark:bg-white dark:text-black dark:hover:bg-neutral-200'}`}
+                    className={`w-full py-4 text-white rounded-xl font-black text-lg shadow-xl transition-all ${drawerMode === 'open' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'}`}
                   >
                     {drawerMode === 'open' ? 'Confirmar Apertura' : 'Finalizar Turno y Cerrar Caja'}
                   </button>
@@ -826,15 +831,15 @@ function POSContent() {
               </div>
 
               {/* Right Column: Physical Denominations */}
-              <div className="md:col-span-2 p-6 overflow-y-auto bg-white dark:bg-[#0A0A0A]">
-                <h4 className="text-sm font-bold text-neutral-900 dark:text-white uppercase tracking-wider mb-6 pb-2 border-b border-neutral-200 dark:border-neutral-800 flex items-center gap-2">
-                  <Banknote size={16} className="text-indigo-500" /> Desglose de Moneda Local (COP)
+              <div className="md:col-span-2 p-8 overflow-y-auto bg-white dark:bg-[#0A0A0A]">
+                <h4 className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-6 pb-3 border-b border-neutral-200 dark:border-neutral-800 flex items-center gap-2">
+                  <Banknote size={14} className="text-indigo-500" /> Desglose de Moneda Local (COP)
                 </h4>
                 
-                <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+                <div className="grid grid-cols-2 gap-x-12 gap-y-8">
                   {/* Billetes */}
-                  <div className="space-y-3">
-                    <h5 className="text-xs font-bold text-neutral-400 mb-2 uppercase tracking-wide">Billetes</h5>
+                  <div className="space-y-4">
+                    <h5 className="text-[10px] font-black text-neutral-500 mb-4 uppercase tracking-widest bg-neutral-100 dark:bg-neutral-900 px-3 py-1 rounded-full w-max">Billetes</h5>
                     {[
                       { key: 'b100', val: 100000, label: '$100.000' },
                       { key: 'b50', val: 50000, label: '$50.000' },
@@ -843,17 +848,17 @@ function POSContent() {
                       { key: 'b5', val: 5000, label: '$5.000' },
                       { key: 'b2', val: 2000, label: '$2.000' }
                     ].map(d => (
-                      <div key={d.key} className="flex items-center justify-between gap-3">
-                        <span className="w-20 text-sm font-medium text-neutral-600 dark:text-neutral-400">{d.label}</span>
+                      <div key={d.key} className="flex items-center gap-4 group">
+                        <span className="w-20 text-sm font-bold text-neutral-500 group-hover:text-neutral-900 dark:group-hover:text-white transition-colors">{d.label}</span>
                         <input 
                           type="number" 
                           min="0"
                           value={denominations[d.key as keyof typeof denominations] || ''}
                           onChange={(e) => setDenominations(prev => ({ ...prev, [d.key]: Number(e.target.value) }))}
                           placeholder="0"
-                          className="w-20 px-3 py-1.5 text-center bg-neutral-50 dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-md outline-none focus:border-indigo-500 text-sm font-bold"
+                          className="w-20 px-3 py-2 text-center bg-white dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-sm font-bold shadow-sm transition-all"
                         />
-                        <span className="flex-1 text-right text-sm font-semibold text-neutral-900 dark:text-white">
+                        <span className="flex-1 text-right text-sm font-black text-neutral-900 dark:text-white opacity-50 group-hover:opacity-100 transition-opacity">
                           ${(denominations[d.key as keyof typeof denominations] * d.val).toLocaleString()}
                         </span>
                       </div>
@@ -861,8 +866,8 @@ function POSContent() {
                   </div>
 
                   {/* Monedas */}
-                  <div className="space-y-3">
-                    <h5 className="text-xs font-bold text-neutral-400 mb-2 uppercase tracking-wide">Monedas</h5>
+                  <div className="space-y-4">
+                    <h5 className="text-[10px] font-black text-neutral-500 mb-4 uppercase tracking-widest bg-neutral-100 dark:bg-neutral-900 px-3 py-1 rounded-full w-max">Monedas</h5>
                     {[
                       { key: 'm1000', val: 1000, label: '$1.000' },
                       { key: 'm500', val: 500, label: '$500' },
@@ -870,17 +875,17 @@ function POSContent() {
                       { key: 'm100', val: 100, label: '$100' },
                       { key: 'm50', val: 50, label: '$50' }
                     ].map(d => (
-                      <div key={d.key} className="flex items-center justify-between gap-3">
-                        <span className="w-16 text-sm font-medium text-neutral-600 dark:text-neutral-400">{d.label}</span>
+                      <div key={d.key} className="flex items-center gap-4 group">
+                        <span className="w-20 text-sm font-bold text-neutral-500 group-hover:text-neutral-900 dark:group-hover:text-white transition-colors">{d.label}</span>
                         <input 
                           type="number" 
                           min="0"
                           value={denominations[d.key as keyof typeof denominations] || ''}
                           onChange={(e) => setDenominations(prev => ({ ...prev, [d.key]: Number(e.target.value) }))}
                           placeholder="0"
-                          className="w-20 px-3 py-1.5 text-center bg-neutral-50 dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-md outline-none focus:border-indigo-500 text-sm font-bold"
+                          className="w-20 px-3 py-2 text-center bg-white dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-sm font-bold shadow-sm transition-all"
                         />
-                        <span className="flex-1 text-right text-sm font-semibold text-neutral-900 dark:text-white">
+                        <span className="flex-1 text-right text-sm font-black text-neutral-900 dark:text-white opacity-50 group-hover:opacity-100 transition-opacity">
                           ${(denominations[d.key as keyof typeof denominations] * d.val).toLocaleString()}
                         </span>
                       </div>
