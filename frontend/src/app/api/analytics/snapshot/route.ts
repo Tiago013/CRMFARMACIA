@@ -38,7 +38,12 @@ export async function GET(request: NextRequest) {
       where: {
         tenant_id,
         status: 'COMPLETED',
-        date: { gte: startDate }
+        date: { gte: startDate },
+        category: {
+          name: {
+            notIn: ['Compras de Inventario', 'Compras a Proveedores']
+          }
+        }
       },
       _sum: { amount: true }
     });
