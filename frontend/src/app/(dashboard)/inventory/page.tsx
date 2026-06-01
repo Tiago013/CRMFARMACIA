@@ -320,7 +320,14 @@ function InventoryContent() {
                   </h3>
                   <p className="text-xs text-neutral-500 mt-1">Basado en demanda semanal, inventario actual y prescripciones futuras (FarmaAI Predictivo).</p>
                 </div>
-                <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm">
+                <button 
+                  onClick={() => {
+                      if (suggestedOrders.length === 0) return alert('No hay sugerencias para ordenar');
+                      alert(`Orden de compra masiva generada para ${suggestedOrders.length} productos con éxito.`);
+                      setSuggestedOrders([]);
+                  }}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
+                >
                   <ShoppingCart size={16} /> Generar Orden Masiva
                 </button>
               </div>
@@ -363,10 +370,10 @@ function InventoryContent() {
                           onClick={async () => {
                               try {
                                   // await fetch('/api/inventory/purchase-orders', { method: 'POST', body: JSON.stringify(...) });
-                                  toast.success(`Orden de compra interna creada para ${order.name}`);
+                                  alert(`Orden de compra interna creada para ${order.name}`);
                                   setSuggestedOrders(prev => prev.filter(o => o.id !== order.id));
                               } catch (e: any) {
-                                  toast.error('Error al crear orden: ' + e.message);
+                                  alert('Error al crear orden: ' + e.message);
                               }
                           }}
                           className="text-xs font-semibold border border-neutral-300 dark:border-neutral-700 rounded-md px-3 py-1.5 hover:bg-white dark:hover:bg-neutral-800 transition-colors shadow-sm"

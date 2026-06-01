@@ -56,7 +56,8 @@ export async function GET(request: NextRequest) {
         category_name: p.category?.name || 'Sin Categoría',
         category_id: p.category_id || '',
         active_ingredient: p.active_ingredient || '',
-        expiration_date: nearestExpiration ? nearestExpiration.toISOString().split('T')[0] : ''
+        expiration_date: nearestExpiration ? nearestExpiration.toISOString().split('T')[0] : '',
+        min_stock: p.min_stock || 5
       };
     });
 
