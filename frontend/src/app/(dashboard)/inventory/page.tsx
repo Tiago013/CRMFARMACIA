@@ -5,6 +5,7 @@ import { Search, Plus, AlertTriangle, Edit2, Trash2, ShoppingCart, Activity, Ref
 import { apiClient as api } from '@/lib/axios';
 import { toast } from 'sonner';
 import { useSearchParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Suspense } from 'react';
 
 export default function InventoryPage() {
