@@ -96,18 +96,11 @@ export default function FinancePage() {
           <button onClick={() => setActiveTab('pnl')} className={`pb-3 pt-4 text-sm font-bold border-b-2 transition-colors ${activeTab === 'pnl' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}>
             Estado de Resultados (P&L)
           </button>
-          <button onClick={() => setActiveTab('cxc')} className={`pb-3 pt-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'cxc' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}>
-            Cuentas por Cobrar (Fiados)
-            <span className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-[10px] font-black px-1.5 py-0.5 rounded-full">3</span>
-          </button>
           <button onClick={() => setActiveTab('gastos')} className={`pb-3 pt-4 text-sm font-bold border-b-2 transition-colors ${activeTab === 'gastos' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}>
             Gastos Operativos
           </button>
           <button onClick={() => setActiveTab('cogs')} className={`pb-3 pt-4 text-sm font-bold border-b-2 transition-colors ${activeTab === 'cogs' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}>
             Costo de Ventas (COGS)
-          </button>
-          <button onClick={() => setActiveTab('cxp')} className={`pb-3 pt-4 text-sm font-bold border-b-2 transition-colors ${activeTab === 'cxp' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}>
-            Proveedores e Impuestos
           </button>
         </div>
       </div>
@@ -197,93 +190,9 @@ export default function FinancePage() {
               </div>
             </div>
           </div>
-        ) : activeTab === 'cxc' ? (
-          <div className="max-w-5xl mx-auto">
-            <div className="bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm overflow-hidden">
-               <div className="p-6 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] flex justify-between items-center">
-                <div>
-                  <h2 className="text-lg font-bold text-neutral-900 dark:text-white flex items-center gap-2">
-                    <CreditCard className="text-rose-500" /> Cuentas por Cobrar (Fiados)
-                  </h2>
-                  <p className="text-xs text-neutral-500 mt-1">Gestión de cartera de pacientes y cobranza automática.</p>
-                </div>
-              </div>
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-neutral-200 dark:border-neutral-800 text-xs font-bold text-neutral-500 uppercase tracking-wider">
-                    <th className="px-6 py-4">Paciente</th>
-                    <th className="px-6 py-4">Venta Ref.</th>
-                    <th className="px-6 py-4 text-center">Días de Atraso</th>
-                    <th className="px-6 py-4 text-right">Monto Adeudado</th>
-                    <th className="px-6 py-4 text-right">Acción</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
-                  <tr className="hover:bg-neutral-50 dark:hover:bg-[#111111] transition-colors">
-                    <td className="px-6 py-4 font-bold text-neutral-900 dark:text-white">Carlos Martínez</td>
-                    <td className="px-6 py-4 text-neutral-500 font-mono text-xs">POS-2026-992</td>
-                    <td className="px-6 py-4 text-center">
-                      <span className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 font-bold px-2.5 py-1 rounded-full text-xs">45 días</span>
-                    </td>
-                    <td className="px-6 py-4 text-right font-black text-rose-600 dark:text-rose-400">$120,500</td>
-                    <td className="px-6 py-4 text-right">
-                      <button className="text-xs font-bold bg-white dark:bg-[#0A0A0A] border border-neutral-300 dark:border-neutral-700 rounded-md px-3 py-1.5 shadow-sm hover:border-indigo-500 transition-colors">Abonar</button>
-                    </td>
-                  </tr>
-                  <tr className="hover:bg-neutral-50 dark:hover:bg-[#111111] transition-colors">
-                    <td className="px-6 py-4 font-bold text-neutral-900 dark:text-white">Familia Gómez</td>
-                    <td className="px-6 py-4 text-neutral-500 font-mono text-xs">POS-2026-104</td>
-                    <td className="px-6 py-4 text-center">
-                      <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-bold px-2.5 py-1 rounded-full text-xs">12 días</span>
-                    </td>
-                    <td className="px-6 py-4 text-right font-black text-rose-600 dark:text-rose-400">$45,000</td>
-                    <td className="px-6 py-4 text-right">
-                      <button className="text-xs font-bold bg-white dark:bg-[#0A0A0A] border border-neutral-300 dark:border-neutral-700 rounded-md px-3 py-1.5 shadow-sm hover:border-indigo-500 transition-colors">Abonar</button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
         ) : activeTab === 'gastos' ? (
           <div className="py-4">
             <ExpensesTab period={period} />
-          </div>
-        ) : activeTab === 'cxp' ? (
-          <div className="max-w-5xl mx-auto space-y-6">
-            <div className="bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm overflow-hidden">
-               <div className="p-6 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] flex justify-between items-center">
-                <div>
-                  <h2 className="text-lg font-bold text-neutral-900 dark:text-white flex items-center gap-2">
-                    <Building className="text-indigo-500" /> Cuentas por Pagar (Proveedores)
-                  </h2>
-                  <p className="text-xs text-neutral-500 mt-1">Pagos pendientes a distribuidores e inventario.</p>
-                </div>
-                <button className="bg-white dark:bg-[#111111] border border-neutral-200 dark:border-neutral-700 text-sm font-semibold px-4 py-2 rounded-lg shadow-sm">Registrar Factura Proveedor</button>
-              </div>
-              <div className="p-6 text-center text-neutral-500 text-sm font-medium">
-                No hay facturas pendientes de pago en este momento.
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm overflow-hidden">
-               <div className="p-6 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111]">
-                <h2 className="text-lg font-bold text-neutral-900 dark:text-white flex items-center gap-2">
-                  <FileText className="text-emerald-500" /> Impuestos Calculados (DIAN)
-                </h2>
-                <p className="text-xs text-neutral-500 mt-1">IVA acumulado de ventas gravadas en el periodo actual.</p>
-              </div>
-              <div className="p-6 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-bold text-neutral-500 uppercase mb-1">IVA Generado (Ventas 19%)</p>
-                  <p className="text-3xl font-black text-neutral-900 dark:text-white">$1,452,300.00</p>
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-neutral-500 uppercase mb-1 text-right">Medicamentos Exentos (0%)</p>
-                  <p className="text-3xl font-black text-neutral-900 dark:text-white text-right">$8,200,000.00</p>
-                </div>
-              </div>
-            </div>
           </div>
         ) : activeTab === 'cogs' ? (
           <div className="py-4">
