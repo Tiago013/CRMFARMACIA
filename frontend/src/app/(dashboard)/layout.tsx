@@ -10,7 +10,7 @@ import { apiClient } from '@/lib/axios';
 import { 
   LayoutDashboard, Package, Users, ShoppingCart, Settings,
   Bell, Search, Menu, X, BrainCircuit, DollarSign,
-  CreditCard, LogOut, Shield, ChevronDown, Moon, Sun, Monitor, MapPin, ArrowRightLeft, MessageCircle, MessageSquare
+  CreditCard, LogOut, Shield, ChevronDown, Moon, Sun, Monitor, MapPin, ArrowRightLeft, MessageCircle, MessageSquare, Truck
 } from 'lucide-react';
 import UpgradeModal from '@/components/ui/UpgradeModal';
 
@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { href: '/sales', icon: ShoppingCart, label: 'Punto de Venta', roles: ['admin', 'regente', 'cajero'] },
   { href: '/transactions', icon: ArrowRightLeft, label: 'Ventas y Compras', roles: ['admin', 'regente'] },
   { href: '/inventory', icon: Package, label: 'Inventario', roles: ['admin', 'regente'] },
+  { href: '/suppliers', icon: Truck, label: 'Proveedores', roles: ['admin', 'regente'] },
   { href: '/finance', icon: DollarSign, label: 'Finanzas', roles: ['admin'] },
   { href: '/crm', icon: Users, label: 'Pacientes', roles: ['admin', 'regente'] },
   { href: '/whatsapp', icon: MessageCircle, label: 'WhatsApp', roles: ['admin', 'regente'] },

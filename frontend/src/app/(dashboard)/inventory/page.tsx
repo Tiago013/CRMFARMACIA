@@ -320,31 +320,38 @@ function InventoryContent() {
                   </h3>
                   <p className="text-xs text-neutral-500 mt-1">Basado en demanda semanal, inventario actual y prescripciones futuras (FarmaAI Predictivo).</p>
                 </div>
-                <button 
-                  onClick={() => {
-                      if (suggestedOrders.length === 0) return alert('No hay sugerencias para ordenar');
-                      
-                      const csvContent = [
-                        ['Producto', 'Categoria', 'Stock Actual', 'Sugerido IA'].join(','),
-                        ...suggestedOrders.map(o => `"${o.name}","${o.category}",${o.currentStock},${o.suggestedQty}`)
-                      ].join('\n');
-                      
-                      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                      const url = URL.createObjectURL(blob);
-                      const link = document.createElement("a");
-                      link.setAttribute("href", url);
-                      link.setAttribute("download", `Orden_Masiva_${new Date().toISOString().split('T')[0]}.csv`);
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => {
+                        if (suggestedOrders.length === 0) return alert('No hay sugerencias para ordenar');
+                        
+                        const csvContent = [
+                          ['Producto', 'Categoria', 'Stock Actual', 'Sugerido IA'].join(','),
+                          ...suggestedOrders.map(o => `"${o.name}","${o.category}",${o.currentStock},${o.suggestedQty}`)
+                        ].join('\n');
+                        
+                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement("a");
+                        link.setAttribute("href", url);
+                        link.setAttribute("download", `Orden_Masiva_${new Date().toISOString().split('T')[0]}.csv`);
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
 
-                      alert(`Orden de compra masiva exportada a Excel (.csv) para ${suggestedOrders.length} productos.`);
-                      setSuggestedOrders([]);
-                  }}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
-                >
-                  <ShoppingCart size={16} /> Exportar Orden Masiva (.csv)
-                </button>
+                        alert(`Orden de compra masiva exportada a Excel (.csv) para ${suggestedOrders.length} productos.`);
+                    }}
+                    className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-2"
+                  >
+                    <ShoppingCart size={16} /> Exportar (.csv)
+                  </button>
+                  <Link 
+                    href="/suppliers"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors flex items-center gap-2"
+                  >
+                    <Plus size={16} /> Registrar Ingreso
+                  </Link>
+                </div>
               </div>
               <table className="w-full text-left text-sm">
                 <thead>
