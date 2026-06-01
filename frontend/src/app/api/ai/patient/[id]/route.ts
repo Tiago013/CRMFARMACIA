@@ -104,7 +104,8 @@ export async function GET(
       rawText = result.candidates[0].content.parts[0].text;
     } else {
       // Local Ollama
-      const response = await fetch('http://127.0.0.1:11434/api/generate', {
+      const ollamaUrl = process.env.OLLAMA_API_URL || 'http://127.0.0.1:11434';
+      const response = await fetch(`${ollamaUrl}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -141,7 +142,25 @@ export async function GET(
     rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
 
     try {
-      recommendations = JSON.parse(rawText);
+      let parsed = JSON.parse(rawText);
+      if (Array.isArray(parsed)) {
+        recommendations = parsed;
+      } else if (parsed && Array.isArray(parsed.recommendations)) {
+        recommendations = parsed.recommendations;
+      } else if (parsed && typeof parsed === 'object') {
+        // Just wrap whatever it gave us in an array if it looks somewhat valid, 
+        // or trigger fallback
+        recommendations = [
+          {
+            product_name: parsed.product_name || 'Recomendación IA',
+            confidence_score: parsed.confidence_score || 0.5,
+            reason: parsed.reason || JSON.stringify(parsed).substring(0, 100),
+            search_query: parsed.search_query || ''
+          }
+        ];
+      } else {
+        throw new Error("Invalid format");
+      }
     } catch (parseError) {
       console.error("Error parsing Gemini JSON:", rawText);
       // Fallback if parsing fails
@@ -149,7 +168,7 @@ export async function GET(
         {
           product_name: 'Vitamina C',
           confidence_score: 0.65,
-          reason: 'Mejora del sistema inmunológico general.',
+          reason: 'Mejora del sistema inmunológico general. (Respuesta no estructurada)',
           search_query: 'vitamina c'
         }
       ];
