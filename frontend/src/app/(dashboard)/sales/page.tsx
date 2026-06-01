@@ -734,14 +734,14 @@ function POSContent() {
               <button onClick={() => setShowDrawerModal(false)} className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200">&times;</button>
             </div>
             
-            <div className="flex flex-col md:flex-row h-full max-h-[70vh] overflow-hidden">
+            <div className="grid grid-cols-1 md:grid-cols-3 h-full max-h-[70vh] overflow-hidden">
               {/* Left Column: Summary */}
-              <div className="w-full md:w-1/3 p-6 border-r border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] overflow-y-auto">
+              <div className="md:col-span-1 p-6 border-r border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] overflow-y-auto flex flex-col">
                 <h4 className="text-sm font-bold text-neutral-900 dark:text-white uppercase tracking-wider mb-6 pb-2 border-b border-neutral-200 dark:border-neutral-800">
                   Resumen de Sistema
                 </h4>
                 
-                <div className="space-y-4">
+                <div className="space-y-4 flex-1">
                   <div className="flex justify-between items-center text-sm font-medium">
                     <span className="text-neutral-500">Base Registrada:</span>
                     <span className="text-neutral-900 dark:text-white">${drawerBase.toLocaleString()}</span>
@@ -797,7 +797,7 @@ function POSContent() {
               </div>
 
               {/* Right Column: Physical Denominations */}
-              <div className="flex-1 p-6 overflow-y-auto bg-white dark:bg-[#0A0A0A]">
+              <div className="md:col-span-2 p-6 overflow-y-auto bg-white dark:bg-[#0A0A0A]">
                 <h4 className="text-sm font-bold text-neutral-900 dark:text-white uppercase tracking-wider mb-6 pb-2 border-b border-neutral-200 dark:border-neutral-800 flex items-center gap-2">
                   <Banknote size={16} className="text-indigo-500" /> Desglose de Moneda Local (COP)
                 </h4>
