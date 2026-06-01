@@ -46,16 +46,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
     }
 
-    // 1. Get or create "Inventario" Expense Category for P&L tracking
+    // 1. Get or create "Compras a Proveedores" Expense Category for P&L tracking
     let inventoryCategory = await prisma.expenseCategory.findFirst({
-      where: { tenant_id, name: 'Compras de Inventario' }
+      where: { tenant_id, name: 'Compras a Proveedores' }
     });
     
     if (!inventoryCategory) {
       inventoryCategory = await prisma.expenseCategory.create({
         data: {
           tenant_id,
-          name: 'Compras de Inventario',
+          name: 'Compras a Proveedores',
           description: 'Costo de mercadería vendida (COGS) y reabastecimiento',
           color: '#10B981' // Emerald
         }

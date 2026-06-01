@@ -29,7 +29,15 @@ export async function GET(request: NextRequest) {
     }
 
     const opexAgg = await prisma.expense.aggregate({
-      where: { tenant_id: pharmacy.id, status: 'COMPLETED' },
+      where: { 
+        tenant_id: pharmacy.id, 
+        status: 'COMPLETED',
+        category: {
+          name: {
+            notIn: ['Compras de Inventario', 'Compras a Proveedores']
+          }
+        }
+      },
       _sum: { amount: true }
     });
     const opex = opexAgg._sum.amount || 0;
