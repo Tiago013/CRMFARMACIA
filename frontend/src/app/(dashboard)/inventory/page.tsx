@@ -236,9 +236,28 @@ function InventoryContent() {
               {loading ? (
                 <tr><td colSpan={6} className="px-8 py-12 text-center text-sm text-neutral-500 animate-pulse">Cargando inventario...</td></tr>
               ) : filteredProducts.map((product) => {
-                const thirtyDaysFromNow = new Date();
-                thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-                const isExpiring = product.expiration_date && new Date(product.expiration_date) <= thirtyDaysFromNow;
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const thirtyDaysFromNow = new Date(today);
+                thirtyDaysFromNow.setDate(today.getDate() + 30);
+                
+                let isExpiring = false;
+                let isExpired = false;
+                let expDateForDisplay = null;
+                
+                if (product.expiration_date) {
+                   const parts = product.expiration_date.split('-');
+                   if (parts.length >= 3) {
+                     const expDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                     expDateForDisplay = expDate;
+                     if (expDate < today) {
+                       isExpired = true;
+                     } else if (expDate <= thirtyDaysFromNow) {
+                       isExpiring = true;
+                     }
+                   }
+                }
+
                 return (
                   <tr key={product.id} className="hover:bg-white dark:hover:bg-[#0A0A0A] transition-colors group">
                     <td className="px-8 py-4">
@@ -259,12 +278,17 @@ function InventoryContent() {
                       )}
                     </td>
                     <td className="px-8 py-4">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-neutral-900 dark:text-white text-sm">
-                          {product.expiration_date ? new Date(product.expiration_date).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Sin Fecha'}
+                      <div className="flex flex-col gap-1 items-start">
+                        <span className={`text-sm ${isExpired ? 'text-red-600 dark:text-red-400 font-bold' : 'text-neutral-900 dark:text-white'}`}>
+                          {expDateForDisplay ? expDateForDisplay.toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Sin Fecha'}
                         </span>
+                        {isExpired && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800">
+                            <AlertTriangle size={12} /> PRODUCTO VENCIDO
+                          </span>
+                        )}
                         {isExpiring && (
-                          <span className="inline-flex w-fit items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
                             <AlertTriangle size={12} /> PRÓXIMO A VENCER (30 días)
                           </span>
                         )}
