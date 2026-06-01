@@ -846,7 +846,7 @@ export default function CRMPage() {
                 <select 
                   className="w-full px-3 py-2 bg-neutral-50 dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-md text-sm outline-none focus:border-indigo-500"
                   value={selectedRecordId}
-                  onChange={(e) => setSelectedRecordId(e.target.value)}
+                  onChange={(e) => setSelectedRecordId(e.target.value ? Number(e.target.value) : '')}
                 >
                   <option value="" disabled>Seleccione una venta del paciente...</option>
                   {waRecords.sales?.map((s:any) => (
