@@ -758,8 +758,8 @@ function POSContent() {
       {/* MODAL: Caja (Apertura / Cierre) */}
       {showDrawerModal && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-[#0A0A0A] rounded-xl shadow-2xl border border-neutral-200 dark:border-neutral-800 w-full max-w-4xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
-            <div className={`p-6 border-b flex justify-between items-center bg-white dark:bg-[#0F0F0F] ${drawerMode === 'open' ? 'border-indigo-500/20' : 'border-rose-500/20'}`}>
+          <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-2xl border border-neutral-200 dark:border-neutral-800 w-full max-w-4xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
+            <div className={`p-6 border-b flex justify-between items-center bg-white dark:bg-neutral-900 ${drawerMode === 'open' ? 'border-indigo-500/20' : 'border-rose-500/20'}`}>
               <div>
                 <h3 className="text-xl font-black flex items-center gap-2 text-neutral-900 dark:text-white">
                   <span className={`p-2 rounded-lg ${drawerMode === 'open' ? 'bg-indigo-100 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' : 'bg-rose-100 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>
@@ -778,13 +778,13 @@ function POSContent() {
             
             <div className="grid grid-cols-1 md:grid-cols-3 h-full max-h-[70vh] overflow-hidden">
               {/* Left Column: Summary */}
-              <div className="md:col-span-1 p-6 border-r border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-[#141414] overflow-y-auto flex flex-col">
+              <div className="md:col-span-1 p-6 border-r border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 overflow-y-auto flex flex-col">
                 <h4 className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-6 pb-3 border-b border-neutral-200 dark:border-neutral-800 flex items-center gap-2">
                   <Save size={14} /> Resumen de Sistema
                 </h4>
                 
                 <div className="space-y-4 flex-1">
-                  <div className="flex justify-between items-center text-sm font-medium bg-white dark:bg-[#1A1A1A] p-3 rounded-lg border border-neutral-200 dark:border-neutral-800">
+                  <div className="flex justify-between items-center text-sm font-medium bg-white dark:bg-neutral-800 p-3 rounded-lg border border-neutral-200 dark:border-neutral-700">
                     <span className="text-neutral-500">Base Registrada:</span>
                     <span className="text-neutral-900 dark:text-white font-bold">${drawerBase.toLocaleString()}</span>
                   </div>
@@ -816,13 +816,22 @@ function POSContent() {
                     </div>
 
                     {drawerMode === 'close' && (
-                      <div className={`p-5 rounded-xl border flex flex-col gap-2 ${calculateDrawerTotal() - (drawerBase + drawerSales) >= 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-rose-500/10 border-rose-500/30'}`}>
-                        <span className={`text-xs font-black uppercase tracking-wider ${calculateDrawerTotal() - (drawerBase + drawerSales) >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>Diferencia (Descuadre)</span>
-                        <span className={`text-3xl font-black flex items-center gap-2 ${calculateDrawerTotal() - (drawerBase + drawerSales) >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
-                          {calculateDrawerTotal() - (drawerBase + drawerSales) >= 0 ? <Plus size={24} /> : <Minus size={24} />}
-                          ${Math.abs(calculateDrawerTotal() - (drawerBase + drawerSales)).toLocaleString()}
-                        </span>
-                      </div>
+                      calculateDrawerTotal() === 0 ? (
+                        <div className="p-5 rounded-xl border bg-neutral-100 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 flex flex-col gap-2">
+                          <span className="text-xs font-black uppercase tracking-wider text-neutral-500">Diferencia (Descuadre)</span>
+                          <span className="text-lg font-bold text-neutral-400 dark:text-neutral-500">
+                            Pendiente de conteo...
+                          </span>
+                        </div>
+                      ) : (
+                        <div className={`p-5 rounded-xl border flex flex-col gap-2 ${calculateDrawerTotal() - (drawerBase + drawerSales) >= 0 ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30' : 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/30'}`}>
+                          <span className={`text-xs font-black uppercase tracking-wider ${calculateDrawerTotal() - (drawerBase + drawerSales) >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>Diferencia (Descuadre)</span>
+                          <span className={`text-3xl font-black flex items-center gap-2 ${calculateDrawerTotal() - (drawerBase + drawerSales) >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
+                            {calculateDrawerTotal() - (drawerBase + drawerSales) >= 0 ? <Plus size={24} /> : <Minus size={24} />}
+                            ${Math.abs(calculateDrawerTotal() - (drawerBase + drawerSales)).toLocaleString()}
+                          </span>
+                        </div>
+                      )
                     )}
                   </div>
                 </div>
@@ -848,7 +857,7 @@ function POSContent() {
               </div>
 
               {/* Right Column: Physical Denominations */}
-              <div className="md:col-span-2 p-8 overflow-y-auto bg-white dark:bg-[#0A0A0A]">
+              <div className="md:col-span-2 p-8 overflow-y-auto bg-white dark:bg-neutral-950">
                 <h4 className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-6 pb-3 border-b border-neutral-200 dark:border-neutral-800 flex items-center gap-2">
                   <Banknote size={14} className="text-indigo-500" /> Desglose de Moneda Local (COP)
                 </h4>
@@ -856,7 +865,7 @@ function POSContent() {
                 <div className="grid grid-cols-2 gap-x-12 gap-y-8">
                   {/* Billetes */}
                   <div className="space-y-4">
-                    <h5 className="text-[10px] font-black text-neutral-500 mb-4 uppercase tracking-widest bg-neutral-100 dark:bg-neutral-900 px-3 py-1 rounded-full w-max">Billetes</h5>
+                    <h5 className="text-[10px] font-black text-neutral-500 mb-4 uppercase tracking-widest bg-neutral-100 dark:bg-neutral-800 px-3 py-1 rounded-full w-max">Billetes</h5>
                     {[
                       { key: 'b100', val: 100000, label: '$100.000' },
                       { key: 'b50', val: 50000, label: '$50.000' },
@@ -873,7 +882,7 @@ function POSContent() {
                           value={denominations[d.key as keyof typeof denominations] || ''}
                           onChange={(e) => setDenominations(prev => ({ ...prev, [d.key]: Number(e.target.value) }))}
                           placeholder="0"
-                          className="w-20 px-3 py-2 text-center bg-white dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-sm font-bold shadow-sm transition-all"
+                          className="w-20 px-3 py-2 text-center bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-sm font-bold shadow-sm transition-all"
                         />
                         <span className="flex-1 text-right text-sm font-black text-neutral-900 dark:text-white opacity-50 group-hover:opacity-100 transition-opacity">
                           ${(denominations[d.key as keyof typeof denominations] * d.val).toLocaleString()}
@@ -884,7 +893,7 @@ function POSContent() {
 
                   {/* Monedas */}
                   <div className="space-y-4">
-                    <h5 className="text-[10px] font-black text-neutral-500 mb-4 uppercase tracking-widest bg-neutral-100 dark:bg-neutral-900 px-3 py-1 rounded-full w-max">Monedas</h5>
+                    <h5 className="text-[10px] font-black text-neutral-500 mb-4 uppercase tracking-widest bg-neutral-100 dark:bg-neutral-800 px-3 py-1 rounded-full w-max">Monedas</h5>
                     {[
                       { key: 'm1000', val: 1000, label: '$1.000' },
                       { key: 'm500', val: 500, label: '$500' },
@@ -900,7 +909,7 @@ function POSContent() {
                           value={denominations[d.key as keyof typeof denominations] || ''}
                           onChange={(e) => setDenominations(prev => ({ ...prev, [d.key]: Number(e.target.value) }))}
                           placeholder="0"
-                          className="w-20 px-3 py-2 text-center bg-white dark:bg-[#141414] border border-neutral-200 dark:border-neutral-800 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-sm font-bold shadow-sm transition-all"
+                          className="w-20 px-3 py-2 text-center bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-sm font-bold shadow-sm transition-all"
                         />
                         <span className="flex-1 text-right text-sm font-black text-neutral-900 dark:text-white opacity-50 group-hover:opacity-100 transition-opacity">
                           ${(denominations[d.key as keyof typeof denominations] * d.val).toLocaleString()}
