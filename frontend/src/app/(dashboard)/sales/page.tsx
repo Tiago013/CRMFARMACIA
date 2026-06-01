@@ -36,6 +36,8 @@ function POSContent() {
   const [drawerStatus, setDrawerStatus] = useState<'open' | 'closed'>('closed');
   const [drawerBase, setDrawerBase] = useState<number>(0);
   const [drawerSales, setDrawerSales] = useState<number>(0);
+  const [drawerCashIn, setDrawerCashIn] = useState<number>(0);
+  const [drawerCashOut, setDrawerCashOut] = useState<number>(0);
   const [showDrawerModal, setShowDrawerModal] = useState(false);
   const [drawerMode, setDrawerMode] = useState<'open' | 'close'>('open');
   const [denominations, setDenominations] = useState({
@@ -49,16 +51,22 @@ function POSContent() {
       setDrawerStatus(savedStatus as any);
       setDrawerBase(Number(localStorage.getItem('drawerBase')) || 0);
       setDrawerSales(Number(localStorage.getItem('drawerSales')) || 0);
+      setDrawerCashIn(Number(localStorage.getItem('drawerCashIn')) || 0);
+      setDrawerCashOut(Number(localStorage.getItem('drawerCashOut')) || 0);
     }
   }, []);
 
-  const saveDrawerState = (status: 'open' | 'closed', base: number, sales: number) => {
+  const saveDrawerState = (status: 'open' | 'closed', base: number, sales: number, cashIn: number = 0, cashOut: number = 0) => {
     localStorage.setItem('drawerStatus', status);
     localStorage.setItem('drawerBase', base.toString());
     localStorage.setItem('drawerSales', sales.toString());
+    localStorage.setItem('drawerCashIn', cashIn.toString());
+    localStorage.setItem('drawerCashOut', cashOut.toString());
     setDrawerStatus(status);
     setDrawerBase(base);
     setDrawerSales(sales);
+    setDrawerCashIn(cashIn);
+    setDrawerCashOut(cashOut);
   };
 
   const calculateDrawerTotal = () => {
@@ -323,7 +331,7 @@ function POSContent() {
         const data = await response.json();
         
         if (checkoutData.payments[0].method === 'cash') {
-          saveDrawerState('open', drawerBase, drawerSales + total);
+          saveDrawerState('open', drawerBase, drawerSales + total, drawerCashIn + cashReceived, drawerCashOut + (cashReceived - total));
         }
         
         toast.success(`¡Venta Procesada! Total: $${total.toLocaleString('es-CO', { maximumFractionDigits: 0 })}`);
@@ -781,9 +789,18 @@ function POSContent() {
                     <span className="text-neutral-900 dark:text-white font-bold">${drawerBase.toLocaleString()}</span>
                   </div>
                   {drawerMode === 'close' && (
-                    <div className="flex justify-between items-center text-sm font-medium bg-white dark:bg-[#1A1A1A] p-3 rounded-lg border border-neutral-200 dark:border-neutral-800">
-                      <span className="text-neutral-500">Ventas en Efectivo:</span>
-                      <span className="text-neutral-900 dark:text-white font-bold">${drawerSales.toLocaleString()}</span>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center text-sm font-medium bg-emerald-50 dark:bg-emerald-950/20 p-3 rounded-lg border border-emerald-100 dark:border-emerald-900/50">
+                        <span className="text-emerald-700 dark:text-emerald-500">+ Efectivo Recibido:</span>
+                        <span className="text-emerald-800 dark:text-emerald-400 font-bold">${drawerCashIn.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-sm font-medium bg-rose-50 dark:bg-rose-950/20 p-3 rounded-lg border border-rose-100 dark:border-rose-900/50">
+                        <span className="text-rose-700 dark:text-rose-500">- Cambios Entregados:</span>
+                        <span className="text-rose-800 dark:text-rose-400 font-bold">-${drawerCashOut.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs font-bold text-neutral-500 pt-1 px-3">
+                        <span>(= Ventas Netas: ${drawerSales.toLocaleString()})</span>
+                      </div>
                     </div>
                   )}
                   
@@ -814,11 +831,11 @@ function POSContent() {
                   <button 
                     onClick={() => {
                       if (drawerMode === 'open') {
-                        saveDrawerState('open', calculateDrawerTotal(), 0);
+                        saveDrawerState('open', calculateDrawerTotal(), 0, 0, 0);
                         toast.success(`Caja abierta exitosamente con base de $${calculateDrawerTotal().toLocaleString()}`);
                       } else {
                         const dif = calculateDrawerTotal() - (drawerBase + drawerSales);
-                        saveDrawerState('closed', 0, 0);
+                        saveDrawerState('closed', 0, 0, 0, 0);
                         toast.success(`Turno finalizado. Descuadre: $${dif.toLocaleString()}`);
                       }
                       setShowDrawerModal(false);
