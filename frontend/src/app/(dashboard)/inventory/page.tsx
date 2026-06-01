@@ -286,7 +286,7 @@ function InventoryContent() {
           </table>
         )}
 
-        {activeTab === 'ai' && (
+        {activeTab === 'orders' && (
           <div className="p-8">
             <div className="bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden shadow-sm">
               <div className="p-5 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] flex justify-between items-center">
@@ -446,13 +446,77 @@ function InventoryContent() {
 
         {activeTab === 'mermas' && (
           <div className="p-8">
-            <div className="max-w-3xl mx-auto bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl p-8 text-center">
-              <FileText size={48} className="mx-auto text-neutral-300 dark:text-neutral-700 mb-4" />
-              <h3 className="text-lg font-bold text-neutral-900 dark:text-white mb-2">Reporte de Mermas y Pérdidas</h3>
-              <p className="text-sm text-neutral-500 mb-6">Aquí se registrarán automáticamente los productos vencidos (FEFO), averías y discrepancias de inventario que impacten el estado de resultados financieros.</p>
-              <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm">
-                Registrar Merma Manual
-              </button>
+            <div className="bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden shadow-sm">
+              <div className="p-5 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] flex justify-between items-center">
+                <div>
+                  <h3 className="font-bold text-neutral-900 dark:text-white flex items-center gap-2">
+                    <FileText size={16} className="text-red-500" /> Registro de Mermas (Bajas)
+                  </h3>
+                  <p className="text-xs text-neutral-500 mt-1">Busca el producto arriba y registra productos vencidos, averiados o perdidos. Esto descontará el stock inmediatamente.</p>
+                </div>
+              </div>
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-neutral-200 dark:border-neutral-800">
+                    <th className="px-6 py-3 font-semibold text-neutral-500">Producto</th>
+                    <th className="px-6 py-3 font-semibold text-neutral-500 text-center">Stock Actual</th>
+                    <th className="px-6 py-3 font-semibold text-neutral-500 text-center">Cant. a dar de Baja</th>
+                    <th className="px-6 py-3 font-semibold text-neutral-500 text-right">Acción</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
+                  {filteredProducts.map(item => {
+                    return (
+                      <tr key={item.id} className="hover:bg-neutral-50 dark:hover:bg-[#111111] transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="font-semibold text-neutral-900 dark:text-white">{item.brand_name}</div>
+                          <div className="text-xs text-neutral-500">{item.sku}</div>
+                        </td>
+                        <td className="px-6 py-4 text-center font-medium text-neutral-700 dark:text-neutral-300">{item.total_stock}</td>
+                        <td className="px-6 py-4 text-center">
+                          <input 
+                            id={`merma-${item.id}`}
+                            type="number" 
+                            min="1"
+                            max={item.total_stock}
+                            placeholder="0"
+                            className="w-20 text-center border border-neutral-300 dark:border-neutral-700 rounded bg-white dark:bg-black px-2 py-1 focus:ring-2 focus:ring-red-500 outline-none"
+                          />
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button 
+                            onClick={async () => {
+                                const input = document.getElementById(`merma-${item.id}`) as HTMLInputElement;
+                                const diff = parseInt(input.value) || 0;
+                                if (diff <= 0 || diff > item.total_stock) return toast.error('Cantidad inválida para dar de baja');
+                                try {
+                                  const res = await fetch('/api/inventory/adjustments', { 
+                                      method: 'POST', 
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ 
+                                        product_id: item.id, 
+                                        difference: -diff 
+                                      })
+                                  });
+                                  if (!res.ok) throw new Error(await res.text());
+                                  toast.success(`Se registraron ${diff} unidades como merma.`);
+                                  input.value = '';
+                                  // Update local state
+                                  setProducts(prev => prev.map(p => p.id === item.id ? { ...p, total_stock: p.total_stock - diff } : p));
+                                } catch (e: any) {
+                                    toast.error('Error al registrar merma: ' + e.message);
+                                }
+                            }}
+                            className="text-xs font-semibold bg-red-600 text-white rounded-md px-3 py-1.5 hover:bg-red-700 transition-colors shadow-sm"
+                          >
+                            Dar de Baja
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
