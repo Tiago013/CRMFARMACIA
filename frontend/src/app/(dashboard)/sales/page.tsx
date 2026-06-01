@@ -786,20 +786,20 @@ function POSContent() {
                 <div className="space-y-4 flex-1">
                   <div className="flex justify-between items-center text-sm font-medium bg-white dark:bg-neutral-800 p-3 rounded-lg border border-neutral-200 dark:border-neutral-700">
                     <span className="text-neutral-500">Base Registrada:</span>
-                    <span className="text-neutral-900 dark:text-white font-bold">${drawerBase.toLocaleString()}</span>
+                    <span className="text-neutral-900 dark:text-white font-bold">${drawerBase.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</span>
                   </div>
                   {drawerMode === 'close' && (
                     <div className="space-y-2">
                       <div className="flex justify-between items-center text-sm font-medium bg-emerald-50 dark:bg-emerald-950/20 p-3 rounded-lg border border-emerald-100 dark:border-emerald-900/50">
                         <span className="text-emerald-700 dark:text-emerald-500">+ Efectivo Recibido:</span>
-                        <span className="text-emerald-800 dark:text-emerald-400 font-bold">${drawerCashIn.toLocaleString()}</span>
+                        <span className="text-emerald-800 dark:text-emerald-400 font-bold">${drawerCashIn.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</span>
                       </div>
                       <div className="flex justify-between items-center text-sm font-medium bg-rose-50 dark:bg-rose-950/20 p-3 rounded-lg border border-rose-100 dark:border-rose-900/50">
                         <span className="text-rose-700 dark:text-rose-500">- Cambios Entregados:</span>
-                        <span className="text-rose-800 dark:text-rose-400 font-bold">-${drawerCashOut.toLocaleString()}</span>
+                        <span className="text-rose-800 dark:text-rose-400 font-bold">-${drawerCashOut.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</span>
                       </div>
                       <div className="flex justify-between items-center text-xs font-bold text-neutral-500 pt-1 px-3">
-                        <span>(= Ventas Netas: ${drawerSales.toLocaleString()})</span>
+                        <span>(= Ventas Netas: ${drawerSales.toLocaleString('es-CO', { maximumFractionDigits: 0 })})</span>
                       </div>
                     </div>
                   )}
@@ -807,12 +807,12 @@ function POSContent() {
                   <div className="pt-6 mt-6">
                     <div className="flex justify-between items-center mb-3">
                       <span className="font-bold text-neutral-500 text-xs tracking-wider uppercase">TOTAL ESPERADO:</span>
-                      <span className="text-xl font-black text-neutral-900 dark:text-white">${(drawerMode === 'open' ? 0 : drawerBase + drawerSales).toLocaleString()}</span>
+                      <span className="text-xl font-black text-neutral-900 dark:text-white">${(drawerMode === 'open' ? 0 : drawerBase + drawerSales).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</span>
                     </div>
                     
                     <div className="flex justify-between items-center mb-8">
                       <span className="font-bold text-neutral-500 text-xs tracking-wider uppercase">TOTAL DECLARADO:</span>
-                      <span className={`text-xl font-black ${drawerMode === 'open' ? 'text-indigo-600 dark:text-indigo-400' : 'text-rose-600 dark:text-rose-400'}`}>${calculateDrawerTotal().toLocaleString()}</span>
+                      <span className={`text-xl font-black ${drawerMode === 'open' ? 'text-indigo-600 dark:text-indigo-400' : 'text-rose-600 dark:text-rose-400'}`}>${calculateDrawerTotal().toLocaleString('es-CO', { maximumFractionDigits: 0 })}</span>
                     </div>
 
                     {drawerMode === 'close' && (
@@ -828,7 +828,7 @@ function POSContent() {
                           <span className={`text-xs font-black uppercase tracking-wider ${calculateDrawerTotal() - (drawerBase + drawerSales) >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>Diferencia (Descuadre)</span>
                           <span className={`text-3xl font-black flex items-center gap-2 ${calculateDrawerTotal() - (drawerBase + drawerSales) >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
                             {calculateDrawerTotal() - (drawerBase + drawerSales) >= 0 ? <Plus size={24} /> : <Minus size={24} />}
-                            ${Math.abs(calculateDrawerTotal() - (drawerBase + drawerSales)).toLocaleString()}
+                            ${Math.abs(calculateDrawerTotal() - (drawerBase + drawerSales)).toLocaleString('es-CO', { maximumFractionDigits: 0 })}
                           </span>
                         </div>
                       )
