@@ -75,8 +75,8 @@ export default function CRMPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showWaModal, setShowWaModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editFormData, setEditFormData] = useState({ first_name: '', last_name: '', phone: '', document_id: '', email: '', address: '', eps: '', blood_type: '' });
-  const [addFormData, setAddFormData] = useState({ first_name: '', last_name: '', phone: '', document_id: '', email: '', address: '', eps: '', blood_type: '' });
+  const [editFormData, setEditFormData] = useState({ first_name: '', last_name: '', phone: '', document_id: '', email: '', address: '', eps: '', blood_group: '', birth_date: '', allergies: '', medical_notes: '', emergency_contact_name: '', emergency_contact_phone: '' });
+  const [addFormData, setAddFormData] = useState({ first_name: '', last_name: '', phone: '', document_id: '', email: '', address: '', eps: '', blood_group: '', birth_date: '', allergies: '', medical_notes: '', emergency_contact_name: '', emergency_contact_phone: '' });
   const [isSaving, setIsSaving] = useState(false);
   const [waMessages, setWaMessages] = useState<any[]>([]);
   const [waTemplates, setWaTemplates] = useState<any[]>([]);
@@ -88,9 +88,10 @@ export default function CRMPage() {
   // Fetch Patients
   const fetchPatients = async (query: string = searchQuery) => {
     try {
-      const res = await api.get('/crm/patients', { params: { limit: 50, search: query } });
-      const data = Array.isArray(res.data) ? res.data : [];
-      const mapped = data.map((p: any) => ({
+      const res = await fetch(`/api/crm/patients?search=${encodeURIComponent(query)}`);
+      const data = await res.json();
+      const actualData = Array.isArray(data) ? data : [];
+      const mapped = actualData.map((p: any) => ({
         id: p.id,
         first_name: p.first_name || '',
         last_name: p.last_name || '',
@@ -134,21 +135,22 @@ export default function CRMPage() {
     if (!selectedPatientId) return;
     const fetchPatientProfile = async () => {
       try {
-        const res = await api.get(`/crm/patients/${selectedPatientId}`);
+        const res = await fetch(`/api/crm/patients/${selectedPatientId}`);
+        const data = await res.json();
         setPatients(prev => prev.map(p => {
           if (p.id === selectedPatientId) {
             return {
               ...p,
-              first_name: res.data.first_name || p.first_name,
-              last_name: res.data.last_name || p.last_name,
-              document_id: res.data.document_id || p.document_id,
-              phone: res.data.phone || p.phone,
-              preferences: res.data.preferences || p.preferences,
-              score: res.data.score || 50,
-              purchase_history: res.data.purchase_history || [],
-              timeline: res.data.timeline || [],
-              chart_data: res.data.chart_data || [],
-              ltv: res.data.ltv || p.ltv
+              first_name: data.first_name || p.first_name,
+              last_name: data.last_name || p.last_name,
+              document_id: data.document_id || p.document_id,
+              phone: data.phone || p.phone,
+              preferences: data.preferences || p.preferences,
+              score: data.score || 50,
+              purchase_history: data.purchase_history || [],
+              timeline: data.timeline || [],
+              chart_data: data.chart_data || [],
+              ltv: data.ltv || p.ltv
             };
           }
           return p;
@@ -159,20 +161,63 @@ export default function CRMPage() {
     };
     fetchPatientProfile();
 
-    const fetchAiContext = async () => {
-      setLoadingAi(true);
-      try {
-        const res = await api.get(`/ai/patient/${selectedPatientId}`);
-        setAiContext(res.data);
-      } catch (e) {
-        setAiContext(null);
-      } finally {
-        setLoadingAi(false);
-      }
-    };
-    fetchAiContext();
+    setAiContext(null);
     setActiveTab('general'); // Reset tab on patient change
   }, [selectedPatientId]);
+
+  const generateAiRecommendations = async () => {
+    if (!selectedPatientId) return;
+
+    // Check cache first
+    const cacheKey = `ai_recommendations_${selectedPatientId}`;
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        setAiContext(JSON.parse(cached));
+        return;
+      } catch (e) {
+        // ignore cache error and fetch
+      }
+    }
+
+    setLoadingAi(true);
+    try {
+      const selectedModel = localStorage.getItem('AI_MODEL') || 'gemini';
+
+      // Track quota usage only for Gemini
+      if (selectedModel === 'gemini') {
+        // Track quota usage (RPM)
+        let rpmCount = parseInt(sessionStorage.getItem('gemini_rpm_count') || localStorage.getItem('gemini_rpm_count') || '0');
+        let rpmReset = parseInt(sessionStorage.getItem('gemini_rpm_reset') || localStorage.getItem('gemini_rpm_reset') || '0');
+        if (!rpmReset || Date.now() > rpmReset) {
+          rpmReset = Date.now() + 60000;
+          rpmCount = 0;
+          localStorage.setItem('gemini_rpm_reset', rpmReset.toString());
+        }
+        rpmCount++;
+        localStorage.setItem('gemini_rpm_count', rpmCount.toString());
+
+        // Track quota usage (RPD)
+        let rpdCount = parseInt(sessionStorage.getItem('gemini_rpd_count') || localStorage.getItem('gemini_rpd_count') || '0');
+        let rpdReset = parseInt(sessionStorage.getItem('gemini_rpd_reset') || localStorage.getItem('gemini_rpd_reset') || '0');
+        if (!rpdReset || Date.now() > rpdReset) {
+          rpdReset = Date.now() + (24 * 60 * 60 * 1000);
+          rpdCount = 0;
+          localStorage.setItem('gemini_rpd_reset', rpdReset.toString());
+        }
+        rpdCount++;
+        localStorage.setItem('gemini_rpd_count', rpdCount.toString());
+      }
+
+      const res = await api.get(`/ai/patient/${selectedPatientId}?model=${selectedModel}`);
+      setAiContext(res.data);
+      sessionStorage.setItem(cacheKey, JSON.stringify(res.data));
+    } catch (e) {
+      setAiContext(null);
+    } finally {
+      setLoadingAi(false);
+    }
+  };
 
 
   // Fetch WhatsApp Messages when Communication tab is active
@@ -200,11 +245,11 @@ export default function CRMPage() {
       const fetchWAData = async () => {
         try {
           const [tempRes, recRes] = await Promise.all([
-            api.get('/communications/whatsapp/templates'),
-            api.get(`/communications/whatsapp/${selectedPatientId}/records`)
+            api.get('/whatsapp/templates').catch(() => ({ data: [] })),
+            api.get(`/crm/patients/${selectedPatientId}/sales`).catch(() => ({ data: [] }))
           ]);
           setWaTemplates(tempRes.data || []);
-          setWaRecords(recRes.data || {sales: [], invoices: []});
+          setWaRecords({ sales: Array.isArray(recRes.data) ? recRes.data : [] });
         } catch(e) { console.error(e); }
       };
       fetchWAData();
@@ -298,10 +343,15 @@ export default function CRMPage() {
                           last_name: activePatient?.last_name || '',
                           phone: activePatient?.phone || '',
                           document_id: activePatient?.document_id || '',
-                          email: activePatient?.preferences?.email || '',
-                          address: activePatient?.preferences?.address || '',
-                          eps: activePatient?.preferences?.eps || 'Sura',
-                          blood_type: activePatient?.preferences?.blood_type || 'O+'
+                          email: activePatient?.email || activePatient?.preferences?.email || '',
+                          address: activePatient?.address || activePatient?.preferences?.address || '',
+                          eps: activePatient?.eps || activePatient?.preferences?.eps || 'Sura',
+                          blood_group: activePatient?.blood_group || activePatient?.preferences?.blood_group || activePatient?.preferences?.blood_type || 'O+',
+                          birth_date: activePatient?.birth_date ? new Date(activePatient.birth_date).toISOString().split('T')[0] : '',
+                          allergies: activePatient?.allergies || '',
+                          medical_notes: activePatient?.medical_notes || '',
+                          emergency_contact_name: activePatient?.emergency_contact_name || '',
+                          emergency_contact_phone: activePatient?.emergency_contact_phone || ''
                         });
                         setShowEditModal(true);
                       }} className="text-neutral-400 hover:text-indigo-600 transition-colors" title="Editar Perfil">
@@ -444,12 +494,26 @@ export default function CRMPage() {
                                 <span className="font-semibold text-xs text-neutral-900 dark:text-white">{rec.product_name}</span>
                                 <span className="text-[9px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">{(rec.confidence_score*100).toFixed(0)}% MATCH</span>
                               </div>
-                              <p className="text-[10px] text-neutral-500 mt-1">{rec.reason}</p>
+                              <p className="text-[10px] text-neutral-500 mt-1 mb-3">{rec.reason}</p>
+                              <a 
+                                href={`/sales?add_query=${encodeURIComponent(rec.search_query || rec.product_name)}&patient_id=${selectedPatientId}`}
+                                className="w-full flex items-center justify-center gap-1 py-1.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors border border-indigo-100 dark:border-indigo-900/50"
+                              >
+                                <ShoppingCart size={12} /> Agregar al POS
+                              </a>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <p className="text-xs text-neutral-500">No hay recomendaciones en este momento.</p>
+                        <div className="text-center">
+                          <p className="text-xs text-neutral-500 mb-3">Solicita a la IA que analice el historial de este paciente.</p>
+                          <button 
+                            onClick={generateAiRecommendations}
+                            className="w-full py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold shadow hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+                          >
+                            <Sparkles size={14} /> Generar Recomendaciones
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -490,38 +554,28 @@ export default function CRMPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                      <tr>
-                        <td className="px-6 py-4 font-medium text-neutral-900 dark:text-white">Losartán 50mg</td>
-                        <td className="px-6 py-4 text-neutral-500">1 pastilla / 12h</td>
-                        <td className="px-6 py-4 text-amber-600 font-medium">En 4 días</td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="w-full bg-neutral-200 dark:bg-neutral-800 h-1.5 rounded-full overflow-hidden">
-                              <div className="bg-emerald-500 h-full w-[95%]"></div>
-                            </div>
-                            <span className="text-[10px] font-bold">95%</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <button className="text-indigo-600 text-xs font-semibold hover:underline">Dispensar</button>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="px-6 py-4 font-medium text-neutral-900 dark:text-white">Metformina 850mg</td>
-                        <td className="px-6 py-4 text-neutral-500">1 pastilla / 24h</td>
-                        <td className="px-6 py-4 text-neutral-500">En 15 días</td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="w-full bg-neutral-200 dark:bg-neutral-800 h-1.5 rounded-full overflow-hidden">
-                              <div className="bg-amber-500 h-full w-[75%]"></div>
-                            </div>
-                            <span className="text-[10px] font-bold">75%</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <button className="text-indigo-600 text-xs font-semibold hover:underline">Dispensar</button>
-                        </td>
-                      </tr>
+                      {activePatient?.preferences?.prescriptions?.length > 0 ? (
+                        activePatient.preferences.prescriptions.map((presc: any, i: number) => (
+                          <tr key={i}>
+                            <td className="px-6 py-4 font-medium text-neutral-900 dark:text-white">{presc.medication}</td>
+                            <td className="px-6 py-4 text-neutral-500">{presc.dosage}</td>
+                            <td className="px-6 py-4 text-amber-600 font-medium">{presc.next_refill}</td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-2">
+                                <div className="w-full bg-neutral-200 dark:bg-neutral-800 h-1.5 rounded-full overflow-hidden">
+                                  <div className="bg-emerald-500 h-full" style={{ width: `${presc.adherence || 100}%` }}></div>
+                                </div>
+                                <span className="text-[10px] font-bold">{presc.adherence || 100}%</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <button className="text-indigo-600 text-xs font-semibold hover:underline">Dispensar</button>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr><td colSpan={5} className="px-6 py-8 text-center text-neutral-500">No hay prescripciones activas para este paciente.</td></tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -610,12 +664,21 @@ export default function CRMPage() {
                 e.preventDefault();
                 setIsSaving(true);
                 try {
-                  const prefs = { ...(activePatient.preferences || {}), email: editFormData.email, address: editFormData.address, eps: editFormData.eps, blood_type: editFormData.blood_type };
+                  const prefs = { ...(activePatient.preferences || {}) };
                   await api.put(`/crm/patients/${activePatient.id}`, {
                     first_name: editFormData.first_name,
                     last_name: editFormData.last_name,
                     phone: editFormData.phone,
                     document_id: editFormData.document_id,
+                    email: editFormData.email,
+                    address: editFormData.address,
+                    eps: editFormData.eps,
+                    blood_group: editFormData.blood_group,
+                    birth_date: editFormData.birth_date || null,
+                    allergies: editFormData.allergies,
+                    medical_notes: editFormData.medical_notes,
+                    emergency_contact_name: editFormData.emergency_contact_name,
+                    emergency_contact_phone: editFormData.emergency_contact_phone,
                     preferences: prefs
                   });
                   await fetchPatients();
@@ -648,7 +711,7 @@ export default function CRMPage() {
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Fecha de Nacimiento</label>
-                      <input type="date" className="w-full px-3 py-1.5 bg-neutral-50 dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-md text-sm outline-none focus:border-indigo-500" />
+                      <input type="date" value={editFormData.birth_date} onChange={e => setEditFormData({...editFormData, birth_date: e.target.value})} className="w-full px-3 py-1.5 bg-neutral-50 dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-md text-sm outline-none focus:border-indigo-500" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Dirección</label>
@@ -673,7 +736,7 @@ export default function CRMPage() {
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Grupo Sanguíneo</label>
-                      <select value={editFormData.blood_type} onChange={e => setEditFormData({...editFormData, blood_type: e.target.value})} className="w-full px-3 py-1.5 bg-neutral-50 dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-md text-sm outline-none focus:border-indigo-500">
+                      <select value={editFormData.blood_group} onChange={e => setEditFormData({...editFormData, blood_group: e.target.value})} className="w-full px-3 py-1.5 bg-neutral-50 dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-md text-sm outline-none focus:border-indigo-500">
                         <option>O+</option>
                         <option>A-</option>
                         <option>B+</option>
@@ -682,7 +745,7 @@ export default function CRMPage() {
                     </div>
                     <div className="col-span-2">
                       <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Alergias Conocidas</label>
-                      <input type="text" placeholder="Ej: Penicilina, Aspirina (separadas por coma)" className="w-full px-3 py-1.5 bg-neutral-50 dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-md text-sm outline-none focus:border-indigo-500" />
+                      <input type="text" value={editFormData.allergies} onChange={e => setEditFormData({...editFormData, allergies: e.target.value})} placeholder="Ej: Penicilina, Aspirina (separadas por coma)" className="w-full px-3 py-1.5 bg-neutral-50 dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-md text-sm outline-none focus:border-indigo-500" />
                     </div>
                     <div className="col-span-2">
                       <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Condiciones Crónicas / Tags Clínicos</label>
@@ -690,7 +753,7 @@ export default function CRMPage() {
                     </div>
                     <div className="col-span-2">
                       <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Notas Médicas</label>
-                      <textarea rows={2} placeholder="Observaciones generales..." className="w-full px-3 py-1.5 bg-neutral-50 dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-md text-sm outline-none focus:border-indigo-500"></textarea>
+                      <textarea rows={2} value={editFormData.medical_notes} onChange={e => setEditFormData({...editFormData, medical_notes: e.target.value})} placeholder="Observaciones generales..." className="w-full px-3 py-1.5 bg-neutral-50 dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-md text-sm outline-none focus:border-indigo-500"></textarea>
                     </div>
                   </div>
                 </div>
@@ -702,11 +765,11 @@ export default function CRMPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Contacto de Emergencia</label>
-                      <input type="text" placeholder="Nombre completo" className="w-full px-3 py-1.5 bg-neutral-50 dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-md text-sm outline-none focus:border-indigo-500" />
+                      <input type="text" value={editFormData.emergency_contact_name} onChange={e => setEditFormData({...editFormData, emergency_contact_name: e.target.value})} placeholder="Nombre completo" className="w-full px-3 py-1.5 bg-neutral-50 dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-md text-sm outline-none focus:border-indigo-500" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Teléfono Emergencia</label>
-                      <input type="tel" placeholder="+57..." className="w-full px-3 py-1.5 bg-neutral-50 dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-md text-sm outline-none focus:border-indigo-500" />
+                      <input type="tel" value={editFormData.emergency_contact_phone} onChange={e => setEditFormData({...editFormData, emergency_contact_phone: e.target.value})} placeholder="+57..." className="w-full px-3 py-1.5 bg-neutral-50 dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-md text-sm outline-none focus:border-indigo-500" />
                     </div>
                     <div className="col-span-2">
                       <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Grupo Familiar (Búsqueda)</label>
@@ -752,15 +815,14 @@ export default function CRMPage() {
               <select 
                 className="w-full px-3 py-2 bg-neutral-50 dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-md text-sm outline-none focus:border-indigo-500"
                 onChange={(e) => {
-                  const t = waTemplates.find(x => x.id === parseInt(e.target.value));
+                  const t = waTemplates.find((x: any) => x.id === e.target.value);
                   setSelectedTemplate(t);
-                  setSelectedRecordId('');
                 }}
                 value={selectedTemplate?.id || ''}
               >
                 <option value="" disabled>Seleccione una plantilla...</option>
                 {waTemplates.map(t => (
-                  <option key={t.id} value={t.id}>{t.name} ({t.model_id[1]})</option>
+                  <option key={t.id} value={t.id}>{t.name}</option>
                 ))}
               </select>
             </div>
@@ -768,29 +830,35 @@ export default function CRMPage() {
             {selectedTemplate && (
               <div className="mb-4">
                 <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
-                  Seleccionar {selectedTemplate.model_id[1]}
+                  Contenido de la plantilla
                 </label>
-                <select 
-                  className="w-full px-3 py-2 bg-neutral-50 dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-md text-sm outline-none focus:border-indigo-500 mb-4"
-                  value={selectedRecordId}
-                  onChange={(e) => setSelectedRecordId(e.target.value ? parseInt(e.target.value) : '')}
-                >
-                  <option value="" disabled>Seleccione un registro...</option>
-                  {selectedTemplate.model === 'sale.order' ? waRecords.sales.map((s:any) => (
-                    <option key={s.id} value={s.id}>{s.name} - {String(s.date_order).split(' ')[0]} - ${s.amount_total}</option>
-                  )) : selectedTemplate.model === 'account.move' ? waRecords.invoices.map((i:any) => (
-                    <option key={i.id} value={i.id}>{i.name} - {String(i.invoice_date).split(' ')[0]} - ${i.amount_total}</option>
-                  )) : null}
-                </select>
-
-                {selectedTemplate.body && (
-                  <div className="mt-4 p-3 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-md">
-                    <span className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Vista Previa (Formato de Odoo)</span>
-                    <p className="text-sm text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap">{selectedTemplate.body.replace(/<[^>]*>?/gm, '')}</p>
-                  </div>
-                )}
+                <div className="w-full px-3 py-2 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-md text-sm text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap">
+                  {selectedTemplate.content}
+                </div>
               </div>
             )}
+
+            {selectedTemplate?.name?.includes('POS') && (
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
+                  Vincular Venta (Para inyectar el total pagado)
+                </label>
+                <select 
+                  className="w-full px-3 py-2 bg-neutral-50 dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-md text-sm outline-none focus:border-indigo-500"
+                  value={selectedRecordId}
+                  onChange={(e) => setSelectedRecordId(e.target.value)}
+                >
+                  <option value="" disabled>Seleccione una venta del paciente...</option>
+                  {waRecords.sales?.map((s:any) => (
+                    <option key={s.id} value={s.id}>
+                      {String(s.created_at).split('T')[0]} - ${Number(s.grand_total).toLocaleString('es-CO', { maximumFractionDigits: 0 })}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+
 
             <div className="flex justify-end gap-3 mt-6">
               <button onClick={() => setShowWaModal(false)} className="px-4 py-2 text-sm font-medium hover:text-neutral-900 transition-colors">Cancelar</button>
@@ -798,26 +866,52 @@ export default function CRMPage() {
 
                 onClick={async () => {
                   try {
-                    setIsSaving(true);
-                    await api.post(`/communications/whatsapp/${activePatient.id}/send-template`, {
-                      template_id: selectedTemplate.id,
-                      res_model: selectedTemplate.model,
-                      res_id: selectedRecordId
-                    });
-                    setShowWaModal(false);
-                    // Refresh history if activeTab is comunicacion
-                    if (activeTab === 'comunicacion') {
-                        const res = await api.get(`/communications/whatsapp/${activePatient.id}/messages`);
-                        setWaMessages(res.data || []);
+                    if (!activePatient?.phone) {
+                      alert("El paciente no tiene número de teléfono registrado.");
+                      return;
                     }
-                    alert("Mensaje enviado por WhatsApp a través de Odoo.");
-                  } catch (e) {
-                    alert("Error enviando WhatsApp vía Odoo");
+                    setIsSaving(true);
+                    let msg = selectedTemplate.content;
+                    msg = msg.replace('{{1}}', activePatient.first_name || activePatient.name);
+                    
+                    if (selectedTemplate.name.includes('POS') && selectedRecordId) {
+                      const sale = waRecords.sales?.find((s:any) => s.id === selectedRecordId);
+                      if (sale) {
+                        msg = msg.replace('{{2}}', `$${Number(sale.grand_total).toLocaleString('es-CO', { maximumFractionDigits: 0 })}`);
+                        msg = msg.replace('{{3}}', new Date(sale.created_at).toLocaleDateString('es-CO'));
+                        
+                        const itemsDetail = sale.items?.map((item: any) => 
+                          `🔹 ${item.quantity}x ${item.product?.brand_name || 'Producto'} ($${Number(item.total).toLocaleString('es-CO')})`
+                        ).join('\n') || 'Productos no detallados';
+                        
+                        msg = msg.replace('{{4}}', itemsDetail);
+                      }
+                    } else {
+                      if (msg.includes('{{2}}')) msg = msg.replace('{{2}}', '(Monto)');
+                      if (msg.includes('{{3}}')) msg = msg.replace('{{3}}', '(Fecha)');
+                      if (msg.includes('{{4}}')) msg = msg.replace('{{4}}', '(Detalle de compra)');
+                    }
+                    
+                    const res = await fetch('http://localhost:3001/api/send', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ phone: activePatient.phone, message: msg })
+                    });
+                    
+                    if (!res.ok) {
+                      const errorData = await res.json().catch(() => ({}));
+                      throw new Error(errorData.error || `Error HTTP: ${res.status}`);
+                    }
+                    
+                    setShowWaModal(false);
+                    alert("Mensaje enviado por WhatsApp de forma local.");
+                  } catch (e: any) {
+                    alert("Fallo al enviar: " + (e.message || "Asegúrate de que el microservicio está corriendo."));
                   } finally {
                     setIsSaving(false);
                   }
                 }} 
-                disabled={isSaving || !selectedTemplate || !selectedRecordId}
+                disabled={isSaving || !selectedTemplate}
                 className="px-6 py-2 bg-[#25D366] hover:bg-[#20b858] disabled:opacity-50 text-white rounded-md text-sm font-bold shadow-sm transition-colors flex items-center gap-2"
               >
                 {isSaving ? 'Enviando...' : 'Enviar por WhatsApp'}

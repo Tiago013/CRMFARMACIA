@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/lib/providers";
@@ -18,6 +18,9 @@ export const metadata: Metadata = {
   title: "FarmaAI Enterprise",
   description: "Sistema Avanzado de Gestión de Droguerías",
   manifest: "/manifest.json",
+};
+
+export const viewport: Viewport = {
   themeColor: "#4F46E5",
 };
 

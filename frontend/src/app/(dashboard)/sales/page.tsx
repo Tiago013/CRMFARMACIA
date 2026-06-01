@@ -1,15 +1,19 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { Search, ShoppingCart, UserPlus, CreditCard, Trash2, Plus, Minus, Tag, Zap, Keyboard, Wifi, WifiOff, Save, FolderOpen, Banknote, HelpCircle, RefreshCw } from 'lucide-react';
 import { apiClient as api } from '@/lib/axios';
 import { toast } from 'sonner';
 import { enqueueSale, getOfflineSales, syncOfflineSales } from '@/lib/offlineQueue';
+import { useSearchParams, useRouter } from 'next/navigation';
 
-export default function POSPage() {
+function POSContent() {
   const [cart, setCart] = useState<Array<{id: string, name: string, qty: number, price: number, discount: number}>>([]);
   const [suspendedSales, setSuspendedSales] = useState<Array<{id: string, cart: any[], patient: any}>>([]);
   
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [inventory, setInventory] = useState<any[]>([]);
   const [patients, setPatients] = useState<any[]>([]);
@@ -41,13 +45,39 @@ export default function POSPage() {
     };
   }, []);
 
+  // Parse external AI params
+  useEffect(() => {
+    const addQuery = searchParams.get('add_query');
+    const patientId = searchParams.get('patient_id');
+
+    if (addQuery) {
+      setSearchQuery(addQuery);
+    }
+    
+    if (patientId) {
+      fetch(`/api/crm/patients/${patientId}`)
+        .then(res => res.json())
+        .then(data => {
+          if(data && data.id) {
+             setSelectedPatient({ id: data.id, name: `${data.first_name} ${data.last_name}`, refillSuggestion: data.preferences?.medicamentos?.split(';')[0] || '' });
+          }
+        })
+        .catch(console.error);
+    }
+
+    if (addQuery || patientId) {
+       router.replace('/sales');
+    }
+  }, [searchParams, router]);
+
   // Fetch Inventory
   useEffect(() => {
     const fetchProducts = async () => {
       if (isOffline) return; // In a real app, query IndexedDB here
       try {
-        const res = await api.get('/inventory/products', { params: { limit: 50, search: searchQuery } });
-        setInventory(Array.isArray(res.data) ? res.data : []);
+        const res = await fetch(`/api/inventory/products?limit=50&search=${searchQuery}`);
+        const data = await res.json();
+        setInventory(Array.isArray(data) ? data : []);
       } catch (e) {
         console.error('Error cargando productos:', e);
       }
@@ -61,8 +91,9 @@ export default function POSPage() {
     if (!showPatientModal || isOffline) return;
     const fetchPatients = async () => {
       try {
-        const res = await api.get('/crm/patients', { params: { limit: 15, search: patientSearch } });
-        setPatients(Array.isArray(res.data) ? res.data : []);
+        const res = await fetch(`/api/crm/patients?limit=15&search=${patientSearch}`);
+        const data = await res.json();
+        setPatients(Array.isArray(data) ? data : []);
       } catch (e) {
         console.error('Error cargando pacientes:', e);
       }
@@ -222,13 +253,27 @@ export default function POSPage() {
       setCashReceived(0);
       
       try {
-        const response = await api.post('/pos/checkout', checkoutData);
-        toast.success(`¡Venta Procesada! Total: $${total.toLocaleString('es-CO', { maximumFractionDigits: 0 })}`);
-        // If the backend returned a receipt URL, open it or show it
-        if (response.data.receipt_url) {
-           // We can open it in a new tab to print, or just log it
-           // window.open(response.data.receipt_url, '_blank');
+        const response = await fetch('/api/pos/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: checkoutData.items,
+            patient_id: checkoutData.patient_id,
+            payment_method: checkoutData.payments[0].method,
+            grand_total: total,
+            subtotal: subtotal,
+            tax_total: taxes,
+            discount_total: checkoutData.items.reduce((acc, i) => acc + (i.discount || 0), 0)
+          })
+        });
+        
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error || 'Error procesando pago');
         }
+        
+        const data = await response.json();
+        toast.success(`¡Venta Procesada! Total: $${total.toLocaleString('es-CO', { maximumFractionDigits: 0 })}`);
       } catch (error: any) {
         // Rollback on failure
         setCart(savedCart);
@@ -237,7 +282,7 @@ export default function POSPage() {
         setPaymentMethod(savedPaymentMethod);
         setShowCheckoutModal(true);
         
-        const errorMessage = error?.response?.data?.detail || "Problema de conexión";
+        const errorMessage = error.message || "Problema de conexión";
         toast.error(`Error procesando pago: ${errorMessage}. Venta revertida.`);
       }
     }
@@ -611,5 +656,13 @@ export default function POSPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function POSPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Cargando POS...</div>}>
+      <POSContent />
+    </Suspense>
   );
 }

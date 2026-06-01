@@ -1,0 +1,426 @@
+generator client {
+  provider = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Pharmacy {
+  id              String   @id @default(uuid())
+  name            String
+  tax_id          String?
+  address         String?
+  phone           String?
+  subscription_id String?
+  status          String   @default("ACTIVE")
+  plan_type       String   @default("STARTER")
+  stripe_customer_id String?
+  trial_ends_at   DateTime?
+  mrr_override    Decimal? @db.Decimal(10, 2)
+  settings        Json?    @default("{}")
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  users           UserProfile[]
+  patients        Patient[]
+  timeline_events PatientTimelineEvent[]
+  suppliers       Supplier[]
+  categories      Category[]
+  products        Product[]
+  batches         Batch[]
+  stock_movements StockMovement[]
+  sales           Sale[]
+  purchases       Purchase[]
+  expenses        Expense[]
+  expense_categories ExpenseCategory[]
+  whatsapp_templates WhatsappTemplate[]
+  whatsapp_automations WhatsappAutomation[]
+  subscriptions   Subscription[]
+
+  @@map("pharmacies")
+}
+
+model UserProfile {
+  id          String   @id @default(uuid())
+  auth_id     String   @unique // References Supabase auth.users.id
+  tenant_id   String
+  first_name  String
+  last_name   String
+  role        String   @default("cajero") // admin, regente, cajero
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  pharmacy    Pharmacy @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([auth_id])
+  @@map("user_profiles")
+}
+
+model Patient {
+  id                 String    @id @default(uuid())
+  tenant_id          String
+  first_name         String
+  last_name          String
+  phone              String?
+  document_id        String?
+  email              String?
+  birth_date         DateTime?
+  address            String?
+  eps                String?
+  blood_group        String?
+  allergies          String?
+  medical_notes      String?
+  emergency_contact_name  String?
+  emergency_contact_phone String?
+  status             String    @default("active")
+  last_purchase_date DateTime?
+  preferences        Json?     @default("{}")
+  tags               String[]  @default([])
+  
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
+
+  pharmacy           Pharmacy  @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  timeline_events    PatientTimelineEvent[]
+  sales              Sale[]
+
+  @@index([tenant_id])
+  @@index([phone])
+  @@index([document_id])
+  @@map("patients")
+}
+
+model PatientTimelineEvent {
+  id         String   @id @default(uuid())
+  tenant_id  String
+  patient_id String
+  user_id    String?
+  event_type String
+  event_data Json     @default("{}")
+
+  created_at DateTime @default(now())
+  
+  pharmacy   Pharmacy @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  patient    Patient  @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([patient_id])
+  @@map("patient_timeline_events")
+}
+
+model Supplier {
+  id          String   @id @default(uuid())
+  tenant_id   String
+  name        String
+  tax_id      String?
+  email       String?
+  phone       String?
+  address     String?
+  status      String   @default("active")
+  
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  pharmacy    Pharmacy @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  products    Product[]
+  purchases   Purchase[]
+
+  @@index([tenant_id])
+  @@map("suppliers")
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  tenant_id   String
+  name        String
+  description String?
+
+  pharmacy    Pharmacy @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  products    Product[]
+
+  @@index([tenant_id])
+  @@map("categories")
+}
+
+model Product {
+  id                String   @id @default(uuid())
+  tenant_id         String
+  category_id       String?
+  supplier_id       String?
+  
+  sku               String
+  barcode           String?
+  brand_name        String
+  active_ingredient String?
+  presentation      String?
+  
+  unit_price        Decimal  @db.Decimal(10, 2)
+  cost_price        Decimal? @db.Decimal(10, 2)
+  min_stock         Int      @default(5)
+  
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  pharmacy          Pharmacy @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  category          Category? @relation(fields: [category_id], references: [id], onDelete: SetNull)
+  supplier          Supplier? @relation(fields: [supplier_id], references: [id], onDelete: SetNull)
+  
+  batches           Batch[]
+  movements         StockMovement[]
+  sale_items        SaleItem[]
+  purchase_items    PurchaseItem[]
+
+  @@index([tenant_id])
+  @@index([sku])
+  @@index([barcode])
+  @@map("products")
+}
+
+model Batch {
+  id              String   @id @default(uuid())
+  tenant_id       String
+  product_id      String
+  
+  batch_number    String
+  expiration_date DateTime @db.Date
+  quantity        Int      @default(0)
+
+  pharmacy        Pharmacy @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  product         Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  movements       StockMovement[]
+
+  @@index([tenant_id])
+  @@index([product_id])
+  @@index([expiration_date])
+  @@map("batches")
+}
+
+model StockMovement {
+  id            String   @id @default(uuid())
+  tenant_id     String
+  product_id    String
+  batch_id      String?
+  user_id       String
+  
+  movement_type String   // PURCHASE_IN, SALE_OUT, EXPIRED_ADJUST, MANUAL_ADJUST
+  quantity      Int
+  reference_id  String?
+  
+  created_at    DateTime @default(now())
+
+  pharmacy      Pharmacy @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  product       Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  batch         Batch?   @relation(fields: [batch_id], references: [id], onDelete: SetNull)
+
+  @@index([tenant_id])
+  @@index([product_id])
+  @@map("stock_movements")
+}
+model Sale {
+  id              String   @id @default(uuid())
+  tenant_id       String
+  patient_id      String?
+  cashier_id      String
+  
+  subtotal        Float
+  tax_total       Float
+  discount_total  Float
+  grand_total     Float
+  
+  status          String   @default("COMPLETED") // PENDING, COMPLETED, REFUNDED
+  payment_method  String   @default("CASH") // CASH, CARD, TRANSFER, CREDIT
+  
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  pharmacy        Pharmacy @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  patient         Patient? @relation(fields: [patient_id], references: [id], onDelete: SetNull)
+  items           SaleItem[]
+  payments        Payment[]
+
+  @@index([tenant_id])
+  @@index([created_at])
+  @@map("sales")
+}
+
+model SaleItem {
+  id              String   @id @default(uuid())
+  sale_id         String
+  product_id      String
+  batch_id        String?
+  
+  quantity        Int
+  unit_price      Float
+  subtotal        Float
+  tax_rate        Float    @default(0)
+  tax_amount      Float    @default(0)
+  total           Float
+
+  sale            Sale     @relation(fields: [sale_id], references: [id], onDelete: Cascade)
+  product         Product  @relation(fields: [product_id], references: [id])
+  
+  @@index([sale_id])
+  @@map("sale_items")
+}
+
+model Payment {
+  id              String   @id @default(uuid())
+  sale_id         String
+  amount          Float
+  payment_method  String
+  reference_code  String?
+  created_at      DateTime @default(now())
+
+  sale            Sale     @relation(fields: [sale_id], references: [id], onDelete: Cascade)
+
+  @@index([sale_id])
+  @@map("payments")
+}
+
+model Purchase {
+  id              String   @id @default(uuid())
+  tenant_id       String
+  supplier_id     String
+  user_id         String
+  
+  invoice_number  String?
+  total_amount    Float
+  status          String   @default("COMPLETED") // PENDING, COMPLETED, CANCELLED
+  
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  pharmacy        Pharmacy @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  supplier        Supplier @relation(fields: [supplier_id], references: [id])
+  items           PurchaseItem[]
+
+  @@index([tenant_id])
+  @@index([supplier_id])
+  @@map("purchases")
+}
+
+model PurchaseItem {
+  id              String   @id @default(uuid())
+  purchase_id     String
+  product_id      String
+  
+  batch_number    String?
+  expiration_date DateTime? @db.Date
+  
+  quantity        Int
+  unit_cost       Float
+  total_cost      Float
+
+  purchase        Purchase @relation(fields: [purchase_id], references: [id], onDelete: Cascade)
+  product         Product  @relation(fields: [product_id], references: [id])
+  
+  @@index([purchase_id])
+  @@map("purchase_items")
+}
+
+model ExpenseCategory {
+  id          String   @id @default(uuid())
+  tenant_id   String
+  name        String
+  description String?
+  color       String   @default("#6366f1")
+
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  pharmacy    Pharmacy  @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  expenses    Expense[]
+
+  @@index([tenant_id])
+  @@map("expense_categories")
+}
+
+model Expense {
+  id              String   @id @default(uuid())
+  tenant_id       String
+  category_id     String
+  user_id         String?  // Usuario que registra el gasto
+  
+  amount          Float
+  date            DateTime @db.Date // Fecha del comprobante
+  description     String?
+  reference_code  String?  // Factura o recibo
+  status          String   @default("COMPLETED")
+  
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  pharmacy        Pharmacy        @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  category        ExpenseCategory @relation(fields: [category_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([category_id])
+  @@index([date])
+  @@map("expenses")
+}
+
+model WhatsappTemplate {
+  id          String   @id @default(uuid())
+  tenant_id   String
+  name        String
+  content     String
+  variables   Int      @default(0) // Number of variables like {{1}}, {{2}}
+  is_active   Boolean  @default(true)
+
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  pharmacy    Pharmacy @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  automations WhatsappAutomation[]
+
+  @@index([tenant_id])
+  @@map("whatsapp_templates")
+}
+
+model WhatsappAutomation {
+  id            String   @id @default(uuid())
+  tenant_id     String
+  trigger_event String   // e.g., 'SALE_COMPLETED', 'NEW_PATIENT'
+  template_id   String
+  is_active     Boolean  @default(true)
+
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  pharmacy      Pharmacy         @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  template      WhatsappTemplate @relation(fields: [template_id], references: [id])
+
+  @@index([tenant_id])
+  @@map("whatsapp_automations")
+}
+
+model SystemAdmin {
+  id         String   @id @default(uuid())
+  auth_id    String   @unique
+  email      String   @unique
+  first_name String
+  last_name  String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("system_admins")
+}
+
+model Subscription {
+  id              String   @id @default(uuid())
+  tenant_id       String
+  plan_name       String
+  amount          Decimal  @db.Decimal(10, 2)
+  status          String   @default("ACTIVE")
+  start_date      DateTime @default(now())
+  end_date        DateTime?
+  created_at      DateTime @default(now())
+
+  pharmacy        Pharmacy @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@map("subscriptions")
+}

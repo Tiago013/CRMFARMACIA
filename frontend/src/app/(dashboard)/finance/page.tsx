@@ -3,6 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { DollarSign, FileText, TrendingUp, TrendingDown, RefreshCcw, Lock, CreditCard, Building, PieChart } from 'lucide-react';
 import { apiClient as api } from '@/lib/axios';
+import ExpensesTab from '@/components/finance/ExpensesTab';
+import COGSTab from '@/components/finance/COGSTab';
+import PremiumGuard from '@/components/PremiumGuard';
 
 interface FinancialMetrics {
   total_revenue: number;
@@ -13,7 +16,8 @@ interface FinancialMetrics {
 
 interface OdooPNL {
   income: number;
-  expense: number;
+  cogs: number;
+  opex: number;
   net_profit: number;
 }
 
@@ -27,11 +31,17 @@ export default function FinancePage() {
     const fetchMetrics = async () => {
       try {
         const [metricsRes, odooRes] = await Promise.all([
-          api.get('/finance/metrics'),
-          api.get('/analytics/odoo-pnl')
+          fetch('/api/finance/metrics'),
+          fetch('/api/analytics/odoo-pnl')
         ]);
-        setMetrics(metricsRes.data);
-        setOdooPnl(odooRes.data);
+        
+        if (!metricsRes.ok || !odooRes.ok) throw new Error('API Error');
+        
+        const metricsData = await metricsRes.json();
+        const odooData = await odooRes.json();
+        
+        setMetrics(metricsData);
+        setOdooPnl(odooData);
       } catch (error) {
         console.error("Error fetching financial metrics:", error);
         // Fallback mock if API fails
@@ -43,7 +53,8 @@ export default function FinancePage() {
         });
         setOdooPnl({
           income: 15420.50,
-          expense: 8300.00,
+          cogs: 5300.00,
+          opex: 3000.00,
           net_profit: 7120.50
         });
       } finally {
@@ -60,6 +71,7 @@ export default function FinancePage() {
   };
 
   return (
+    <PremiumGuard featureName="Suite Financiera Avanzada" requiredPlan="PRO">
     <div className="flex flex-col h-full bg-white dark:bg-[#000000]">
       {/* Header Premium */}
       <div className="flex justify-between items-end px-8 py-6 border-b border-neutral-200 dark:border-neutral-800">
@@ -92,6 +104,12 @@ export default function FinancePage() {
             Cuentas por Cobrar (Fiados)
             <span className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-[10px] font-black px-1.5 py-0.5 rounded-full">3</span>
           </button>
+          <button onClick={() => setActiveTab('gastos')} className={`pb-3 pt-4 text-sm font-bold border-b-2 transition-colors ${activeTab === 'gastos' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}>
+            Gastos Operativos
+          </button>
+          <button onClick={() => setActiveTab('cogs')} className={`pb-3 pt-4 text-sm font-bold border-b-2 transition-colors ${activeTab === 'cogs' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}>
+            Costo de Ventas (COGS)
+          </button>
           <button onClick={() => setActiveTab('cxp')} className={`pb-3 pt-4 text-sm font-bold border-b-2 transition-colors ${activeTab === 'cxp' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}>
             Proveedores e Impuestos
           </button>
@@ -109,21 +127,21 @@ export default function FinancePage() {
           <div className="max-w-6xl mx-auto space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="p-5 bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm flex flex-col justify-between">
-                <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Ingresos (Odoo)</h3>
+                <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Ingresos</h3>
                 <div className="flex items-center justify-between mt-auto">
                   <span className="text-xl lg:text-2xl font-black text-neutral-900 dark:text-white truncate pr-2" title={formatCurrency(odooPnl?.income)}>{formatCurrency(odooPnl?.income)}</span>
                   <div className="bg-emerald-50 text-emerald-600 p-2 rounded-lg dark:bg-emerald-900/30 flex-shrink-0"><TrendingUp size={18} /></div>
                 </div>
               </div>
               <div className="p-5 bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm flex flex-col justify-between">
-                <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Gastos (Odoo)</h3>
+                <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Gastos</h3>
                 <div className="flex items-center justify-between mt-auto">
-                  <span className="text-xl lg:text-2xl font-black text-neutral-900 dark:text-white truncate pr-2" title={formatCurrency(odooPnl?.expense)}>{formatCurrency(odooPnl?.expense)}</span>
+                  <span className="text-xl lg:text-2xl font-black text-neutral-900 dark:text-white truncate pr-2" title={formatCurrency((odooPnl?.cogs || 0) + (odooPnl?.opex || 0))}>{formatCurrency((odooPnl?.cogs || 0) + (odooPnl?.opex || 0))}</span>
                   <div className="bg-rose-50 text-rose-600 p-2 rounded-lg dark:bg-rose-900/30 flex-shrink-0"><TrendingDown size={18} /></div>
                 </div>
               </div>
               <div className="p-5 bg-indigo-600 border border-indigo-700 rounded-xl shadow-sm text-white flex flex-col justify-between">
-                <h3 className="text-xs font-bold text-indigo-200 uppercase tracking-wider mb-2">Utilidad Neta (Odoo)</h3>
+                <h3 className="text-xs font-bold text-indigo-200 uppercase tracking-wider mb-2">Utilidad Neta</h3>
                 <div className="flex items-center justify-between mt-auto">
                   <span className="text-xl lg:text-2xl font-black truncate pr-2" title={formatCurrency(odooPnl?.net_profit)}>{formatCurrency(odooPnl?.net_profit)}</span>
                   <DollarSign className="text-indigo-200 flex-shrink-0" size={24} />
@@ -146,7 +164,7 @@ export default function FinancePage() {
                   <FileText className="text-indigo-500" /> Desglose del Estado de Resultados (Tiempo Real)
                 </h2>
                 <span className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Sincronizado con Odoo
+                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Sincronizado
                 </span>
               </div>
               <div className="space-y-4 max-w-4xl">
@@ -165,19 +183,19 @@ export default function FinancePage() {
                 
                 <div className="flex justify-between items-center pt-4 pb-4 border-b border-neutral-100 dark:border-neutral-800">
                   <span className="font-semibold text-neutral-700 dark:text-neutral-300 text-sm ml-4">(-) Costo de Bienes Vendidos (COGS)</span>
-                  <span className="font-medium text-rose-500">-{formatCurrency((odooPnl?.expense || 0) * 0.7)}</span>
+                  <span className="font-medium text-rose-500">-{formatCurrency(odooPnl?.cogs)}</span>
                 </div>
                 <div className="flex justify-between items-center pb-4 border-b border-neutral-100 dark:border-neutral-800 bg-indigo-50 dark:bg-indigo-950/20 p-3 rounded-lg">
                   <span className="font-bold text-indigo-700 dark:text-indigo-400">Margen Bruto</span>
-                  <span className="font-bold text-indigo-700 dark:text-indigo-400">{formatCurrency((odooPnl?.net_profit || 0) + ((odooPnl?.expense || 0) * 0.3))}</span>
+                  <span className="font-bold text-indigo-700 dark:text-indigo-400">{formatCurrency((odooPnl?.income || 0) - (odooPnl?.cogs || 0))}</span>
                 </div>
 
                 <div className="flex justify-between items-center pt-4 pb-4 border-b border-neutral-100 dark:border-neutral-800">
                   <span className="font-semibold text-neutral-700 dark:text-neutral-300 text-sm ml-4">(-) Gastos Operativos (Arriendo, Nómina, etc)</span>
-                  <span className="font-medium text-rose-500">-{formatCurrency((odooPnl?.expense || 0) * 0.3)}</span>
+                  <span className="font-medium text-rose-500">-{formatCurrency(odooPnl?.opex)}</span>
                 </div>
                 <div className="flex justify-between items-center pt-2 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-100 dark:border-emerald-800 mt-4">
-                  <span className="text-lg font-black text-emerald-700 dark:text-emerald-400">UTILIDAD NETA (ODOO)</span>
+                  <span className="text-lg font-black text-emerald-700 dark:text-emerald-400">UTILIDAD NETA</span>
                   <span className="text-2xl font-black text-emerald-700 dark:text-emerald-400">{formatCurrency(odooPnl?.net_profit)}</span>
                 </div>
               </div>
@@ -293,6 +311,10 @@ export default function FinancePage() {
               </table>
             </div>
           </div>
+        ) : activeTab === 'gastos' ? (
+          <div className="py-4">
+            <ExpensesTab />
+          </div>
         ) : activeTab === 'cxp' ? (
           <div className="max-w-5xl mx-auto space-y-6">
             <div className="bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm overflow-hidden">
@@ -329,9 +351,14 @@ export default function FinancePage() {
               </div>
             </div>
           </div>
+        ) : activeTab === 'cogs' ? (
+          <div className="py-4">
+            <COGSTab />
+          </div>
         ) : null}
 
       </div>
     </div>
+    </PremiumGuard>
   );
 }

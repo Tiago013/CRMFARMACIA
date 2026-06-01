@@ -97,7 +97,7 @@ export default function DashboardPage() {
   const [builderLoading, setBuilderLoading] = useState(false);
   
   // Odoo P&L state
-  const [odooPnL, setOdooPnL] = useState<{income: number, expense: number, net_profit: number} | null>(null);
+  const [odooPnL, setOdooPnL] = useState<{income: number, cogs: number, opex: number, net_profit: number} | null>(null);
 
   useEffect(() => {
     const fetchAnalytics = async () => {
@@ -241,23 +241,28 @@ export default function DashboardPage() {
               ))}
             </div>
 
-            {/* Odoo ERP P&L Card */}
+            {/* P&L Card */}
             {odooPnL !== null && (
-              <div className="p-5 bg-gradient-to-r from-indigo-900 to-purple-900 rounded-xl shadow-lg border border-indigo-500/30 text-white">
+              <div className="bg-gradient-to-br from-indigo-900 to-[#111111] border border-indigo-500/30 rounded-2xl p-6 shadow-2xl relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-bl-full pointer-events-none transition-transform group-hover:scale-110"></div>
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-sm font-bold flex items-center gap-2">
-                    <DollarSign size={18} className="text-indigo-300" /> Utilidad Neta Contable (Directo de Odoo ERP)
+                  <h3 className="text-indigo-200 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                    <DollarSign size={18} className="text-indigo-300" /> Utilidad Neta Contable
                   </h3>
                   <span className="text-xs bg-black/30 px-3 py-1 rounded-full text-indigo-200 font-medium">Tiempo Real</span>
                 </div>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-4 gap-4">
                   <div>
                     <p className="text-indigo-200 text-xs font-semibold uppercase tracking-wider">Ingresos Facturados</p>
                     <p className="text-2xl font-bold mt-1">${odooPnL.income.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
                   </div>
                   <div>
-                    <p className="text-rose-300 text-xs font-semibold uppercase tracking-wider">Gastos (Compras)</p>
-                    <p className="text-2xl font-bold mt-1">-${odooPnL.expense.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
+                    <p className="text-rose-300 text-xs font-semibold uppercase tracking-wider">COGS (Productos)</p>
+                    <p className="text-2xl font-bold mt-1">-${odooPnL.cogs.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
+                  </div>
+                  <div>
+                    <p className="text-rose-300 text-xs font-semibold uppercase tracking-wider">OPEX (Operativos)</p>
+                    <p className="text-2xl font-bold mt-1">-${odooPnL.opex.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
                   </div>
                   <div className="bg-black/20 p-3 rounded-lg border border-white/10">
                     <p className="text-emerald-300 text-xs font-semibold uppercase tracking-wider">Utilidad Neta</p>
@@ -443,13 +448,13 @@ export default function DashboardPage() {
                         <RechartsTooltip 
                           contentStyle={{ borderRadius: '12px', backgroundColor: 'rgba(10, 10, 10, 0.8)', backdropFilter: 'blur(12px)', borderColor: '#262626', padding: '12px' }} 
                           itemStyle={{color: '#fff', fontWeight: 'bold'}}
-                          formatter={(value: any) => `$${Number(value).toLocaleString('es-CO', { maximumFractionDigits: 0 })}`}
+                          formatter={(value: any) => `${Number(value).toLocaleString('es-CO')} Lotes/Productos`}
                         />
                       </PieChart>
                     </ClientResponsiveContainer>
                   </div>
                   <div className="mt-2 w-full text-center">
-                    <p className="text-xs text-neutral-500 font-medium">El {data.expiration_risk && data.expiration_risk.length > 0 ? ((data.expiration_risk[0].value / ((data.expiration_risk[0].value + data.expiration_risk[1].value) || 1)) * 100).toFixed(1) : 0}% del capital está en riesgo por vencimiento.</p>
+                    <p className="text-xs text-neutral-500 font-medium">El {data.expiration_risk && data.expiration_risk.length > 1 ? ((data.expiration_risk[1].value / ((data.expiration_risk[0].value + data.expiration_risk[1].value) || 1)) * 100).toFixed(1) : 0}% del inventario está en riesgo por vencimiento cercano.</p>
                   </div>
                 </div>
               </div>

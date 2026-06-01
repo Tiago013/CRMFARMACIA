@@ -10,7 +10,7 @@ import { apiClient } from '@/lib/axios';
 import { 
   LayoutDashboard, Package, Users, ShoppingCart, Settings,
   Bell, Search, Menu, X, BrainCircuit, DollarSign,
-  CreditCard, LogOut, Shield, ChevronDown, Moon, Sun, Monitor, MapPin
+  CreditCard, LogOut, Shield, ChevronDown, Moon, Sun, Monitor, MapPin, ArrowRightLeft, MessageCircle, MessageSquare
 } from 'lucide-react';
 import UpgradeModal from '@/components/ui/UpgradeModal';
 
@@ -18,9 +18,11 @@ import UpgradeModal from '@/components/ui/UpgradeModal';
 const NAV_ITEMS = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['admin', 'regente'] },
   { href: '/sales', icon: ShoppingCart, label: 'Punto de Venta', roles: ['admin', 'regente', 'cajero'] },
+  { href: '/transactions', icon: ArrowRightLeft, label: 'Ventas y Compras', roles: ['admin', 'regente'] },
   { href: '/inventory', icon: Package, label: 'Inventario', roles: ['admin', 'regente'] },
   { href: '/finance', icon: DollarSign, label: 'Finanzas', roles: ['admin'] },
   { href: '/crm', icon: Users, label: 'Pacientes', roles: ['admin', 'regente'] },
+  { href: '/whatsapp', icon: MessageCircle, label: 'WhatsApp', roles: ['admin', 'regente'] },
 ];
 
 const INTEL_ITEMS = [
@@ -30,7 +32,7 @@ const INTEL_ITEMS = [
 const BOTTOM_ITEMS = [
   { href: '/billing', icon: CreditCard, label: 'Suscripción (SaaS)', roles: ['admin'] },
   { href: '/saas', icon: Shield, label: 'Super Admin', roles: ['admin'] },
-  { href: '/settings', icon: Settings, label: 'Configuración', roles: ['admin', 'regente'] },
+  { href: '/whatsapp', icon: MessageSquare, label: 'WhatsApp', roles: ['admin', 'regente'] },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
@@ -65,12 +67,19 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   // Auth Redirect & Stale State Recovery
   useEffect(() => {
     if (!isAuthenticated) {
-      // Si la cookie existe pero el store dice que no estamos autenticados (estado corrupto o expirado localmente),
+      // Si la cookie existe pero el store dice que no estamos autenticados (estado corrupto),
       // forzamos la limpieza de la cookie para romper el bucle infinito del middleware.
       if (typeof document !== 'undefined') {
         document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
       }
-      router.push('/login');
+      
+      // Also sign out of Supabase to clear its cookies
+      import('@/utils/supabase/client').then(({ createClient }) => {
+        const supabase = createClient();
+        supabase.auth.signOut().then(() => {
+          router.push('/login');
+        });
+      });
     }
   }, [isAuthenticated, router]);
   // Command Palette Shortcut (⌘K / Ctrl+K)
@@ -95,8 +104,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     applyTheme(savedTheme);
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     logout();
+    const { createClient } = await import('@/utils/supabase/client');
+    const supabase = createClient();
+    await supabase.auth.signOut();
     router.push('/login');
   };
 

@@ -3,12 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient as api } from '@/lib/axios';
-import { useAuthStore } from '@/stores/useAuthStore';
+import { createClient } from '@/utils/supabase/client';
 import { Eye, EyeOff, Lock, Mail, AlertCircle } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const login = useAuthStore((s) => s.login);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,20 +21,42 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await api.post('/auth/login', { email, password });
-      const { access_token, user } = res.data;
+      const supabase = createClient();
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-      login(user, access_token);
+      if (authError) throw authError;
 
-      // Redirect based on role
-      if (user.role === 'cajero') {
-        router.push('/sales');
-      } else {
-        router.push('/dashboard');
+      // Import auth store dynamically or use it at top level. 
+      // Since it's a client component, we can just import it.
+      const { useAuthStore } = await import('@/stores/useAuthStore');
+
+      // Fetch the full profile from our DB
+      const profileRes = await fetch('/api/auth/profile');
+      if (!profileRes.ok) {
+         throw new Error('No se pudo cargar el perfil del usuario');
       }
+      
+      const profileData = await profileRes.json();
+
+      // Ensure Zustand auth store is updated!
+      useAuthStore.getState().login(profileData, data.session?.access_token || '');
+
+      router.push('/dashboard');
+      router.refresh();
+      
     } catch (err: any) {
-      const detail = err?.response?.data?.detail || 'Error de conexión con el servidor.';
+      const detail = err?.message || 'Error de autenticación con Supabase.';
       setError(detail);
+      
+      // Clean up corrupt cookies just in case
+      if (typeof document !== 'undefined') {
+        document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      }
+      const supabase = createClient();
+      await supabase.auth.signOut();
     } finally {
       setLoading(false);
     }
@@ -136,32 +157,7 @@ export default function LoginPage() {
           </form>
         </div>
 
-        {/* Demo credentials */}
-        <div className="mt-6 bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl p-4">
-          <p className="text-[10px] font-medium text-neutral-500 uppercase tracking-wider mb-3">
-            Cuentas de prueba
-          </p>
-          <div className="space-y-2">
-            {[
-              { label: 'Admin', email: 'admin@saludvital.com', pass: 'admin123', color: 'text-blue-500' },
-              { label: 'Cajero 1', email: 'cajero1@saludvital.com', pass: 'cajero123', color: 'text-emerald-500' },
-              { label: 'Cajero 2', email: 'cajero2@saludvital.com', pass: 'cajero123', color: 'text-amber-500' },
-            ].map((cred) => (
-              <button
-                key={cred.email}
-                type="button"
-                onClick={() => { setEmail(cred.email); setPassword(cred.pass); }}
-                className="w-full flex items-center justify-between p-2 rounded-md bg-neutral-50 dark:bg-neutral-900/50 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors text-left"
-              >
-                <div className="flex items-center gap-2">
-                  <span className={`text-[10px] font-bold uppercase ${cred.color}`}>{cred.label}</span>
-                  <span className="text-xs text-neutral-500">{cred.email}</span>
-                </div>
-                <span className="text-[10px] font-mono text-neutral-400">{cred.pass}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+
 
         <p className="text-center text-[11px] text-neutral-400 mt-6">
           FarmaAI Enterprise v1.0 — Droguería Salud Vital

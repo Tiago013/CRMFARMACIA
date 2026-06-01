@@ -2,7 +2,7 @@ import axios from 'axios';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useBranchStore } from '@/stores/useBranchStore';
 
-const BASE_URL = '/api/v1';
+const BASE_URL = '/api';
 
 export const apiClient = axios.create({
   baseURL: BASE_URL,
@@ -23,6 +23,11 @@ apiClient.interceptors.request.use(
     const activeBranch = useBranchStore.getState().activeBranch;
     if (activeBranch) {
       config.headers['X-Branch-ID'] = activeBranch.id;
+    }
+    
+    const user = useAuthStore.getState().user;
+    if (user && user.tenant_id) {
+      config.headers['X-Tenant-ID'] = user.tenant_id;
     }
     
     return config;

@@ -15,16 +15,15 @@ export default function SuperAdminDashboard() {
   const [tenants, setTenants] = useState<any[]>([]);
 
   useEffect(() => {
-    // Only allow actual super admins in production. Here we assume admin has access for demo purposes.
     const fetchMetrics = async () => {
       try {
-        const response = await apiClient.get('/saas/admin/metrics');
+        const response = await apiClient.get('/saas/metrics');
         setMetrics(response.data);
         
-        const tenantsResponse = await apiClient.get('/saas/admin/tenants');
+        const tenantsResponse = await apiClient.get('/saas/tenants');
         setTenants(tenantsResponse.data);
       } catch (error) {
-        toast.error('Error fetching SaaS metrics');
+        toast.error('Error fetching SaaS metrics. Asegúrate de ser Super Admin.');
       }
     };
     fetchMetrics();
@@ -34,9 +33,26 @@ export default function SuperAdminDashboard() {
     return <div className="p-8 text-neutral-500">Cargando Super Admin Dashboard...</div>;
   }
 
-  const handleImpersonate = (tenantId: string) => {
-    toast.success(`Impersonando al tenant ${tenantId}. Recargando sistema...`);
-    // Logic to set token and reload
+  const handleImpersonate = async (tenantId: string) => {
+    try {
+      const res = await apiClient.post('/saas/impersonate', { tenant_id: tenantId });
+      toast.success(res.data.message || `Impersonando al tenant ${tenantId}`);
+      
+      // Update the Zustand store to "become" this tenant
+      useAuthStore.setState((state) => {
+         if (state.user) {
+            return { user: { ...state.user, tenant_id: tenantId } };
+         }
+         return state;
+      });
+
+      // Redirect to the regular dashboard
+      setTimeout(() => {
+        window.location.href = '/dashboard';
+      }, 1000);
+    } catch (error) {
+      toast.error('No se pudo impersonar a esta farmacia.');
+    }
   };
 
   return (
@@ -69,28 +85,28 @@ export default function SuperAdminDashboard() {
           <MetricCard 
             title="MRR (Ingreso Mensual)" 
             value={`$${(metrics.mrr).toLocaleString('es-CO', { maximumFractionDigits: 0 })}`} 
-            trend="+12%" 
+            trend={metrics.trends.mrr} 
             isPositive={true} 
             icon={<DollarSign size={20} className="text-emerald-600" />} 
           />
           <MetricCard 
             title="Tenants Activos" 
             value={metrics.tenants.total_active} 
-            trend="+5 este mes" 
+            trend={metrics.trends.tenants} 
             isPositive={true} 
             icon={<Building2 size={20} className="text-indigo-600" />} 
           />
           <MetricCard 
             title="ARPU (Promedio/Tenant)" 
             value={`$${metrics.arpu.toLocaleString('es-CO', { maximumFractionDigits: 0 })}`} 
-            trend="+2.1%" 
+            trend={metrics.trends.arpu} 
             isPositive={true} 
             icon={<TrendingUp size={20} className="text-blue-600" />} 
           />
           <MetricCard 
             title="Churn Rate" 
             value={`${metrics.tenants.churn_rate_percent}%`} 
-            trend="-0.5%" 
+            trend={metrics.trends.churn} 
             isPositive={true} // Lower churn is positive
             icon={<AlertTriangle size={20} className="text-amber-600" />} 
           />
@@ -120,9 +136,9 @@ export default function SuperAdminDashboard() {
             <div className="mt-8 border-t border-neutral-100 dark:border-neutral-800 pt-6">
                <h4 className="font-bold text-sm text-neutral-700 dark:text-neutral-300 mb-4">Métricas Unitarias Adicionales</h4>
                <div className="flex gap-8 text-sm">
-                 <div><span className="text-neutral-500">CAC Estimado:</span> <span className="font-bold">$120 USD</span></div>
-                 <div><span className="text-neutral-500">LTV Estimado:</span> <span className="font-bold">$8,800 USD</span></div>
-                 <div><span className="text-neutral-500">Net MRR Growth:</span> <span className="font-bold text-emerald-500">+${metrics.net_mrr_growth}</span></div>
+                 <div><span className="text-neutral-500">CAC Estimado:</span> <span className="font-bold">${metrics.unit_economics.cac.toLocaleString('es-CO')} COP</span></div>
+                 <div><span className="text-neutral-500">LTV Estimado:</span> <span className="font-bold">${metrics.unit_economics.ltv.toLocaleString('es-CO')} COP</span></div>
+                 <div><span className="text-neutral-500">Net MRR Growth:</span> <span className="font-bold text-emerald-500">+${metrics.net_mrr_growth} COP</span></div>
                </div>
             </div>
           </div>

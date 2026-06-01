@@ -28,3 +28,6 @@ yarn-error.log*
 
 # Docker
 .docker/
+crm-farma-ai-engine/venv/
+__pycache__/  
+ 

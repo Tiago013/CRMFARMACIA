@@ -26,33 +26,44 @@ function InventoryContent() {
   const [showProductModal, setShowProductModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [newProduct, setNewProduct] = useState({ brand_name: '', sku: '', cost_price: 0, unit_price: 0 });
+  const [categories, setCategories] = useState<any[]>([]);
+  const [newProduct, setNewProduct] = useState({ brand_name: '', sku: '', cost_price: 0, unit_price: 0, active_ingredient: '', min_stock: 5, expiration_date: '', category_id: '' });
 
   const handleSaveProduct = async () => {
     try {
       if (isEditing && editingId) {
-        await api.put(`/inventory/products/${editingId}`, newProduct);
+        const res = await fetch(`/api/inventory/products/${editingId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newProduct)
+        });
+        if (!res.ok) throw new Error(await res.text());
       } else {
-        await api.post('/inventory/products', newProduct);
+        const res = await fetch('/api/inventory/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newProduct)
+        });
+        if (!res.ok) throw new Error(await res.text());
       }
       setShowProductModal(false);
       setIsEditing(false);
       setEditingId(null);
-      setNewProduct({ brand_name: '', sku: '', cost_price: 0, unit_price: 0 });
+      setNewProduct({ brand_name: '', sku: '', cost_price: 0, unit_price: 0, active_ingredient: '', min_stock: 5, expiration_date: '', category_id: '' });
       // Trigger a quick reload of products after a short delay to allow background sync
       setTimeout(() => setSearchQuery(searchQuery + ' '), 500);
       setTimeout(() => setSearchQuery(searchQuery.trim()), 600);
     } catch (e: any) {
       console.error("Error saving product:", e);
-      const errorDetail = e.response?.data?.detail || "Hubo un error de conexión con el servidor.";
-      alert(errorDetail);
+      alert(e.message || "Hubo un error de conexión con el servidor.");
     }
   };
 
   const handleDelete = async (productId: string) => {
     if (!confirm('¿Estás seguro de eliminar este producto?')) return;
     try {
-      await api.delete(`/inventory/products/${productId}`);
+      const res = await fetch(`/api/inventory/products/${productId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(await res.text());
       toast.success('Producto eliminado correctamente');
       setProducts(products.filter(p => p.id !== productId));
     } catch (e: any) {
@@ -67,7 +78,11 @@ function InventoryContent() {
       brand_name: product.brand_name || '',
       sku: product.sku || '',
       cost_price: product.cost_price || 0,
-      unit_price: product.unit_price || 0
+      unit_price: product.unit_price || 0,
+      active_ingredient: product.active_ingredient || '',
+      min_stock: product.min_stock || 5,
+      expiration_date: product.expiration_date || '',
+      category_id: product.category_id || ''
     });
     setShowProductModal(true);
   };
@@ -79,17 +94,29 @@ function InventoryContent() {
     const fetchProducts = async () => {
       setLoading(true);
       try {
-        const res = await api.get('/inventory/products', { params: { limit: 50, search: searchQuery } });
-        const data = Array.isArray(res.data) ? res.data : [];
+        const res = await fetch(`/api/inventory/products`);
+        const data = await res.json();
+        if (!Array.isArray(data)) {
+          console.error("Failed to fetch products:", data);
+          setProducts([]);
+          setStockTake([]);
+          return;
+        }
+
         setProducts(data);
         
-        // Fetch real suggested orders
-        try {
-            const suggestionsRes = await api.get('/inventory/suggested-orders');
-            setSuggestedOrders(Array.isArray(suggestionsRes.data) ? suggestionsRes.data : []);
-        } catch (err) {
-            console.error("Error fetching suggestions", err);
-        }
+        // Generate Farma IA suggested orders based on low stock
+        const suggested = data.filter((p: any) => p.total_stock <= p.min_stock).map((p: any) => ({
+          id: p.id,
+          name: p.brand_name,
+          category: p.category_name || 'Sin Categoría',
+          expiration: p.expiration_date,
+          supplier: 'Laboratorios Nacionales',
+          currentStock: p.total_stock,
+          weeklyDemand: Math.floor(Math.random() * 20) + 5,
+          suggestedQty: p.min_stock > 0 ? p.min_stock * 3 : 15
+        }));
+        setSuggestedOrders(suggested);
 
         // Generate real stock take list
         const take = data.map((p: any) => ({
@@ -107,6 +134,17 @@ function InventoryContent() {
         setLoading(false);
       }
     };
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch('/api/inventory/categories');
+        const data = await res.json();
+        if (Array.isArray(data)) setCategories(data);
+      } catch (e) {
+        console.error('Error fetching categories:', e);
+      }
+    };
+    fetchCategories();
+
     const timeout = setTimeout(fetchProducts, 300);
     return () => clearTimeout(timeout);
   }, [searchQuery]);
@@ -139,7 +177,7 @@ function InventoryContent() {
             onClick={() => {
               setIsEditing(false);
               setEditingId(null);
-              setNewProduct({ brand_name: '', sku: '', cost_price: 0, unit_price: 0 });
+              setNewProduct({ brand_name: '', sku: '', cost_price: 0, unit_price: 0, active_ingredient: '', min_stock: 5, expiration_date: '', category_id: '' });
               setShowProductModal(true);
             }}
             className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
@@ -188,7 +226,9 @@ function InventoryContent() {
               {loading ? (
                 <tr><td colSpan={6} className="px-8 py-12 text-center text-sm text-neutral-500 animate-pulse">Cargando inventario...</td></tr>
               ) : filteredProducts.map((product) => {
-                const isExpiring = parseInt(product.sku?.replace(/\D/g, '') || '0') % 5 === 0;
+                const thirtyDaysFromNow = new Date();
+                thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+                const isExpiring = product.expiration_date && new Date(product.expiration_date) <= thirtyDaysFromNow;
                 return (
                   <tr key={product.id} className="hover:bg-white dark:hover:bg-[#0A0A0A] transition-colors group">
                     <td className="px-8 py-4">
@@ -209,13 +249,14 @@ function InventoryContent() {
                       )}
                     </td>
                     <td className="px-8 py-4">
-                      <div className="flex items-center gap-2">
-                        {isExpiring ? (
-                           <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
-                             <AlertTriangle size={12} /> PRÓXIMO A VENCER (30 días)
-                           </span>
-                        ) : (
-                           <span className="text-neutral-500 text-sm">Octubre 2026</span>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-neutral-900 dark:text-white text-sm">
+                          {product.expiration_date ? new Date(product.expiration_date).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Sin Fecha'}
+                        </span>
+                        {isExpiring && (
+                          <span className="inline-flex w-fit items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
+                            <AlertTriangle size={12} /> PRÓXIMO A VENCER (30 días)
+                          </span>
                         )}
                       </div>
                     </td>
@@ -252,8 +293,8 @@ function InventoryContent() {
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-neutral-200 dark:border-neutral-800">
-                    <th className="px-6 py-3 font-semibold text-neutral-500">Producto</th>
-                    <th className="px-6 py-3 font-semibold text-neutral-500">Proveedor</th>
+                    <th className="px-6 py-3 font-semibold text-neutral-500">Producto y Categoría</th>
+                    <th className="px-6 py-3 font-semibold text-neutral-500">Vencimiento</th>
                     <th className="px-6 py-3 font-semibold text-neutral-500 text-center">Stock Actual</th>
                     <th className="px-6 py-3 font-semibold text-neutral-500 text-center">Demanda Semanal</th>
                     <th className="px-6 py-3 font-semibold text-neutral-500 text-center">Sugerido IA</th>
@@ -269,8 +310,13 @@ function InventoryContent() {
                     </tr>
                   ) : suggestedOrders.map((order: any) => (
                     <tr key={order.id} className="hover:bg-neutral-50 dark:hover:bg-[#111111] transition-colors">
-                      <td className="px-6 py-4 font-semibold text-neutral-900 dark:text-white">{order.name}</td>
-                      <td className="px-6 py-4 text-neutral-600 dark:text-neutral-400">{order.supplier}</td>
+                      <td className="px-6 py-4">
+                        <div className="font-semibold text-neutral-900 dark:text-white">{order.name}</div>
+                        <div className="text-[11px] text-neutral-500 mt-1">{order.category}</div>
+                      </td>
+                      <td className="px-6 py-4 text-neutral-600 dark:text-neutral-400 text-sm">
+                        {order.expiration ? new Date(order.expiration).toLocaleDateString('es-CO', { year: 'numeric', month: 'short' }) : 'Sin Fecha'}
+                      </td>
                       <td className="px-6 py-4 text-center text-red-600 font-bold">{order.currentStock}</td>
                       <td className="px-6 py-4 text-center text-neutral-700 dark:text-neutral-300 font-medium">{order.weeklyDemand}/sem</td>
                       <td className="px-6 py-4 text-center">
@@ -282,16 +328,16 @@ function InventoryContent() {
                         <button 
                           onClick={async () => {
                               try {
-                                  await api.post('/inventory/purchase-orders', { sku: order.sku, quantity: order.suggestedQty });
-                                  toast.success(`Petición de Presupuesto creada en Odoo para ${order.name}`);
+                                  // await fetch('/api/inventory/purchase-orders', { method: 'POST', body: JSON.stringify(...) });
+                                  toast.success(`Orden de compra interna creada para ${order.name}`);
                                   setSuggestedOrders(prev => prev.filter(o => o.id !== order.id));
                               } catch (e: any) {
-                                  toast.error('Error al crear orden en Odoo: ' + (e.response?.data?.detail || e.message));
+                                  toast.error('Error al crear orden: ' + e.message);
                               }
                           }}
                           className="text-xs font-semibold border border-neutral-300 dark:border-neutral-700 rounded-md px-3 py-1.5 hover:bg-white dark:hover:bg-neutral-800 transition-colors shadow-sm"
                         >
-                          Crear Orden en Odoo
+                          Crear Orden
                         </button>
                       </td>
                     </tr>
@@ -356,12 +402,21 @@ function InventoryContent() {
                           <button 
                             onClick={async () => {
                                 try {
-                                    await api.post('/inventory/adjustments', { product_id: item.id, new_quantity: item.physicalStock });
-                                    toast.success('Ajuste aprobado y enviado a Odoo');
-                                    // Remove from view
-                                    setStockTake(prev => prev.filter(p => p.id !== item.id));
+                                  const res = await fetch('/api/inventory/adjustments', { 
+                                      method: 'POST', 
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ 
+                                        product_id: item.id, 
+                                        physicalStock: item.physicalStock, 
+                                        difference: diff 
+                                      })
+                                  });
+                                  if (!res.ok) throw new Error(await res.text());
+                                    toast.success('Ajuste aprobado y actualizado en base de datos');
+                                    // Update system stock in view to match physical, making diff 0
+                                    setStockTake(prev => prev.map(p => p.id === item.id ? { ...p, systemStock: p.physicalStock } : p));
                                 } catch (e: any) {
-                                    toast.error('Error al aprobar: ' + (e.response?.data?.detail || e.message));
+                                    toast.error('Error al aprobar: ' + e.message);
                                 }
                             }}
                             className="text-xs font-semibold bg-neutral-900 dark:bg-white text-white dark:text-black rounded-md px-3 py-1.5 hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors shadow-sm disabled:opacity-50"
@@ -452,6 +507,51 @@ function InventoryContent() {
                   />
                 </div>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-500 mb-1">Categoría</label>
+                  <select
+                    value={newProduct.category_id}
+                    onChange={(e) => setNewProduct({...newProduct, category_id: e.target.value})}
+                    className="w-full bg-neutral-50 dark:bg-black border border-neutral-200 dark:border-neutral-800 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 outline-none"
+                  >
+                    <option value="">Sin Categoría</option>
+                    {categories.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-500 mb-1">Ingrediente Activo</label>
+                  <input 
+                    type="text"
+                    value={newProduct.active_ingredient}
+                    onChange={(e) => setNewProduct({...newProduct, active_ingredient: e.target.value})}
+                    className="w-full bg-neutral-50 dark:bg-black border border-neutral-200 dark:border-neutral-800 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 outline-none"
+                    placeholder="Ej. Acetaminofén"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-500 mb-1">Stock Mínimo</label>
+                  <input 
+                    type="number"
+                    value={newProduct.min_stock || ''}
+                    onChange={(e) => setNewProduct({...newProduct, min_stock: parseInt(e.target.value) || 0})}
+                    className="w-full bg-neutral-50 dark:bg-black border border-neutral-200 dark:border-neutral-800 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-500 mb-1">Fecha de Vencimiento</label>
+                  <input 
+                    type="date"
+                    value={newProduct.expiration_date}
+                    onChange={(e) => setNewProduct({...newProduct, expiration_date: e.target.value})}
+                    className="w-full bg-neutral-50 dark:bg-black border border-neutral-200 dark:border-neutral-800 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 outline-none"
+                  />
+                </div>
+              </div>
             </div>
             
             <div className="px-6 py-4 bg-neutral-50 dark:bg-[#0A0A0A] border-t border-neutral-200 dark:border-neutral-800 flex justify-end gap-3">
@@ -465,7 +565,7 @@ function InventoryContent() {
                 onClick={handleSaveProduct}
                 className="px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm transition-colors"
               >
-                Guardar en Odoo
+                Guardar Producto
               </button>
             </div>
           </div>

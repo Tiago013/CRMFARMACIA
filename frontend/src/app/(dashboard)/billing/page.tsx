@@ -1,33 +1,51 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CreditCard, CheckCircle2, Zap, ArrowRight, Download, ExternalLink, AlertCircle, Lock } from 'lucide-react';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { apiClient } from '@/lib/axios';
+import { toast } from 'sonner';
 
 export default function BillingPage() {
   const { user } = useAuthStore();
   const [loadingPortal, setLoadingPortal] = useState(false);
+  const [billingInfo, setBillingInfo] = useState<any>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [isUpgrading, setIsUpgrading] = useState(false);
 
-  // Mocked data for the UI
-  const currentPlan: string = 'PRO';
-  const planStatus = 'active'; // 'active', 'past_due', 'trialing'
-  const nextBillingDate = '3/6/2026';
-  
-  const usage = {
-    pos_transactions: { used: 4500, limit: 10000, label: 'Transacciones POS (Este mes)' },
-    wa_messages: { used: 312, limit: 3000, label: 'Mensajes WhatsApp (Este mes)' },
-    patients: { used: 1847, limit: 10000, label: 'Pacientes en CRM' },
-    branches: { used: 1, limit: 3, label: 'Sucursales' },
-    users: { used: 4, limit: 10, label: 'Usuarios del equipo' },
+  useEffect(() => {
+    fetchBillingInfo();
+  }, []);
+
+  const fetchBillingInfo = async () => {
+    try {
+      const res = await apiClient.get('/billing/info');
+      setBillingInfo(res.data);
+    } catch (error) {
+      toast.error('Error al cargar la información de facturación');
+    }
   };
 
   const handleOpenPortal = () => {
     setLoadingPortal(true);
-    // Simulate API call to get Stripe portal URL
     setTimeout(() => {
       setLoadingPortal(false);
-      alert('Abriendo portal de pagos...');
+      toast.info('La pasarela real (Stripe) está deshabilitada en este entorno demo.');
     }, 1000);
+  };
+
+  const handleUpgrade = async (planName: string) => {
+    setIsUpgrading(true);
+    try {
+      const res = await apiClient.post('/billing/upgrade', { new_plan: planName });
+      toast.success(res.data.message);
+      setShowUpgradeModal(false);
+      fetchBillingInfo();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Error al actualizar el plan.');
+    } finally {
+      setIsUpgrading(false);
+    }
   };
 
   const renderProgressBar = (used: number, limit: number, label: string) => {
@@ -48,6 +66,10 @@ export default function BillingPage() {
       </div>
     );
   };
+
+  if (!billingInfo) {
+    return <div className="p-8 text-neutral-500">Cargando información de facturación...</div>;
+  }
 
   return (
     <div className="flex flex-col h-full bg-[#FBFBFB] dark:bg-[#020202] overflow-y-auto">
@@ -73,19 +95,22 @@ export default function BillingPage() {
                 <div>
                   <h2 className="text-sm font-bold text-neutral-500 uppercase tracking-wider mb-1">Plan Actual</h2>
                   <div className="flex items-center gap-3">
-                    <span className="text-3xl font-black text-indigo-600 dark:text-indigo-400">{currentPlan}</span>
-                    <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-xs font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Activo</span>
+                    <span className="text-3xl font-black text-indigo-600 dark:text-indigo-400">{billingInfo.plan}</span>
+                    <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-xs font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">{billingInfo.status}</span>
                   </div>
-                  <p className="text-sm text-neutral-500 mt-2">Tu próximo cobro es el <strong>{nextBillingDate}</strong>.</p>
+                  <p className="text-sm text-neutral-500 mt-2">Tu próximo cobro es el <strong>{billingInfo.next_billing_date}</strong>.</p>
                 </div>
                 <div className="text-right">
-                  <div className="text-2xl font-black text-neutral-900 dark:text-white">$189</div>
-                  <div className="text-xs font-medium text-neutral-500">USD / mes</div>
+                  <div className="text-2xl font-black text-neutral-900 dark:text-white">${billingInfo.price.toLocaleString('es-CO')}</div>
+                  <div className="text-xs font-medium text-neutral-500">COP / mes</div>
                 </div>
               </div>
               
               <div className="flex gap-3 pt-4 border-t border-neutral-100 dark:border-neutral-800">
-                <button className="flex-1 bg-neutral-100 dark:bg-neutral-900 hover:bg-neutral-200 dark:hover:bg-neutral-800 text-neutral-900 dark:text-white font-bold py-2 rounded-lg transition-colors text-sm">
+                <button 
+                  onClick={() => setShowUpgradeModal(true)}
+                  className="flex-1 bg-neutral-100 dark:bg-neutral-900 hover:bg-neutral-200 dark:hover:bg-neutral-800 text-neutral-900 dark:text-white font-bold py-2 rounded-lg transition-colors text-sm"
+                >
                   Cambiar Plan
                 </button>
                 <button className="flex-1 border border-neutral-200 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-[#111111] text-neutral-600 dark:text-neutral-400 font-bold py-2 rounded-lg transition-colors text-sm">
@@ -97,7 +122,7 @@ export default function BillingPage() {
             {/* Sección 2: Uso Actual */}
             <div className="bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 shadow-sm">
               <h3 className="font-bold text-neutral-900 dark:text-white mb-6">Uso de recursos este mes</h3>
-              {Object.values(usage).map((item, idx) => (
+              {Object.values(billingInfo.usage).map((item: any, idx) => (
                 <div key={idx}>
                   {renderProgressBar(item.used, item.limit, item.label)}
                 </div>
@@ -114,15 +139,7 @@ export default function BillingPage() {
                 <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
                   <tr className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50">
                     <td className="px-5 py-4 font-medium text-neutral-900 dark:text-white">May 03, 2026</td>
-                    <td className="px-5 py-4 text-neutral-500">$189.00</td>
-                    <td className="px-5 py-4"><span className="text-emerald-600 dark:text-emerald-400 font-bold text-xs">Pagada</span></td>
-                    <td className="px-5 py-4 text-right">
-                      <button className="text-neutral-400 hover:text-indigo-600"><Download size={16} /></button>
-                    </td>
-                  </tr>
-                  <tr className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50">
-                    <td className="px-5 py-4 font-medium text-neutral-900 dark:text-white">Apr 03, 2026</td>
-                    <td className="px-5 py-4 text-neutral-500">$189.00</td>
+                    <td className="px-5 py-4 text-neutral-500">${billingInfo.price.toLocaleString('es-CO')}</td>
                     <td className="px-5 py-4"><span className="text-emerald-600 dark:text-emerald-400 font-bold text-xs">Pagada</span></td>
                     <td className="px-5 py-4 text-right">
                       <button className="text-neutral-400 hover:text-indigo-600"><Download size={16} /></button>
@@ -159,7 +176,7 @@ export default function BillingPage() {
             </div>
 
             {/* Sección 5: Banner de Upgrade */}
-            {currentPlan !== 'ENTERPRISE' && (
+            {billingInfo.plan !== 'ENTERPRISE' && (
               <div className="bg-gradient-to-br from-indigo-900 via-indigo-800 to-indigo-900 rounded-2xl p-6 shadow-xl relative overflow-hidden">
                 {/* Decorative background */}
                 <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-indigo-500 rounded-full blur-3xl opacity-30"></div>
@@ -194,6 +211,40 @@ export default function BillingPage() {
 
         </div>
       </div>
+
+      {showUpgradeModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#0A0A0A] rounded-2xl shadow-2xl max-w-2xl w-full p-8 border border-neutral-200 dark:border-neutral-800">
+            <h2 className="text-2xl font-black text-neutral-900 dark:text-white mb-6">Elige tu nuevo plan</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 hover:border-indigo-500 cursor-pointer" onClick={() => handleUpgrade('STARTER')}>
+                <h3 className="font-bold text-neutral-900 dark:text-white">Starter</h3>
+                <p className="text-xl font-black my-2">$50K</p>
+                <p className="text-xs text-neutral-500">Básico para pequeñas droguerías.</p>
+              </div>
+              <div className="border border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl p-4 cursor-pointer" onClick={() => handleUpgrade('PRO')}>
+                <h3 className="font-bold text-indigo-700 dark:text-indigo-400">Pro</h3>
+                <p className="text-xl font-black my-2 text-indigo-600 dark:text-indigo-400">$150K</p>
+                <p className="text-xs text-neutral-500">IA y automatizaciones medias.</p>
+              </div>
+              <div className="border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 hover:border-emerald-500 cursor-pointer" onClick={() => handleUpgrade('ENTERPRISE')}>
+                <h3 className="font-bold text-neutral-900 dark:text-white">Enterprise</h3>
+                <p className="text-xl font-black my-2">$500K</p>
+                <p className="text-xs text-neutral-500">Sin límites. Todo incluido.</p>
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-3 pt-4 border-t border-neutral-100 dark:border-neutral-800">
+              <button 
+                onClick={() => setShowUpgradeModal(false)}
+                className="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-bold rounded-lg text-sm"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
