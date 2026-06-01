@@ -8,8 +8,8 @@ declare global {
 }
 
 const prismaClientSingleton = () => {
-  // Use exact known-good connection string from seed_pg.js
-  const connectionString = "postgresql://postgres:Y%212msP_.Vtqtd67@db.bvxkcwjnsobhufvowgsb.supabase.co:5432/postgres"
+  // Use environment variable so it works in Vercel with Pooler
+  const connectionString = process.env.DATABASE_URL!
   
   if (!globalThis.poolGlobal) {
     globalThis.poolGlobal = new Pool({ 
