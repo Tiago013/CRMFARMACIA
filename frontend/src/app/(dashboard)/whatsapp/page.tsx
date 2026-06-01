@@ -13,9 +13,6 @@ export default function WhatsAppPage() {
   const [templates, setTemplates] = useState<any[]>([]);
   const [newTemplate, setNewTemplate] = useState({ name: '', content: '' });
 
-  // automations
-  const [automations, setAutomations] = useState<any[]>([]);
-
   const fetchStatus = async () => {
     try {
       const res = await fetch('http://localhost:3001/api/status');
@@ -36,17 +33,9 @@ export default function WhatsAppPage() {
     }
   };
 
-  const fetchAutomations = async () => {
-    const res = await fetch('/api/whatsapp/automations');
-    if (res.ok) {
-      setAutomations(await res.json());
-    }
-  };
-
   useEffect(() => {
     fetchStatus();
     fetchTemplates();
-    fetchAutomations();
     
     // Poll status every 5 seconds if not connected
     const interval = setInterval(() => {
@@ -74,15 +63,6 @@ export default function WhatsAppPage() {
   const handleDeleteTemplate = async (id: string) => {
     await fetch(`/api/whatsapp/templates/${id}`, { method: 'DELETE' });
     fetchTemplates();
-  };
-
-  const toggleAutomation = async (id: string, current: boolean) => {
-    await fetch(`/api/whatsapp/automations/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_active: !current })
-    });
-    fetchAutomations();
   };
 
   const handleLogout = async () => {
@@ -114,9 +94,6 @@ export default function WhatsAppPage() {
           </button>
           <button onClick={() => setActiveTab('templates')} className={`pb-3 pt-4 text-sm font-bold border-b-2 transition-colors ${activeTab === 'templates' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}>
             Plantillas de Mensajes
-          </button>
-          <button onClick={() => setActiveTab('automations')} className={`pb-3 pt-4 text-sm font-bold border-b-2 transition-colors ${activeTab === 'automations' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}>
-            Automatizaciones
           </button>
         </div>
       </div>
@@ -220,57 +197,6 @@ export default function WhatsAppPage() {
               {templates.length === 0 && (
                 <div className="text-center py-10 text-neutral-500">No tienes plantillas creadas.</div>
               )}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'automations' && (
-          <div className="max-w-4xl mx-auto space-y-6">
-            <div className="bg-white dark:bg-[#111] border border-neutral-200 dark:border-neutral-800 p-6 rounded-xl shadow-sm flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-neutral-900 dark:text-white text-lg">Venta Completada (POS)</h3>
-                <p className="text-sm text-neutral-500 mt-1">Dispara un mensaje con el total de la compra cuando el cajero presione "Pagar". El paciente debe tener número registrado en CRM.</p>
-              </div>
-              <div>
-                {/* Simplified Toggle logic based on finding a matching automation */}
-                {(() => {
-                  const auto = automations.find(a => a.trigger_event === 'SALE_COMPLETED');
-                  return (
-                    <button 
-                      onClick={async () => {
-                        if (auto) {
-                          toggleAutomation(auto.id, auto.is_active);
-                        } else {
-                          // Create it if it doesnt exist. Hardcoding the first template for demo
-                          if (templates.length > 0) {
-                            await fetch('/api/whatsapp/automations', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ trigger_event: 'SALE_COMPLETED', template_id: templates[0].id })
-                            });
-                            fetchAutomations();
-                          } else {
-                            alert("Debes crear al menos una plantilla primero.");
-                          }
-                        }
-                      }}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${auto?.is_active ? 'bg-emerald-500' : 'bg-neutral-300 dark:bg-neutral-700'}`}
-                    >
-                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${auto?.is_active ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
-                  );
-                })()}
-              </div>
-            </div>
-            
-            <div className="bg-white dark:bg-[#111] border border-neutral-200 dark:border-neutral-800 p-6 rounded-xl shadow-sm flex items-center justify-between opacity-50">
-              <div>
-                <h3 className="font-bold text-neutral-900 dark:text-white text-lg flex items-center gap-2">Recordatorio de Medicación <span className="text-[10px] bg-neutral-200 text-neutral-600 px-2 py-0.5 rounded font-bold uppercase">Pronto</span></h3>
-                <p className="text-sm text-neutral-500 mt-1">Se basa en el historial clínico para avisarle al paciente que debe volver a comprar.</p>
-              </div>
-              <button disabled className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none bg-neutral-300 dark:bg-neutral-700">
-                <span className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-1" />
-              </button>
             </div>
           </div>
         )}
