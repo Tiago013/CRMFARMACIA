@@ -7,8 +7,20 @@ export async function GET(request: NextRequest) {
     // Real implementation should extract the tenant_id from the user session
     // For MVP/Demo we'll fetch all products or the first tenant's products
     
+    const searchParams = request.nextUrl.searchParams;
+    const search = searchParams.get('search');
+    const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
+    
     // Fetch products with their batches to calculate total quantity
     const products = await prisma.product.findMany({
+      where: search ? {
+        OR: [
+          { brand_name: { contains: search, mode: 'insensitive' } },
+          { sku: { contains: search, mode: 'insensitive' } },
+          { active_ingredient: { contains: search, mode: 'insensitive' } },
+        ]
+      } : undefined,
+      take: limit,
       include: {
         category: true,
         batches: true,

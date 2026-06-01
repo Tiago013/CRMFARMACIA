@@ -103,7 +103,7 @@ function InventoryContent() {
     const fetchProducts = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/inventory/products`);
+        const res = await fetch(`/api/inventory/products?search=${encodeURIComponent(searchQuery)}`);
         const data = await res.json();
         if (!Array.isArray(data)) {
           console.error("Failed to fetch products:", data);
