@@ -183,8 +183,11 @@ function POSContent() {
         removeFromCart(cart[cart.length - 1].id);
       } else if (e.key === 'F10') {
         e.preventDefault();
-        setDrawerMode(drawerStatus === 'open' ? 'close' : 'open');
-        setDenominations({ b100: 0, b50: 0, b20: 0, b10: 0, b5: 0, b2: 0, m1000: 0, m500: 0, m200: 0, m100: 0, m50: 0 });
+        const nextMode = drawerStatus === 'open' ? 'close' : 'open';
+        setDrawerMode(nextMode);
+        setDenominations(nextMode === 'open' 
+          ? { b100: 0, b50: 2, b20: 3, b10: 4, b5: 5, b2: 5, m1000: 10, m500: 6, m200: 10, m100: 0, m50: 0 } 
+          : { b100: 0, b50: 0, b20: 0, b10: 0, b5: 0, b2: 0, m1000: 0, m500: 0, m200: 0, m100: 0, m50: 0 });
         setShowDrawerModal(true);
       } else if (e.key === 'Escape') {
         setShowPatientModal(false);
@@ -339,7 +342,30 @@ function POSContent() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-full bg-white dark:bg-[#000000]">
+    <div className="flex flex-col md:flex-row h-full bg-white dark:bg-[#000000] relative">
+      {/* Overlay de Bloqueo cuando la caja está cerrada */}
+      {drawerStatus === 'closed' && !showDrawerModal && (
+        <div className="absolute inset-0 z-[40] bg-white/80 dark:bg-black/80 backdrop-blur-md flex flex-col items-center justify-center">
+          <div className="bg-white dark:bg-[#0A0A0A] p-10 rounded-3xl shadow-2xl border border-neutral-200 dark:border-neutral-800 text-center max-w-md w-full animate-in fade-in zoom-in duration-300">
+            <div className="w-24 h-24 bg-rose-50 dark:bg-rose-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Lock size={48} className="text-rose-600 dark:text-rose-400" />
+            </div>
+            <h2 className="text-3xl font-black text-neutral-900 dark:text-white mb-3">Caja Cerrada</h2>
+            <p className="text-neutral-500 mb-8 text-sm">Debes realizar la apertura de caja y declarar la base inicial (sencillo) para empezar a facturar.</p>
+            <button 
+              onClick={() => {
+                setDrawerMode('open');
+                setDenominations({ b100: 0, b50: 2, b20: 3, b10: 4, b5: 5, b2: 5, m1000: 10, m500: 6, m200: 10, m100: 0, m50: 0 });
+                setShowDrawerModal(true);
+              }}
+              className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-lg shadow-xl shadow-indigo-600/20 transition-colors flex items-center justify-center gap-2"
+            >
+              <Lock size={20} className="open" /> Realizar Apertura de Caja
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Left side: Product Search & Quick Items */}
       <div className="flex-1 flex flex-col border-r border-neutral-200 dark:border-neutral-800 bg-[#FDFDFD] dark:bg-[#050505] min-w-0">
 
@@ -372,8 +398,11 @@ function POSContent() {
 
               <button 
                 onClick={() => {
-                  setDrawerMode(drawerStatus === 'open' ? 'close' : 'open');
-                  setDenominations({ b100: 0, b50: 0, b20: 0, b10: 0, b5: 0, b2: 0, m1000: 0, m500: 0, m200: 0, m100: 0, m50: 0 });
+                  const nextMode = drawerStatus === 'open' ? 'close' : 'open';
+                  setDrawerMode(nextMode);
+                  setDenominations(nextMode === 'open' 
+                    ? { b100: 0, b50: 2, b20: 3, b10: 4, b5: 5, b2: 5, m1000: 10, m500: 6, m200: 10, m100: 0, m50: 0 } 
+                    : { b100: 0, b50: 0, b20: 0, b10: 0, b5: 0, b2: 0, m1000: 0, m500: 0, m200: 0, m100: 0, m50: 0 });
                   setShowDrawerModal(true);
                 }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg shadow-sm border transition-colors ${drawerStatus === 'open' ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-900/30 dark:border-indigo-800 dark:text-indigo-400' : 'bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-900/30 dark:border-rose-800 dark:text-rose-400'}`}
