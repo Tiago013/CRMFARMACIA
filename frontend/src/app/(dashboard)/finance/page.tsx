@@ -96,9 +96,6 @@ export default function FinancePage() {
           <button onClick={() => setActiveTab('pnl')} className={`pb-3 pt-4 text-sm font-bold border-b-2 transition-colors ${activeTab === 'pnl' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}>
             Estado de Resultados (P&L)
           </button>
-          <button onClick={() => setActiveTab('caja')} className={`pb-3 pt-4 text-sm font-bold border-b-2 transition-colors ${activeTab === 'caja' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}>
-            Cierre de Caja
-          </button>
           <button onClick={() => setActiveTab('cxc')} className={`pb-3 pt-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'cxc' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}>
             Cuentas por Cobrar (Fiados)
             <span className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-[10px] font-black px-1.5 py-0.5 rounded-full">3</span>
@@ -196,68 +193,6 @@ export default function FinancePage() {
                 <div className="flex justify-between items-center pt-2 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-100 dark:border-emerald-800 mt-4">
                   <span className="text-lg font-black text-emerald-700 dark:text-emerald-400">UTILIDAD NETA</span>
                   <span className="text-2xl font-black text-emerald-700 dark:text-emerald-400">{formatCurrency(odooPnl?.net_profit)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : activeTab === 'caja' ? (
-          <div className="max-w-4xl mx-auto">
-            <div className="bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] flex justify-between items-center">
-                <div>
-                  <h2 className="text-lg font-bold text-neutral-900 dark:text-white flex items-center gap-2">
-                    <Lock className="text-indigo-500" /> Cierre de Turno / Arqueo de Caja
-                  </h2>
-                  <p className="text-xs text-neutral-500 mt-1">Declara los montos físicos para comparar con el sistema POS.</p>
-                </div>
-              </div>
-              <div className="p-8 space-y-6">
-                <div className="grid grid-cols-2 gap-8">
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-neutral-900 dark:text-white uppercase tracking-wider mb-4 border-b border-neutral-200 dark:border-neutral-800 pb-2">Valores Físicos (Declarados)</h3>
-                    <div>
-                      <label className="block text-xs font-bold text-neutral-500 mb-1">Efectivo en gaveta</label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 font-bold">$</span>
-                        <input type="number" placeholder="0.00" className="w-full pl-8 pr-4 py-2.5 text-lg font-bold bg-white dark:bg-[#111111] border border-neutral-300 dark:border-neutral-700 rounded-lg outline-none focus:border-indigo-500" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-neutral-500 mb-1">Total Vouchers Tarjeta</label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 font-bold">$</span>
-                        <input type="number" placeholder="0.00" className="w-full pl-8 pr-4 py-2.5 text-lg font-bold bg-white dark:bg-[#111111] border border-neutral-300 dark:border-neutral-700 rounded-lg outline-none focus:border-indigo-500" />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="space-y-4 bg-neutral-50 dark:bg-[#111111] p-6 rounded-xl border border-neutral-200 dark:border-neutral-800">
-                    <h3 className="text-sm font-bold text-neutral-900 dark:text-white uppercase tracking-wider mb-4 border-b border-neutral-200 dark:border-neutral-800 pb-2">Valores Sistema (Calculados)</h3>
-                    <div className="flex justify-between items-center text-sm font-medium">
-                      <span className="text-neutral-500">Ventas en Efectivo:</span>
-                      <span className="text-neutral-900 dark:text-white">$4,520.00</span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm font-medium">
-                      <span className="text-neutral-500">Ventas con Tarjeta:</span>
-                      <span className="text-neutral-900 dark:text-white">$2,100.00</span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm font-medium">
-                      <span className="text-neutral-500">Base inicial (Sencillo):</span>
-                      <span className="text-neutral-900 dark:text-white">$1,000.00</span>
-                    </div>
-                    <div className="flex justify-between items-center pt-4 border-t border-neutral-200 dark:border-neutral-800 mt-4">
-                      <span className="font-bold text-neutral-900 dark:text-white">Total Esperado:</span>
-                      <span className="text-xl font-black text-indigo-600 dark:text-indigo-400">$7,620.00</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="pt-6 border-t border-neutral-200 dark:border-neutral-800 flex justify-between items-center">
-                  <div className="flex items-center gap-2 text-sm text-neutral-500 font-medium">
-                    Estado: <span className="text-neutral-400 italic">Esperando valores declarados...</span>
-                  </div>
-                  <button className="bg-neutral-900 dark:bg-white text-white dark:text-black font-bold px-6 py-3 rounded-lg shadow-md hover:bg-neutral-800 transition-colors">
-                    Realizar Cierre Definitivo
-                  </button>
                 </div>
               </div>
             </div>

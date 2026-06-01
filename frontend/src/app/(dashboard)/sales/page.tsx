@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, Suspense } from 'react';
-import { Search, ShoppingCart, UserPlus, CreditCard, Trash2, Plus, Minus, Tag, Zap, Keyboard, Wifi, WifiOff, Save, FolderOpen, Banknote, HelpCircle, RefreshCw } from 'lucide-react';
+import { Search, ShoppingCart, UserPlus, CreditCard, Trash2, Plus, Minus, Tag, Zap, Keyboard, Wifi, WifiOff, Save, FolderOpen, Banknote, HelpCircle, RefreshCw, Lock, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { apiClient as api } from '@/lib/axios';
 import { toast } from 'sonner';
 import { enqueueSale, getOfflineSales, syncOfflineSales } from '@/lib/offlineQueue';
@@ -31,6 +31,45 @@ function POSContent() {
   const [cashReceived, setCashReceived] = useState<number>(0);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Drawer States
+  const [drawerStatus, setDrawerStatus] = useState<'open' | 'closed'>('closed');
+  const [drawerBase, setDrawerBase] = useState<number>(0);
+  const [drawerSales, setDrawerSales] = useState<number>(0);
+  const [showDrawerModal, setShowDrawerModal] = useState(false);
+  const [drawerMode, setDrawerMode] = useState<'open' | 'close'>('open');
+  const [denominations, setDenominations] = useState({
+    b100: 0, b50: 0, b20: 0, b10: 0, b5: 0, b2: 0,
+    m1000: 0, m500: 0, m200: 0, m100: 0, m50: 0
+  });
+
+  useEffect(() => {
+    const savedStatus = localStorage.getItem('drawerStatus');
+    if (savedStatus) {
+      setDrawerStatus(savedStatus as any);
+      setDrawerBase(Number(localStorage.getItem('drawerBase')) || 0);
+      setDrawerSales(Number(localStorage.getItem('drawerSales')) || 0);
+    }
+  }, []);
+
+  const saveDrawerState = (status: 'open' | 'closed', base: number, sales: number) => {
+    localStorage.setItem('drawerStatus', status);
+    localStorage.setItem('drawerBase', base.toString());
+    localStorage.setItem('drawerSales', sales.toString());
+    setDrawerStatus(status);
+    setDrawerBase(base);
+    setDrawerSales(sales);
+  };
+
+  const calculateDrawerTotal = () => {
+    return (
+      (denominations.b100 * 100000) + (denominations.b50 * 50000) + (denominations.b20 * 20000) +
+      (denominations.b10 * 10000) + (denominations.b5 * 5000) + (denominations.b2 * 2000) +
+      (denominations.m1000 * 1000) + (denominations.m500 * 500) + (denominations.m200 * 200) +
+      (denominations.m100 * 100) + (denominations.m50 * 50)
+    );
+  };
+
 
   // Network offline detection
   useEffect(() => {
@@ -142,10 +181,16 @@ function POSContent() {
       } else if (e.key === 'F9' && cart.length > 0) {
         e.preventDefault();
         removeFromCart(cart[cart.length - 1].id);
+      } else if (e.key === 'F10') {
+        e.preventDefault();
+        setDrawerMode(drawerStatus === 'open' ? 'close' : 'open');
+        setDenominations({ b100: 0, b50: 0, b20: 0, b10: 0, b5: 0, b2: 0, m1000: 0, m500: 0, m200: 0, m100: 0, m50: 0 });
+        setShowDrawerModal(true);
       } else if (e.key === 'Escape') {
         setShowPatientModal(false);
         setShowCheckoutModal(false);
         setShowHelpModal(false);
+        setShowDrawerModal(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -273,6 +318,11 @@ function POSContent() {
         }
         
         const data = await response.json();
+        
+        if (checkoutData.payments[0].method === 'cash') {
+          saveDrawerState('open', drawerBase, drawerSales + total);
+        }
+        
         toast.success(`¡Venta Procesada! Total: $${total.toLocaleString('es-CO', { maximumFractionDigits: 0 })}`);
       } catch (error: any) {
         // Rollback on failure
@@ -319,6 +369,18 @@ function POSContent() {
                   <RefreshCw size={12} className="animate-spin" /> Sincronizando
                 </span>
               )}
+
+              <button 
+                onClick={() => {
+                  setDrawerMode(drawerStatus === 'open' ? 'close' : 'open');
+                  setDenominations({ b100: 0, b50: 0, b20: 0, b10: 0, b5: 0, b2: 0, m1000: 0, m500: 0, m200: 0, m100: 0, m50: 0 });
+                  setShowDrawerModal(true);
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg shadow-sm border transition-colors ${drawerStatus === 'open' ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-900/30 dark:border-indigo-800 dark:text-indigo-400' : 'bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-900/30 dark:border-rose-800 dark:text-rose-400'}`}
+              >
+                <Lock size={14} /> 
+                {drawerStatus === 'open' ? 'Caja Abierta' : 'Caja Cerrada'} [F10]
+              </button>
 
               <button onClick={() => setShowHelpModal(true)} className="text-neutral-400 hover:text-neutral-600 transition-colors">
                 <HelpCircle size={18} />
@@ -651,6 +713,152 @@ function POSContent() {
                   </li>
                 ))}
               </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Caja (Apertura / Cierre) */}
+      {showDrawerModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-[#0A0A0A] rounded-xl shadow-2xl border border-neutral-200 dark:border-neutral-800 w-full max-w-4xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
+            <div className={`p-5 border-b border-neutral-100 dark:border-neutral-800 flex justify-between items-center ${drawerMode === 'open' ? 'bg-indigo-50 dark:bg-indigo-950/20' : 'bg-rose-50 dark:bg-rose-950/20'}`}>
+              <div>
+                <h3 className={`text-lg font-bold flex items-center gap-2 ${drawerMode === 'open' ? 'text-indigo-700 dark:text-indigo-400' : 'text-rose-700 dark:text-rose-400'}`}>
+                  <Lock size={20} /> {drawerMode === 'open' ? 'Apertura de Caja' : 'Cierre de Caja'}
+                </h3>
+                <p className={`text-xs ${drawerMode === 'open' ? 'text-indigo-600/70 dark:text-indigo-400/70' : 'text-rose-600/70 dark:text-rose-400/70'}`}>
+                  {drawerMode === 'open' ? 'Ingresa el conteo físico de tu base inicial.' : 'Declara el conteo físico final para tu arqueo.'}
+                </p>
+              </div>
+              <button onClick={() => setShowDrawerModal(false)} className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200">&times;</button>
+            </div>
+            
+            <div className="flex flex-col md:flex-row h-full max-h-[70vh] overflow-hidden">
+              {/* Left Column: Summary */}
+              <div className="w-full md:w-1/3 p-6 border-r border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] overflow-y-auto">
+                <h4 className="text-sm font-bold text-neutral-900 dark:text-white uppercase tracking-wider mb-6 pb-2 border-b border-neutral-200 dark:border-neutral-800">
+                  Resumen de Sistema
+                </h4>
+                
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center text-sm font-medium">
+                    <span className="text-neutral-500">Base Registrada:</span>
+                    <span className="text-neutral-900 dark:text-white">${drawerBase.toLocaleString()}</span>
+                  </div>
+                  {drawerMode === 'close' && (
+                    <div className="flex justify-between items-center text-sm font-medium">
+                      <span className="text-neutral-500">Ventas en Efectivo:</span>
+                      <span className="text-neutral-900 dark:text-white">${drawerSales.toLocaleString()}</span>
+                    </div>
+                  )}
+                  
+                  <div className="pt-4 border-t border-neutral-200 dark:border-neutral-800 mt-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="font-bold text-neutral-900 dark:text-white text-sm">TOTAL ESPERADO:</span>
+                      <span className="text-lg font-black text-neutral-900 dark:text-white">${(drawerMode === 'open' ? 0 : drawerBase + drawerSales).toLocaleString()}</span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center mb-6">
+                      <span className="font-bold text-neutral-900 dark:text-white text-sm">TOTAL DECLARADO:</span>
+                      <span className="text-lg font-black text-indigo-600 dark:text-indigo-400">${calculateDrawerTotal().toLocaleString()}</span>
+                    </div>
+
+                    {drawerMode === 'close' && (
+                      <div className={`p-4 rounded-lg flex flex-col gap-1 border ${calculateDrawerTotal() - (drawerBase + drawerSales) >= 0 ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-900' : 'bg-rose-50 border-rose-200 dark:bg-rose-950/30 dark:border-rose-900'}`}>
+                        <span className={`text-xs font-bold uppercase ${calculateDrawerTotal() - (drawerBase + drawerSales) >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>Diferencia (Descuadre)</span>
+                        <span className={`text-2xl font-black flex items-center gap-2 ${calculateDrawerTotal() - (drawerBase + drawerSales) >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
+                          {calculateDrawerTotal() - (drawerBase + drawerSales) >= 0 ? <Plus size={20} /> : <Minus size={20} />}
+                          ${Math.abs(calculateDrawerTotal() - (drawerBase + drawerSales)).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-8">
+                  <button 
+                    onClick={() => {
+                      if (drawerMode === 'open') {
+                        saveDrawerState('open', calculateDrawerTotal(), 0);
+                        toast.success(`Caja abierta exitosamente con base de $${calculateDrawerTotal().toLocaleString()}`);
+                      } else {
+                        const dif = calculateDrawerTotal() - (drawerBase + drawerSales);
+                        saveDrawerState('closed', 0, 0);
+                        toast.success(`Turno finalizado. Descuadre: $${dif.toLocaleString()}`);
+                      }
+                      setShowDrawerModal(false);
+                    }}
+                    className={`w-full py-3 text-white rounded-lg font-bold shadow-md transition-colors ${drawerMode === 'open' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-neutral-900 hover:bg-black dark:bg-white dark:text-black dark:hover:bg-neutral-200'}`}
+                  >
+                    {drawerMode === 'open' ? 'Confirmar Apertura' : 'Finalizar Turno y Cerrar Caja'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Right Column: Physical Denominations */}
+              <div className="flex-1 p-6 overflow-y-auto bg-white dark:bg-[#0A0A0A]">
+                <h4 className="text-sm font-bold text-neutral-900 dark:text-white uppercase tracking-wider mb-6 pb-2 border-b border-neutral-200 dark:border-neutral-800 flex items-center gap-2">
+                  <Banknote size={16} className="text-indigo-500" /> Desglose de Moneda Local (COP)
+                </h4>
+                
+                <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+                  {/* Billetes */}
+                  <div className="space-y-3">
+                    <h5 className="text-xs font-bold text-neutral-400 mb-2 uppercase tracking-wide">Billetes</h5>
+                    {[
+                      { key: 'b100', val: 100000, label: '$100.000' },
+                      { key: 'b50', val: 50000, label: '$50.000' },
+                      { key: 'b20', val: 20000, label: '$20.000' },
+                      { key: 'b10', val: 10000, label: '$10.000' },
+                      { key: 'b5', val: 5000, label: '$5.000' },
+                      { key: 'b2', val: 2000, label: '$2.000' }
+                    ].map(d => (
+                      <div key={d.key} className="flex items-center justify-between gap-3">
+                        <span className="w-20 text-sm font-medium text-neutral-600 dark:text-neutral-400">{d.label}</span>
+                        <input 
+                          type="number" 
+                          min="0"
+                          value={denominations[d.key as keyof typeof denominations] || ''}
+                          onChange={(e) => setDenominations(prev => ({ ...prev, [d.key]: Number(e.target.value) }))}
+                          placeholder="0"
+                          className="w-20 px-3 py-1.5 text-center bg-neutral-50 dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-md outline-none focus:border-indigo-500 text-sm font-bold"
+                        />
+                        <span className="flex-1 text-right text-sm font-semibold text-neutral-900 dark:text-white">
+                          ${(denominations[d.key as keyof typeof denominations] * d.val).toLocaleString()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Monedas */}
+                  <div className="space-y-3">
+                    <h5 className="text-xs font-bold text-neutral-400 mb-2 uppercase tracking-wide">Monedas</h5>
+                    {[
+                      { key: 'm1000', val: 1000, label: '$1.000' },
+                      { key: 'm500', val: 500, label: '$500' },
+                      { key: 'm200', val: 200, label: '$200' },
+                      { key: 'm100', val: 100, label: '$100' },
+                      { key: 'm50', val: 50, label: '$50' }
+                    ].map(d => (
+                      <div key={d.key} className="flex items-center justify-between gap-3">
+                        <span className="w-16 text-sm font-medium text-neutral-600 dark:text-neutral-400">{d.label}</span>
+                        <input 
+                          type="number" 
+                          min="0"
+                          value={denominations[d.key as keyof typeof denominations] || ''}
+                          onChange={(e) => setDenominations(prev => ({ ...prev, [d.key]: Number(e.target.value) }))}
+                          placeholder="0"
+                          className="w-20 px-3 py-1.5 text-center bg-neutral-50 dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-md outline-none focus:border-indigo-500 text-sm font-bold"
+                        />
+                        <span className="flex-1 text-right text-sm font-semibold text-neutral-900 dark:text-white">
+                          ${(denominations[d.key as keyof typeof denominations] * d.val).toLocaleString()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
