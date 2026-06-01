@@ -223,7 +223,7 @@ export default function SuppliersPage() {
       setReceiveItems([]);
       setActiveTab('history');
     } catch (err: any) {
-      alert("Error registrando compra: " + err.message);
+      alert("Error registrando compra: " + (err.response?.data?.error || err.message));
     } finally {
       setSubmittingPurchase(false);
     }
