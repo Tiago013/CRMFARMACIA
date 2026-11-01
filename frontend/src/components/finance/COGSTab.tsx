@@ -79,7 +79,7 @@ export default function COGSTab({ period = '7d' }: { period?: string }) {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#333" opacity={0.2} />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#888'}} />
                 <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#888'}} tickFormatter={(v) => `$${v/1000}k`} />
-                <RechartsTooltip cursor={{fill: '#f5f5f5'}} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', backgroundColor: '#111', color: '#fff'}} itemStyle={{color: '#fff'}} formatter={(val: number) => formatCurrency(val)} />
+                <RechartsTooltip cursor={{fill: '#f5f5f5'}} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', backgroundColor: '#111', color: '#fff'}} itemStyle={{color: '#fff'}} formatter={(val) => formatCurrency(Number(val))} />
                 <Bar dataKey="cogs" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={40} />
               </BarChart>
             </ResponsiveContainer>
