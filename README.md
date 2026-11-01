@@ -41,7 +41,7 @@ finanzas, pronóstico de demanda con IA y panel de administración SaaS.
 
    | Usuario | Contraseña | Rol |
    |---|---|---|
-   | `demo@farmaai.com` | `CAMBIAR_POR_CONTRASEÑA_DEMO` | Cajero (solo operación) |
+   | `demo@farmaai.com` | `123456` | Cajero (solo operación) |
 
 3. Recorrido sugerido:
    - **Pacientes** → abre un paciente y mira su ficha 360° (historial, gasto mensual, alergias).
@@ -56,17 +56,6 @@ finanzas, pronóstico de demanda con IA y panel de administración SaaS.
 
 ---
 
-## 🎓 Contexto académico
-
-| | |
-|---|---|
-| **Universidad** | _[Nombre de la universidad]_ |
-| **Programa / Asignatura** | _[Programa — Asignatura]_ |
-| **Autor** | _[Nombre completo]_ — [@Tiago013](https://github.com/Tiago013) |
-| **Docente** | _[Nombre del docente]_ |
-| **Periodo** | _[2026-1]_ |
-
----
 
 ## 🎯 El problema y la solución
 
