@@ -1,11 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
-    // Real implementation should extract the tenant_id from the user session
-    // For MVP/Demo we'll fetch all products or the first tenant's products
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
     
     const searchParams = request.nextUrl.searchParams;
     const search = searchParams.get('search');
@@ -13,7 +14,7 @@ export async function GET(request: NextRequest) {
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
     
     // Build where clause
-    const whereClause: any = {};
+    const whereClause: any = { tenant_id: auth.tenantId };
     if (search) {
       whereClause.OR = [
         { brand_name: { contains: search, mode: 'insensitive' } },
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch products with their batches to calculate total quantity
     const products = await prisma.product.findMany({
-      where: (search || category) ? whereClause : undefined,
+      where: whereClause,
       take: limit,
       include: {
         category: true,
@@ -99,19 +100,13 @@ export async function GET(request: NextRequest) {
 
   export async function POST(request: NextRequest) {
     try {
+      const auth = await requireAuth();
+      if (auth instanceof NextResponse) return auth;
+      const tenant_id = auth.tenantId;
+
       const body = await request.json();
-      let { tenant_id, sku, brand_name, unit_price, cost_price, min_stock, active_ingredient, presentation, expiration_date, category_id } = body;
+      const { sku, brand_name, unit_price, cost_price, min_stock, active_ingredient, presentation, expiration_date, category_id } = body;
   
-      // MVP: Auto-assign default tenant if not provided
-      if (!tenant_id) {
-        let defaultPharmacy = await prisma.pharmacy.findFirst();
-        if (!defaultPharmacy) {
-          defaultPharmacy = await prisma.pharmacy.create({
-            data: { name: 'FarmaAI Default Pharmacy' }
-          });
-        }
-        tenant_id = defaultPharmacy.id;
-      }
   
       if (!sku || !brand_name || unit_price === undefined) {
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });

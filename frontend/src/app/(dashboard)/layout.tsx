@@ -107,6 +107,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   const handleLogout = async () => {
     logout();
+    // Limpia la cookie de suplantación (si la hay) antes de cerrar la sesión
+    await fetch('/api/saas/impersonate', { method: 'DELETE' }).catch(() => {});
     const { createClient } = await import('@/utils/supabase/client');
     const supabase = createClient();
     await supabase.auth.signOut();

@@ -1,15 +1,16 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
-    const pharmacy = await prisma.pharmacy.findFirst();
-    if (!pharmacy) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
 
     const automations = await prisma.whatsappAutomation.findMany({
-      where: { tenant_id: pharmacy.id },
+      where: { tenant_id: auth.tenantId },
       include: { template: true },
       orderBy: { created_at: 'desc' }
     });
@@ -22,15 +23,18 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const pharmacy = await prisma.pharmacy.findFirst();
-    if (!pharmacy) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
 
     const body = await request.json();
     const { trigger_event, template_id, is_active } = body;
 
+    const template = await prisma.whatsappTemplate.findFirst({ where: { id: template_id, tenant_id: auth.tenantId }, select: { id: true } });
+    if (!template) return NextResponse.json({ error: 'Plantilla no encontrada' }, { status: 404 });
+
     const automation = await prisma.whatsappAutomation.create({
       data: {
-        tenant_id: pharmacy.id,
+        tenant_id: auth.tenantId,
         trigger_event,
         template_id,
         is_active: is_active ?? true

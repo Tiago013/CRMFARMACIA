@@ -1,6 +1,14 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
+
+// Campos que el cliente puede modificar en un paciente
+const EDITABLE_FIELDS = [
+  'first_name', 'last_name', 'phone', 'document_id', 'email', 'birth_date',
+  'address', 'eps', 'blood_group', 'allergies', 'medical_notes',
+  'emergency_contact_name', 'emergency_contact_phone', 'preferences', 'tags',
+] as const;
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -9,9 +17,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
     const { id } = await params;
-    const patient = await prisma.patient.findUnique({
-      where: { id },
+    const patient = await prisma.patient.findFirst({
+      where: { id, tenant_id: auth.tenantId },
       include: {
         timeline_events: {
           orderBy: { created_at: 'desc' }
@@ -111,18 +121,24 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
     const { id } = await params;
     const body = await request.json();
-    
-    // Parse birth_date if present
-    if (body.birth_date) {
-      body.birth_date = new Date(body.birth_date);
-    }
 
-    const updated = await prisma.patient.update({
-      where: { id },
-      data: body
+    const data: Record<string, any> = {};
+    for (const field of EDITABLE_FIELDS) {
+      if (body[field] !== undefined) data[field] = body[field];
+    }
+    if (data.birth_date) data.birth_date = new Date(data.birth_date);
+
+    const result = await prisma.patient.updateMany({
+      where: { id, tenant_id: auth.tenantId },
+      data
     });
+    if (result.count === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+    const updated = await prisma.patient.findUnique({ where: { id } });
 
     return NextResponse.json(updated);
   } catch (error: any) {

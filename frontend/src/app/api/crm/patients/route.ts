@@ -1,9 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
 
@@ -25,6 +28,7 @@ export async function GET(request: NextRequest) {
     if (search) {
       patients = await prisma.patient.findMany({
         where: {
+          tenant_id: auth.tenantId,
           OR: [
             { first_name: { contains: search, mode: 'insensitive' } },
             { last_name: { contains: search, mode: 'insensitive' } },
@@ -36,6 +40,7 @@ export async function GET(request: NextRequest) {
       });
     } else {
       patients = await prisma.patient.findMany({
+        where: { tenant_id: auth.tenantId },
         orderBy: { last_purchase_date: 'desc' },
         include: includeSales,
         take: 50
@@ -50,9 +55,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
+    const tenant_id = auth.tenantId;
+
     const body = await request.json();
-    let { 
-      tenant_id, 
+    const { 
       first_name, 
       last_name, 
       phone, 
@@ -69,17 +77,6 @@ export async function POST(request: NextRequest) {
       preferences,
       tags
     } = body;
-
-    // MVP: Auto-assign default tenant if not provided
-    if (!tenant_id) {
-      let defaultPharmacy = await prisma.pharmacy.findFirst();
-      if (!defaultPharmacy) {
-        defaultPharmacy = await prisma.pharmacy.create({
-          data: { name: 'FarmaAI Default Pharmacy' }
-        });
-      }
-      tenant_id = defaultPharmacy.id;
-    }
 
     const newPatient = await prisma.patient.create({
       data: {

@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
+    const tenant_id = auth.tenantId;
     const searchParams = request.nextUrl.searchParams;
     let productId = searchParams.get('productId');
 
@@ -13,6 +17,7 @@ export async function GET(request: NextRequest) {
     if (!productId) {
       const topSellingProduct = await prisma.saleItem.groupBy({
         by: ['product_id'],
+        where: { sale: { tenant_id } },
         _count: { product_id: true },
         orderBy: { _count: { product_id: 'desc' } },
         take: 1
@@ -37,7 +42,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get Product Info
-    const product = await prisma.product.findUnique({ where: { id: productId } });
+    const product = await prisma.product.findFirst({ where: { id: productId, tenant_id } });
     if (!product) {
       return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
     }
@@ -51,6 +56,7 @@ export async function GET(request: NextRequest) {
       where: {
         product_id: productId,
         sale: {
+          tenant_id,
           created_at: {
             gte: thirtyDaysAgo
           }
@@ -167,6 +173,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch all products for the dropdown menu
     const allProducts = await prisma.product.findMany({
+      where: { tenant_id },
       select: { id: true, brand_name: true },
       orderBy: { brand_name: 'asc' }
     });
@@ -210,12 +217,12 @@ export async function GET(request: NextRequest) {
     
     const [totalSalesSum, totalPatientsCount, activePatientsCount, patientSalesCount] = await Promise.all([
       prisma.sale.aggregate({ 
-        where: { patient_id: { not: null } },
+        where: { tenant_id, patient_id: { not: null } },
         _sum: { grand_total: true } 
       }),
-      prisma.patient.count(),
-      prisma.patient.count({ where: { sales: { some: { created_at: { gte: thirtyDaysAgoGlobal } } } } }),
-      prisma.sale.count({ where: { patient_id: { not: null } } })
+      prisma.patient.count({ where: { tenant_id } }),
+      prisma.patient.count({ where: { tenant_id, sales: { some: { created_at: { gte: thirtyDaysAgoGlobal } } } } }),
+      prisma.sale.count({ where: { tenant_id, patient_id: { not: null } } })
     ]);
 
     const clv = totalPatientsCount > 0 ? (totalSalesSum._sum.grand_total || 0) / totalPatientsCount : 0;

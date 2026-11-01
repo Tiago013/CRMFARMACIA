@@ -1,17 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
+
     const { id: saleId } = await params;
     
     // Perform refund in a transaction
     const refundedSale = await prisma.$transaction(async (tx) => {
-      const sale = await tx.sale.findUnique({
-        where: { id: saleId },
+      const sale = await tx.sale.findFirst({
+        where: { id: saleId, tenant_id: auth.tenantId },
         include: { items: true }
       });
 

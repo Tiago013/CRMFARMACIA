@@ -1,10 +1,14 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
-    const pharmacies = await prisma.pharmacy.findMany();
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
+
+    const pharmacies = await prisma.pharmacy.findMany({ where: { id: auth.tenantId } });
     
     // Si no hay farmacias, retornar un array vacío
     if (!pharmacies || pharmacies.length === 0) {

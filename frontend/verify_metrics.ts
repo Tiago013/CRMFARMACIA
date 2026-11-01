@@ -1,7 +1,8 @@
+import 'dotenv/config';
 import { Client } from 'pg';
 
 async function main() {
-  const connectionString = "postgresql://postgres.bvxkcwjnsobhufvowgsb:Y%212msP_.Vtqtd67@aws-1-us-east-2.pooler.supabase.com:6543/postgres";
+  const connectionString = process.env.DATABASE_URL!;
   const client = new Client({ connectionString, ssl: { rejectUnauthorized: false } });
   await client.connect();
 

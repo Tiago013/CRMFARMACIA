@@ -1,15 +1,16 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
-    const pharmacy = await prisma.pharmacy.findFirst();
-    if (!pharmacy) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
 
     const templates = await prisma.whatsappTemplate.findMany({
-      where: { tenant_id: pharmacy.id },
+      where: { tenant_id: auth.tenantId },
       orderBy: { created_at: 'desc' }
     });
 
@@ -21,15 +22,15 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const pharmacy = await prisma.pharmacy.findFirst();
-    if (!pharmacy) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
 
     const body = await request.json();
     const { name, content, variables } = body;
 
     const template = await prisma.whatsappTemplate.create({
       data: {
-        tenant_id: pharmacy.id,
+        tenant_id: auth.tenantId,
         name,
         content,
         variables: variables || 0

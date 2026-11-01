@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile } from 'fs/promises';
 import path from 'path';
+import { requireAuth } from '@/lib/auth';
+
+const MAX_BYTES = 2 * 1024 * 1024; // 2 MB
+const ALLOWED_TYPES: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+};
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
+
     const data = await request.formData();
     const file: File | null = data.get('file') as unknown as File;
 
@@ -11,12 +21,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'No file uploaded' }, { status: 400 });
     }
 
+    const ext = ALLOWED_TYPES[file.type];
+    if (!ext) {
+      return NextResponse.json({ success: false, error: 'Solo se permiten imágenes PNG o JPG' }, { status: 400 });
+    }
+    if (file.size > MAX_BYTES) {
+      return NextResponse.json({ success: false, error: 'El archivo supera 2 MB' }, { status: 400 });
+    }
+
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
     // Create a unique filename
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    const filename = `${uniqueSuffix}-${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
+    const filename = `${auth.tenantId}-${uniqueSuffix}.${ext}`;
     
     // Path where the file will be saved
     const uploadDir = path.join(process.cwd(), 'public', 'uploads');

@@ -6,11 +6,6 @@ export async function updateSession(request: NextRequest) {
     request,
   })
 
-  // Skip Supabase auth check for API routes temporarily to avoid 500 errors if env vars glitch
-  if (request.nextUrl.pathname.startsWith('/api')) {
-    return supabaseResponse;
-  }
-
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -40,12 +35,19 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  // Las rutas API exigen sesión. Cada handler valida además el tenant con requireAuth().
+  if (request.nextUrl.pathname.startsWith('/api')) {
+    if (!user) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+    return supabaseResponse
+  }
+
   const isAuthPage = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/admin-login')
 
   if (
     !user &&
     !isAuthPage &&
-    !request.nextUrl.pathname.startsWith('/api') &&
     request.nextUrl.pathname !== '/'
   ) {
     // no user, potentially respond by redirecting the user to the login page

@@ -1,9 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
     const body = await request.json();
     const { product_id, difference } = body;
 
@@ -11,10 +14,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Faltan parámetros o la diferencia es 0' }, { status: 400 });
     }
 
+    const product = await prisma.product.findFirst({ where: { id: product_id, tenant_id: auth.tenantId } });
+    if (!product) return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
+
     // To adjust inventory, we either add to an existing batch or deduct from the oldest batch.
     // For this MVP, let's just find the first available batch, or create a generic one if missing.
     let batch = await prisma.batch.findFirst({
-      where: { product_id },
+      where: { product_id, tenant_id: auth.tenantId },
       orderBy: { expiration_date: 'asc' }
     });
 
@@ -23,10 +29,6 @@ export async function POST(request: NextRequest) {
       if (difference < 0) {
         return NextResponse.json({ error: 'No hay stock suficiente en ningún lote para deducir.' }, { status: 400 });
       }
-
-      // We need to know the tenant_id to create a batch. We get it from the product.
-      const product = await prisma.product.findUnique({ where: { id: product_id } });
-      if (!product) return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
 
       batch = await prisma.batch.create({
         data: {

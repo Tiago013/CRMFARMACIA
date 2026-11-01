@@ -1,13 +1,19 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
     const { id } = await params;
+    const existing = await prisma.product.findFirst({ where: { id, tenant_id: auth.tenantId }, select: { id: true } });
+    if (!existing) return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
+
     const body = await request.json();
     
     // Allow updating these fields
@@ -68,8 +74,12 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
     const { id } = await params;
-    
+    const existing = await prisma.product.findFirst({ where: { id, tenant_id: auth.tenantId }, select: { id: true } });
+    if (!existing) return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
+
     await prisma.$transaction([
       prisma.saleItem.deleteMany({ where: { product_id: id } }),
       prisma.batch.deleteMany({ where: { product_id: id } }),

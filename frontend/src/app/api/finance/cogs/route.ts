@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -17,12 +18,10 @@ export async function GET(request: NextRequest) {
     else if (period === 'quarter') startDate.setMonth(now.getMonth() - 3);
     else if (period === 'year') startDate.setFullYear(now.getFullYear() - 1);
 
-    const pharmacy = await prisma.pharmacy.findFirst();
-    if (!pharmacy) {
-      return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
-    }
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
 
-    const tenant_id = pharmacy.id;
+    const tenant_id = auth.tenantId;
 
     const sales = await prisma.sale.findMany({
       where: {
