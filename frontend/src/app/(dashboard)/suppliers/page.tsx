@@ -550,7 +550,7 @@ export default function SuppliersPage() {
                   disabled={submittingPurchase || receiveItems.length === 0}
                   className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white py-3 rounded-lg font-bold shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2"
                 >
-                  {submittingPurchase ? <Spinner size={20} color="white" /> : <><CheckCircle2 size={18} /> Confirmar Ingreso</>}
+                  {submittingPurchase ? <Spinner size={20} className="text-white!" /> : <><CheckCircle2 size={18} /> Confirmar Ingreso</>}
                 </button>
               </div>
             </div>

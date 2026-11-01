@@ -1,32 +1,32 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { items, patient_id, payment_method, discount_total, grand_total, subtotal, tax_total } = body;
 
-    // Hardcode tenant_id and cashier_id for now since we don't have session extraction perfectly set up here
-    const pharmacy = await prisma.pharmacy.findFirst();
-    if (!pharmacy) {
-      return NextResponse.json({ error: 'No pharmacy found' }, { status: 400 });
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
+    const tenant_id = auth.tenantId;
+    const cashier_id = auth.profileId ?? auth.authId;
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return NextResponse.json({ error: 'La venta no tiene productos' }, { status: 400 });
     }
-    const tenant_id = pharmacy.id;
-    
-    let user = await prisma.userProfile.findFirst({ where: { tenant_id } });
-    if (!user) {
-      user = await prisma.userProfile.create({
-        data: {
-          auth_id: 'local-dev-auth',
-          tenant_id,
-          first_name: 'Cajero',
-          last_name: 'Predeterminado',
-          role: 'cajero'
-        }
-      });
+
+    // Los productos y el paciente deben pertenecer a la farmacia del usuario
+    const productIds = [...new Set(items.map((i: any) => i.product_id))] as string[];
+    const ownedProducts = await prisma.product.count({ where: { id: { in: productIds }, tenant_id } });
+    if (ownedProducts !== productIds.length) {
+      return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
     }
-    const cashier_id = user.id;
+    if (patient_id) {
+      const patient = await prisma.patient.findFirst({ where: { id: patient_id, tenant_id }, select: { id: true } });
+      if (!patient) return NextResponse.json({ error: 'Paciente no encontrado' }, { status: 404 });
+    }
 
     // We will do this in a transaction
     const sale = await prisma.$transaction(async (tx) => {
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
         // Deduct inventory from the oldest batch
         let qtyToDeduct = item.quantity;
         const batches = await tx.batch.findMany({
-          where: { product_id: item.product_id, quantity: { gt: 0 } },
+          where: { product_id: item.product_id, tenant_id, quantity: { gt: 0 } },
           orderBy: { expiration_date: 'asc' }
         });
 
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
         });
         
         if (auto && auto.template) {
-          const patient = await prisma.patient.findUnique({ where: { id: body.customer_id }});
+          const patient = await prisma.patient.findFirst({ where: { id: body.customer_id, tenant_id }});
           if (patient && patient.phone) {
             let msg = auto.template.content;
             // Basic variable replacement {{1}} = name, {{2}} = total

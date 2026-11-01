@@ -59,7 +59,7 @@ function TransactionsContent() {
         const [purchasesRes, inventoryRes, suppliersRes] = await Promise.all([
           fetch('/api/transactions/purchases'),
           fetch('/api/inventory/products'),
-          fetch('/api/inventory/suppliers') // we will need a generic suppliers endpoint, or mock
+          fetch('/api/suppliers')
         ]);
         const pData = await purchasesRes.json();
         setPurchases(Array.isArray(pData) ? pData : []);
@@ -67,13 +67,8 @@ function TransactionsContent() {
         const iData = await inventoryRes.json();
         setInventory(Array.isArray(iData) ? iData : []);
         
-        // MVP: Mock suppliers if endpoint fails
-        try {
-          const sData = await suppliersRes.json();
-          setSuppliers(Array.isArray(sData) ? sData : [{id: 'SUPP-1', name: 'Droguería Distribuidora Nacional'}, {id: 'SUPP-2', name: 'Laboratorios MK'}]);
-        } catch {
-          setSuppliers([{id: 'SUPP-1', name: 'Droguería Distribuidora Nacional'}, {id: 'SUPP-2', name: 'Laboratorios MK'}]);
-        }
+        const sData = await suppliersRes.json();
+        setSuppliers(Array.isArray(sData) ? sData : []);
       }
     } catch (e) {
       console.error('Error fetching data', e);

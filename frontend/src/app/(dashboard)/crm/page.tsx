@@ -84,7 +84,7 @@ export default function CRMPage() {
   const [waRecords, setWaRecords] = useState<any>({sales: [], invoices: []});
   const [waLoading, setWaLoading] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
-  const [selectedRecordId, setSelectedRecordId] = useState<number | ''>('');
+  const [selectedRecordId, setSelectedRecordId] = useState<string>('');
 
   // Fetch Patients
   const fetchPatients = async (query: string = searchQuery) => {

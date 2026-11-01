@@ -1,11 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
-    const pharmacy = await prisma.pharmacy.findFirst();
-    if (!pharmacy) return NextResponse.json({ error: 'No pharmacy found' }, { status: 400 });
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
 
     const url = new URL(request.url);
     const period = url.searchParams.get('period') || '7d';
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
 
     // Aggregate Sales for Revenue
     const salesAgg = await prisma.sale.aggregate({
-      where: { tenant_id: pharmacy.id, status: 'COMPLETED', created_at: { gte: startDate } },
+      where: { tenant_id: auth.tenantId, status: 'COMPLETED', created_at: { gte: startDate } },
       _sum: {
         grand_total: true
       }
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
 
     // Calculate COGS (Cost of Goods Sold) as expenses for now
     const saleItems = await prisma.saleItem.findMany({
-      where: { sale: { tenant_id: pharmacy.id, status: 'COMPLETED', created_at: { gte: startDate } } },
+      where: { sale: { tenant_id: auth.tenantId, status: 'COMPLETED', created_at: { gte: startDate } } },
       include: { product: true }
     });
 
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     const opexAgg = await prisma.expense.aggregate({
       where: { 
-        tenant_id: pharmacy.id, 
+        tenant_id: auth.tenantId, 
         status: 'COMPLETED',
         date: { gte: startDate },
         category: {

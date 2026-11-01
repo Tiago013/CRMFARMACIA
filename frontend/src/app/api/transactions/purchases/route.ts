@@ -1,14 +1,15 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
-    let defaultPharmacy = await prisma.pharmacy.findFirst();
-    if (!defaultPharmacy) throw new Error('No pharmacy found');
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
 
     const purchases = await prisma.purchase.findMany({
-      where: { tenant_id: defaultPharmacy.id },
+      where: { tenant_id: auth.tenantId },
       include: {
         supplier: true,
         items: {
@@ -31,10 +32,23 @@ export async function POST(request: NextRequest) {
     const { supplier_id, invoice_number, items } = body;
     // items: [{ product_id, quantity, unit_cost, batch_number, expiration_date }]
 
-    let defaultPharmacy = await prisma.pharmacy.findFirst();
-    if (!defaultPharmacy) throw new Error('No pharmacy found');
-    const tenant_id = defaultPharmacy.id;
-    const user_id = 'SYSTEM'; // MVP: replace with actual user session id
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
+    const tenant_id = auth.tenantId;
+    const user_id = auth.profileId ?? auth.authId;
+
+    if (!supplier_id || !Array.isArray(items) || items.length === 0) {
+      return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+    }
+
+    // El proveedor y los productos deben pertenecer a la farmacia del usuario
+    const supplier = await prisma.supplier.findFirst({ where: { id: supplier_id, tenant_id }, select: { id: true } });
+    if (!supplier) return NextResponse.json({ error: 'Proveedor no encontrado' }, { status: 404 });
+    const productIds = [...new Set(items.map((i: any) => i.product_id))] as string[];
+    const ownedProducts = await prisma.product.count({ where: { id: { in: productIds }, tenant_id } });
+    if (ownedProducts !== productIds.length) {
+      return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
+    }
 
     const total_amount = items.reduce((sum: number, item: any) => sum + (item.quantity * item.unit_cost), 0);
 
@@ -65,8 +79,8 @@ export async function POST(request: NextRequest) {
       for (const item of purchase.items) {
         
         // Update product cost_price (Automated pricing requested by user)
-        await tx.product.update({
-          where: { id: item.product_id },
+        await tx.product.updateMany({
+          where: { id: item.product_id, tenant_id },
           data: { cost_price: item.unit_cost }
         });
 
@@ -76,6 +90,7 @@ export async function POST(request: NextRequest) {
           // Check if batch exists
           let batch = await tx.batch.findFirst({
             where: {
+              tenant_id,
               product_id: item.product_id,
               batch_number: item.batch_number
             }

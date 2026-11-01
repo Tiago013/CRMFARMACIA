@@ -1,16 +1,17 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { dimensions, metrics } = body;
 
-    const pharmacy = await prisma.pharmacy.findFirst();
-    if (!pharmacy) return NextResponse.json({ error: 'No pharmacy found' }, { status: 400 });
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
 
-    const tenant_id = pharmacy.id;
+    const tenant_id = auth.tenantId;
 
     // This is a simplified dynamic query builder for MVP
     // In production, you would construct dynamic GROUP BY Prisma queries or raw SQL

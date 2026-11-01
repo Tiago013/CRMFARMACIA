@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { requireAuth } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
-    const pharmacy = await prisma.pharmacy.findFirst();
-    if (!pharmacy) return NextResponse.json({ error: 'No pharmacy found' }, { status: 400 });
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
 
-    const tenant_id = pharmacy.id;
+    const tenant_id = auth.tenantId;
 
     const purchases = await prisma.purchase.findMany({
       where: { tenant_id },
@@ -30,20 +29,26 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const pharmacy = await prisma.pharmacy.findFirst();
-    if (!pharmacy) return NextResponse.json({ error: 'No pharmacy found' }, { status: 400 });
-    const tenant_id = pharmacy.id;
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
+    const tenant_id = auth.tenantId;
 
-    // For MVP we'll bypass strict auth and use SYSTEM or fake ID
-    let user_id = 'SYSTEM';
-    const authHeader = request.headers.get('Authorization');
-    // If we wanted to parse JWT, we'd do it here, but for now SYSTEM is fine.
+    const user_id = auth.profileId ?? auth.authId;
 
     const body = await request.json();
     const { supplier_id, invoice_number, items, total_amount, status } = body;
 
     if (!supplier_id || !items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+    }
+
+    // El proveedor y los productos deben pertenecer a la farmacia del usuario
+    const supplier = await prisma.supplier.findFirst({ where: { id: supplier_id, tenant_id }, select: { id: true } });
+    if (!supplier) return NextResponse.json({ error: 'Proveedor no encontrado' }, { status: 404 });
+    const productIds = [...new Set(items.map((i: any) => i.product_id))] as string[];
+    const ownedProducts = await prisma.product.count({ where: { id: { in: productIds }, tenant_id } });
+    if (ownedProducts !== productIds.length) {
+      return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
     }
 
     // 1. Get or create "Compras a Proveedores" Expense Category for P&L tracking
@@ -119,8 +124,8 @@ export async function POST(request: NextRequest) {
 
           // 2.4 Update Product Cost Price (Moving Average or Last Cost)
           // For simplicity, we update it to the last unit_cost
-          await tx.product.update({
-            where: { id: item.product_id },
+          await tx.product.updateMany({
+            where: { id: item.product_id, tenant_id },
             data: {
               cost_price: Number(item.unit_cost)
             }

@@ -8,14 +8,14 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (!user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
     const userProfile = await prisma.userProfile.findUnique({
-      where: { auth_id: session.user.id }
+      where: { auth_id: user.id }
     });
 
     if (!userProfile || (userProfile.role !== 'admin' && userProfile.role !== 'regente')) {

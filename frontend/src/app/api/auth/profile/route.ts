@@ -34,21 +34,8 @@ export async function GET(request: NextRequest) {
     });
 
     if (!profile) {
-      // Find a default pharmacy to assign
-      const defaultPharmacy = await prisma.pharmacy.findFirst();
-      const fallbackTenantId = defaultPharmacy ? defaultPharmacy.id : 'SYSTEM';
-
-      // Default fallback profile if not found in Prisma
-      return NextResponse.json({
-        id: user.id,
-        auth_id: user.id,
-        email: user.email,
-        first_name: user.user_metadata?.first_name || 'Usuario',
-        last_name: user.user_metadata?.last_name || '',
-        role: 'admin', // default admin for new manual setups
-        tenant_id: fallbackTenantId,
-        plan: defaultPharmacy ? defaultPharmacy.plan_type : 'ENTERPRISE'
-      });
+      // Sin perfil no hay farmacia asignada: no se otorga ningún rol por defecto.
+      return NextResponse.json({ error: 'Tu usuario no está asociado a ninguna farmacia' }, { status: 403 });
     }
 
     return NextResponse.json({

@@ -1,9 +1,10 @@
+require('dotenv').config();
 const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient({
   datasources: {
     db: {
-      url: "postgresql://postgres:Y%212msP_.Vtqtd67@db.bvxkcwjnsobhufvowgsb.supabase.co:5432/postgres"
+      url: process.env.DATABASE_URL
     }
   }
 });

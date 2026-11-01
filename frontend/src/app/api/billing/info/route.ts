@@ -37,11 +37,9 @@ export async function GET(request: NextRequest) {
     const admin = await prisma.systemAdmin.findUnique({ where: { auth_id: user.id } });
     const profile = await prisma.userProfile.findUnique({ where: { auth_id: user.id } });
 
-    let tenantId = request.headers.get('x-tenant-id');
-    
-    if (!tenantId) {
-      if (profile) tenantId = profile.tenant_id;
-    }
+    // Solo un superadmin puede elegir el tenant; los demás usan el de su perfil.
+    let tenantId: string | null = profile?.tenant_id ?? null;
+    if (admin) tenantId = request.headers.get('x-tenant-id') || tenantId;
 
     if (!tenantId) {
       return NextResponse.json({ error: 'Tenant ID is required' }, { status: 400 });

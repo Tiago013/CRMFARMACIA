@@ -1,10 +1,14 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
     const categories = await prisma.expenseCategory.findMany({
+      where: { tenant_id: auth.tenantId },
       orderBy: { name: 'asc' }
     });
     return NextResponse.json(categories);
@@ -15,14 +19,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
     const body = await request.json();
     
-    // In a real multi-tenant app, get tenant_id from auth session
-    let tenant_id = body.tenant_id;
-    if (!tenant_id) {
-      const pharmacy = await prisma.pharmacy.findFirst();
-      tenant_id = pharmacy?.id;
-    }
+    const tenant_id = auth.tenantId;
 
     const newCategory = await prisma.expenseCategory.create({
       data: {

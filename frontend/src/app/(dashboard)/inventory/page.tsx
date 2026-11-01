@@ -208,7 +208,7 @@ function InventoryContent() {
             onClick={() => {
               setIsEditing(false);
               setEditingId(null);
-              setNewProduct({ brand_name: '', sku: '', cost_price: 0, unit_price: 0, active_ingredient: '', min_stock: 5, expiration_date: '', category_id: '' });
+              setNewProduct({ brand_name: '', sku: '', cost_price: 0, unit_price: 0, active_ingredient: '', min_stock: 5, expiration_date: '', category_id: '', stock: 0 });
               setShowProductModal(true);
             }}
             className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"

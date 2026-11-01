@@ -1,18 +1,27 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
+
     const body = await request.json();
     const { is_active } = body;
 
     const { id } = await params;
 
-    const automation = await prisma.whatsappAutomation.update({
+    const result = await prisma.whatsappAutomation.updateMany({
+      where: { id, tenant_id: auth.tenantId },
+      data: { is_active }
+    });
+    if (result.count === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+    const automation = await prisma.whatsappAutomation.findUnique({
       where: { id },
-      data: { is_active },
       include: { template: true }
     });
 
@@ -24,10 +33,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
+
     const { id } = await params;
-    await prisma.whatsappAutomation.delete({
-      where: { id }
+    const result = await prisma.whatsappAutomation.deleteMany({
+      where: { id, tenant_id: auth.tenantId }
     });
+    if (result.count === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

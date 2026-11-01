@@ -67,7 +67,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   // Auth Redirect & Stale State Recovery
   useEffect(() => {
-    if (!isAuthenticated) {
+    // Durante la hidratación el hook devuelve el estado inicial (isAuthenticated=false)
+    // aunque localStorage tenga la sesión. Leemos el estado real del store para no
+    // cerrar la sesión en cada recarga de página.
+    if (!useAuthStore.getState().isAuthenticated) {
       // Si la cookie existe pero el store dice que no estamos autenticados (estado corrupto),
       // forzamos la limpieza de la cookie para romper el bucle infinito del middleware.
       if (typeof document !== 'undefined') {
@@ -107,6 +110,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   const handleLogout = async () => {
     logout();
+    // Limpia la cookie de suplantación (si la hay) antes de cerrar la sesión
+    await fetch('/api/saas/impersonate', { method: 'DELETE' }).catch(() => {});
     const { createClient } = await import('@/utils/supabase/client');
     const supabase = createClient();
     await supabase.auth.signOut();

@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,8 +10,8 @@ export async function GET(request: NextRequest) {
 
     if (!dateStr) return NextResponse.json({ error: 'Date is required' }, { status: 400 });
 
-    const pharmacy = await prisma.pharmacy.findFirst();
-    if (!pharmacy) return NextResponse.json({ error: 'No pharmacy found' }, { status: 400 });
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
 
     const startDate = new Date(dateStr);
     startDate.setHours(0, 0, 0, 0);
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     const sales = await prisma.sale.findMany({
       where: {
-        tenant_id: pharmacy.id,
+        tenant_id: auth.tenantId,
         created_at: {
           gte: startDate,
           lte: endDate

@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,12 +10,10 @@ export async function GET(request: NextRequest) {
     const filterDate = searchParams.get('date'); // format: YYYY-MM-DD
     
     // In MVP we just fetch all sales or default tenant
-    let defaultPharmacy = await prisma.pharmacy.findFirst();
-    if (!defaultPharmacy) {
-      return NextResponse.json({ error: 'No pharmacy found' }, { status: 404 });
-    }
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
 
-    const whereClause: any = { tenant_id: defaultPharmacy.id };
+    const whereClause: any = { tenant_id: auth.tenantId };
     
     if (filterDate) {
       const startDate = new Date(filterDate);
