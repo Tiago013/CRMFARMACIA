@@ -21,7 +21,6 @@ finanzas, pronóstico de demanda con IA y panel de administración SaaS.
 ## 📑 Contenido
 
 - [Probar la demo (2 minutos)](#-probar-la-demo-2-minutos)
-- [Contexto académico](#-contexto-académico)
 - [El problema y la solución](#-el-problema-y-la-solución)
 - [Funcionalidades](#-funcionalidades)
 - [Capturas](#-capturas)
@@ -107,13 +106,6 @@ quiebres de stock y cero seguimiento a pacientes crónicos.
 **Panel Super Admin (SaaS)**: MRR, tenants, adopción y distribución de planes.
 
 ![Super Admin](docs/screenshots/superadmin.png)
-
----|---|
-| ![CRM](docs/screenshots/crm.jpg) | ![Inventario](docs/screenshots/inventario.jpg) |
-
-| Ventas y compras | Panel Super Admin |
-|---|---|
-| ![Ventas](docs/screenshots/ventas.jpg) | ![Super Admin](docs/screenshots/superadmin.jpg) |
 
 ---
 
