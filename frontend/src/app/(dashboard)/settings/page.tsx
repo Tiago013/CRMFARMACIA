@@ -87,8 +87,8 @@ export default function SettingsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error('El archivo excede el tamaño máximo de 2MB');
+    if (file.size > 300 * 1024) {
+      toast.error('El logo excede el tamaño máximo de 300 KB');
       return;
     }
 
@@ -108,9 +108,9 @@ export default function SettingsPage() {
       } else {
         throw new Error(data.error);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      toast.error('Error al subir el logo');
+      toast.error(error?.message || 'Error al subir el logo');
     } finally {
       setUploadingLogo(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
