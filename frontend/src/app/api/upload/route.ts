@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile } from 'fs/promises';
-import path from 'path';
 import { requireAuth, ADMIN_ROLES } from '@/lib/auth';
 
-const MAX_BYTES = 2 * 1024 * 1024; // 2 MB
-const ALLOWED_TYPES: Record<string, string> = {
-  'image/png': 'png',
-  'image/jpeg': 'jpg',
-};
+// El logo se guarda como data URL dentro de la configuración de la farmacia.
+// Vercel no permite escribir archivos en disco, así que no se usa public/uploads.
+const MAX_BYTES = 300 * 1024; // 300 KB
+const ALLOWED_TYPES = ['image/png', 'image/jpeg'];
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,43 +12,31 @@ export async function POST(request: NextRequest) {
     if (auth instanceof NextResponse) return auth;
 
     const data = await request.formData();
-    const file: File | null = data.get('file') as unknown as File;
+    const file = data.get('file');
 
-    if (!file) {
+    if (!(file instanceof File)) {
       return NextResponse.json({ success: false, error: 'No file uploaded' }, { status: 400 });
     }
-
-    const ext = ALLOWED_TYPES[file.type];
-    if (!ext) {
+    if (!ALLOWED_TYPES.includes(file.type)) {
       return NextResponse.json({ success: false, error: 'Solo se permiten imágenes PNG o JPG' }, { status: 400 });
     }
     if (file.size > MAX_BYTES) {
-      return NextResponse.json({ success: false, error: 'El archivo supera 2 MB' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'El logo supera 300 KB' }, { status: 400 });
     }
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    const buffer = Buffer.from(await file.arrayBuffer());
 
-    // Create a unique filename
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    const filename = `${auth.tenantId}-${uniqueSuffix}.${ext}`;
-    
-    // Path where the file will be saved
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-    const filepath = path.join(uploadDir, filename);
-
-    // Ensure directory exists
-    const fs = require('fs');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+    // Verifica la firma real del archivo, no solo el tipo declarado por el navegador
+    const isPng = buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    const isJpeg = buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+    if (!isPng && !isJpeg) {
+      return NextResponse.json({ success: false, error: 'El archivo no es una imagen válida' }, { status: 400 });
     }
 
-    await writeFile(filepath, buffer);
+    const mime = isPng ? 'image/png' : 'image/jpeg';
+    const url = `data:${mime};base64,${buffer.toString('base64')}`;
 
-    // Return the public URL
-    const publicUrl = `/uploads/${filename}`;
-    
-    return NextResponse.json({ success: true, url: publicUrl });
+    return NextResponse.json({ success: true, url });
   } catch (error) {
     console.error('Error uploading file:', error);
     return NextResponse.json({ success: false, error: 'Error uploading file' }, { status: 500 });
