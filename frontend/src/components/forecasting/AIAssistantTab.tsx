@@ -3,6 +3,16 @@ import { BrainCircuit, Key, CheckCircle, AlertCircle, Send, Loader2, User } from
 import { toast } from 'react-hot-toast';
 import { apiClient as api } from '@/lib/axios';
 
+// Renderiza **negrita** y *cursiva* como elementos React (sin HTML crudo),
+// para que la respuesta del modelo nunca pueda inyectar código en la página.
+function renderFormattedText(text: string): React.ReactNode[] {
+  return text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g).map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**') && part.length > 4) return <strong key={i}>{part.slice(2, -2)}</strong>;
+    if (part.startsWith('*') && part.endsWith('*') && part.length > 2) return <em key={i}>{part.slice(1, -1)}</em>;
+    return part;
+  });
+}
+
 export default function AIAssistantTab({ data }: { data?: any }) {
   const [apiKey, setApiKey] = useState('');
   const [isConnected, setIsConnected] = useState(false);
@@ -469,7 +479,7 @@ export default function AIAssistantTab({ data }: { data?: any }) {
 
             {recommendation ? (
               <div className="bg-white dark:bg-[#111] p-5 rounded-lg border border-indigo-100 dark:border-indigo-900/50 prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-li:marker:text-indigo-500">
-                <div dangerouslySetInnerHTML={{ __html: recommendation.replace(/\n/g, '<br/>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>') }} />
+                <div className="whitespace-pre-wrap">{renderFormattedText(recommendation)}</div>
               </div>
             ) : (
               <div className="bg-white/50 dark:bg-[#111] border border-dashed border-indigo-200 dark:border-neutral-800 p-8 rounded-lg flex flex-col items-center justify-center text-center">

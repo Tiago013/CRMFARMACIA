@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, ADMIN_ROLES } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const auth = await requireAuth();
+    const auth = await requireAuth({ roles: ADMIN_ROLES });
     if (auth instanceof NextResponse) return auth;
 
     const body = await request.json();

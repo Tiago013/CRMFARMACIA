@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile } from 'fs/promises';
 import path from 'path';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, ADMIN_ROLES } from '@/lib/auth';
 
 const MAX_BYTES = 2 * 1024 * 1024; // 2 MB
 const ALLOWED_TYPES: Record<string, string> = {
@@ -11,7 +11,7 @@ const ALLOWED_TYPES: Record<string, string> = {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireAuth();
+    const auth = await requireAuth({ roles: ADMIN_ROLES });
     if (auth instanceof NextResponse) return auth;
 
     const data = await request.formData();
