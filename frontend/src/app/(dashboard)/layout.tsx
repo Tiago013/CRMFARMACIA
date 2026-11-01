@@ -16,13 +16,13 @@ import UpgradeModal from '@/components/ui/UpgradeModal';
 
 // Define which nav items are visible per role
 const NAV_ITEMS = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['admin', 'regente'] },
+  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['admin', 'regente', 'cajero'] },
   { href: '/sales', icon: ShoppingCart, label: 'Punto de Venta', roles: ['admin', 'regente', 'cajero'] },
-  { href: '/transactions', icon: ArrowRightLeft, label: 'Ventas y Compras', roles: ['admin', 'regente'] },
-  { href: '/inventory', icon: Package, label: 'Inventario', roles: ['admin', 'regente'] },
+  { href: '/transactions', icon: ArrowRightLeft, label: 'Ventas y Compras', roles: ['admin', 'regente', 'cajero'] },
+  { href: '/inventory', icon: Package, label: 'Inventario', roles: ['admin', 'regente', 'cajero'] },
   { href: '/suppliers', icon: Truck, label: 'Proveedores', roles: ['admin', 'regente'] },
-  { href: '/finance', icon: DollarSign, label: 'Finanzas', roles: ['admin'] },
-  { href: '/crm', icon: Users, label: 'Pacientes', roles: ['admin', 'regente'] },
+  { href: '/finance', icon: DollarSign, label: 'Finanzas', roles: ['admin', 'regente', 'cajero'] },
+  { href: '/crm', icon: Users, label: 'Pacientes', roles: ['admin', 'regente', 'cajero'] },
   { href: '/whatsapp', icon: MessageCircle, label: 'WhatsApp', roles: ['admin', 'regente'] },
 ];
 

@@ -50,7 +50,7 @@ finanzas, pronóstico de demanda con IA y panel de administración SaaS.
    - **Dashboard / Finanzas** → cambia el filtro a **"Año"** para ver los meses de datos simulados.
 
 > ℹ️ Todos los datos (pacientes, productos, ventas) son **ficticios**, generados por un script de semillas.
-> La cuenta demo tiene rol **cajero**: puede vender y registrar pacientes, pero no borrar productos,
+> La cuenta demo tiene rol **cajero**: puede consultar todos los módulos del recorrido, vender y registrar pacientes, pero no borrar productos,
 > cambiar precios, hacer reembolsos ni modificar la configuración (el servidor lo impide).
 
 ---
