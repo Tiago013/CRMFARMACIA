@@ -92,8 +92,23 @@ quiebres de stock y cero seguimiento a pacientes crónicos.
 
 ## 📸 Capturas
 
-| CRM de pacientes | Inventario FEFO |
+**Dashboard de analítica**: ingresos, gastos, utilidad neta y tendencia de ventas.
+
+![Dashboard](docs/screenshots/dashboard.jpg)
+
+| Punto de Venta | CRM de pacientes (ficha 360°) |
 |---|---|
+| ![POS](docs/screenshots/pos.png) | ![CRM](docs/screenshots/crm.png) |
+
+| Inventario FEFO | Auditoría de ventas |
+|---|---|
+| ![Inventario](docs/screenshots/inventario.png) | ![Ventas](docs/screenshots/ventas.png) |
+
+**Panel Super Admin (SaaS)**: MRR, tenants, adopción y distribución de planes.
+
+![Super Admin](docs/screenshots/superadmin.png)
+
+---|---|
 | ![CRM](docs/screenshots/crm.jpg) | ![Inventario](docs/screenshots/inventario.jpg) |
 
 | Ventas y compras | Panel Super Admin |
