@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, ADMIN_ROLES } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     const { supplier_id, invoice_number, items } = body;
     // items: [{ product_id, quantity, unit_cost, batch_number, expiration_date }]
 
-    const auth = await requireAuth();
+    const auth = await requireAuth({ roles: ADMIN_ROLES });
     if (auth instanceof NextResponse) return auth;
     const tenant_id = auth.tenantId;
     const user_id = auth.profileId ?? auth.authId;

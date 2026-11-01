@@ -639,7 +639,7 @@ export default function CRMPage() {
                             <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">{msg.isOutgoing ? 'Enviado' : 'Recibido'} por {msg.sender || 'Sistema'}</span>
                             <span className="text-xs text-neutral-500">{String(msg.timestamp).split(' ')[0]}</span>
                           </div>
-                          <p className="text-sm text-neutral-700 dark:text-neutral-300 mt-2 whitespace-pre-wrap" dangerouslySetInnerHTML={{__html: msg.text || ''}}></p>
+                          <p className="text-sm text-neutral-700 dark:text-neutral-300 mt-2 whitespace-pre-wrap">{msg.text || ''}</p>
                         </div>
                       ))}
                     </div>

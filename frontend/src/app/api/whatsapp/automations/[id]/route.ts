@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, ADMIN_ROLES } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const auth = await requireAuth();
+    const auth = await requireAuth({ roles: ADMIN_ROLES });
     if (auth instanceof NextResponse) return auth;
 
     const body = await request.json();
@@ -33,7 +33,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const auth = await requireAuth();
+    const auth = await requireAuth({ roles: ADMIN_ROLES });
     if (auth instanceof NextResponse) return auth;
 
     const { id } = await params;

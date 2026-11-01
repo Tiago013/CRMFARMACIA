@@ -4,7 +4,23 @@ import { Client, LocalAuth } from 'whatsapp-web.js';
 import qrcode from 'qrcode';
 
 const app = express();
-app.use(cors());
+
+// Solo estas webs pueden usar el servicio desde el navegador. Sin esto, cualquier
+// página que el usuario visite podría enviar mensajes desde el WhatsApp de la farmacia.
+const ALLOWED_ORIGINS = (process.env.WHATSAPP_ALLOWED_ORIGINS || 'http://localhost:3000,https://crmfarmacia.vercel.app')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    // Las peticiones sin Origin vienen de procesos locales (p. ej. el backend de Next).
+    if (origin && !ALLOWED_ORIGINS.includes(origin)) {
+        return res.status(403).json({ error: 'Origen no permitido' });
+    }
+    next();
+});
+app.use(cors({ origin: ALLOWED_ORIGINS }));
 app.use(express.json());
 
 const PORT = 3001;
@@ -112,6 +128,8 @@ app.post('/api/logout', async (req, res) => {
 console.log('Initializing WhatsApp client...');
 client.initialize();
 
-app.listen(PORT, () => {
-    console.log(`WhatsApp Microservice running on http://localhost:${PORT}`);
+// Escucha solo en la máquina local: no es accesible desde la red.
+app.listen(PORT, '127.0.0.1', () => {
+    console.log(`WhatsApp Microservice running on http://127.0.0.1:${PORT}`);
+    console.log(`Orígenes permitidos: ${ALLOWED_ORIGINS.join(', ')}`);
 });
