@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    const total_revenue = salesAgg._sum.grand_total || 0;
+    const total_revenue = Number(salesAgg._sum.grand_total || 0);
 
     // Calculate COGS (Cost of Goods Sold) as expenses for now
     const saleItems = await prisma.saleItem.findMany({
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       },
       _sum: { amount: true }
     });
-    const opex = opexAgg._sum.amount || 0;
+    const opex = Number(opexAgg._sum.amount || 0);
 
     const total_expenses = cogs + opex;
     const net_profit = total_revenue - total_expenses;

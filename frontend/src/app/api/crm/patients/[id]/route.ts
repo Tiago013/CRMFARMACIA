@@ -52,7 +52,7 @@ export async function GET(
     );
 
     // Calculate LTV
-    const ltv = patient.sales.reduce((sum, sale) => sum + sale.grand_total, 0);
+    const ltv = patient.sales.reduce((sum, sale) => sum + Number(sale.grand_total), 0);
 
     // Timeline mapping
     const timeline = patient.timeline_events.map(ev => ({
@@ -68,7 +68,7 @@ export async function GET(
       patient.sales.forEach(sale => {
         timeline.push({
           title: 'Compra en POS',
-          desc: `Ticket #${sale.id.substring(0, 8)} por $${sale.grand_total.toLocaleString('es-CO')}`,
+          desc: `Ticket #${sale.id.substring(0, 8)} por $${Number(sale.grand_total).toLocaleString('es-CO')}`,
           date: sale.created_at,
           icon: 'ShoppingCart',
           color: 'bg-indigo-500'
@@ -94,7 +94,7 @@ export async function GET(
       const d = new Date(sale.created_at);
       const m = months[d.getMonth()];
       if (chart_data_map[m] !== undefined) {
-        chart_data_map[m] += sale.grand_total;
+        chart_data_map[m] += Number(sale.grand_total);
       }
     });
 

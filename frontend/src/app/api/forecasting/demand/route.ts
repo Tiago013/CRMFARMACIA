@@ -225,7 +225,7 @@ export async function GET(request: NextRequest) {
       prisma.sale.count({ where: { tenant_id, patient_id: { not: null } } })
     ]);
 
-    const clv = totalPatientsCount > 0 ? (totalSalesSum._sum.grand_total || 0) / totalPatientsCount : 0;
+    const clv = totalPatientsCount > 0 ? Number(totalSalesSum._sum.grand_total || 0) / totalPatientsCount : 0;
     const churn_rate = totalPatientsCount > 0 ? ((totalPatientsCount - activePatientsCount) / totalPatientsCount) * 100 : 0;
     
     // Average days between purchases (rough estimate)

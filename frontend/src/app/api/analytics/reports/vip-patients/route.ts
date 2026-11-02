@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     });
 
     const vipPatients = patients.map(p => {
-      const total_spent = p.sales.reduce((sum, sale) => sum + sale.grand_total, 0);
+      const total_spent = p.sales.reduce((sum, sale) => sum + Number(sale.grand_total), 0);
       const orders = p.sales.length;
       return {
         Paciente: `${p.first_name} ${p.last_name}`,

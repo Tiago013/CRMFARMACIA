@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAuth, ADMIN_ROLES } from '@/lib/auth';
+import { planRefundRestock } from '@/lib/inventory/fefo';
 
 export async function POST(
   request: NextRequest,
@@ -36,23 +37,22 @@ export async function POST(
         where: { tenant_id: sale.tenant_id, reference_id: sale.id, movement_type: 'SALE_OUT' }
       });
 
-      for (const movement of saleMovements) {
-        const qty = Math.abs(movement.quantity);
-        if (movement.batch_id) {
+      for (const entry of planRefundRestock(saleMovements)) {
+        if (entry.batchId) {
           await tx.batch.updateMany({
-            where: { id: movement.batch_id, tenant_id: sale.tenant_id },
-            data: { quantity: { increment: qty } }
+            where: { id: entry.batchId, tenant_id: sale.tenant_id },
+            data: { quantity: { increment: entry.quantity } }
           });
         }
 
         await tx.stockMovement.create({
           data: {
             tenant_id: sale.tenant_id,
-            product_id: movement.product_id,
-            batch_id: movement.batch_id,
+            product_id: entry.productId,
+            batch_id: entry.batchId,
             user_id: auth.profileId ?? auth.authId,
             movement_type: 'MANUAL_ADJUST', // Devolución por reembolso
-            quantity: qty,
+            quantity: entry.quantity,
             reference_id: sale.id
           }
         });
