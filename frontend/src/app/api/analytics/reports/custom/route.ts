@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
         groups[key].ventas_totales += item.total;
         groups[key].cantidad_ventas.add(sale.id); // Set to count distinct sales
         groups[key].unidades_vendidas += item.quantity;
-        groups[key].margen_bruto += item.total - (item.quantity * Number(item.product.cost_price || 0));
+        groups[key].margen_bruto += Number(item.total) - (item.quantity * Number(item.product.cost_price || 0));
       }
     }
 

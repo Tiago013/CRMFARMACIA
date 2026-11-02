@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
         };
       }
       productMap[pid].units_sold += item.quantity;
-      productMap[pid].revenue += item.total;
+      productMap[pid].revenue += Number(item.total);
       productMap[pid].cost += item.quantity * Number(item.product.cost_price || 0);
     }
 

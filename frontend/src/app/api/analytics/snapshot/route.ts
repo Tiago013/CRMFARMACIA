@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       },
       _sum: { amount: true }
     });
-    const totalExpenses = expensesAgg._sum.amount || 0;
+    const totalExpenses = Number(expensesAgg._sum.amount || 0);
 
     let totalRevenue = 0;
     let totalCogs = 0;

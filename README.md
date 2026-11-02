@@ -52,7 +52,8 @@ finanzas, pronóstico de demanda con IA y panel de administración SaaS.
    - **Ventas y Compras** → auditoría de tickets.
    - **Dashboard / Finanzas** → cambia el filtro a **"Año"** para ver los meses de datos simulados.
 
-> ℹ️ Todos los datos (pacientes, productos, ventas) son **ficticios**, generados por un script de semillas.
+> ℹ️ Todos los datos (pacientes, productos, ventas) son **ficticios**. La cuenta demo trabaja en su propia farmacia,
+> que **se restaura cada noche**: puedes vender, registrar pacientes o desordenar lo que quieras.
 > La cuenta demo tiene rol **cajero**: puede consultar todos los módulos del recorrido, vender y registrar pacientes, pero no borrar productos,
 > cambiar precios, hacer reembolsos ni modificar la configuración (el servidor lo impide).
 
@@ -269,6 +270,7 @@ CRMFARMACIA/
 │   │   ├── proxy.ts           # Barrera de sesión para páginas y API
 │   │   └── stores/            # Estado global (Zustand)
 │   ├── prisma/                # Esquema, semillas y enable_rls.sql
+│   ├── prisma/sql/            # Migración a Decimal y restauración nocturna de la demo
 │   ├── tests/unit/            # Pruebas Vitest
 │   └── scripts/               # Servicio local de WhatsApp
 ├── crm-farma-ai-engine/       # Microservicio de pronóstico (FastAPI + Prophet)
@@ -283,6 +285,8 @@ CRMFARMACIA/
 
 - **Monolito modular con Next.js**: frontend y API en un solo despliegue, más simple de operar para un equipo pequeño. La evolución a microservicios está planteada en [`docs/architecture_evolution.md`](docs/architecture_evolution.md).
 - **FEFO en vez de FIFO**: en farmacia importa más la fecha de vencimiento que la de llegada.
+- **Dinero en `NUMERIC`, no en `Float`**: los montos se guardan exactos en la base y el cálculo de la venta vive en una sola función compartida por el POS y el servidor.
+- **Demo que se restaura sola**: una función de Postgres copia cada noche una foto de los datos a la farmacia demo, con IDs nuevos y fechas movidas al día actual, así los gráficos de “últimos 7 días” nunca salen vacíos.
 - **Multi-tenancy por columna** (`tenant_id`) + RLS: el modelo más económico para un SaaS que empieza, con aislamiento verificado en cada consulta.
 - **Seguridad aprendida en el proceso**: la primera versión confiaba en el cliente (tenant, precios). Una auditoría detectó y corrigió endpoints sin autenticación, credenciales en el repositorio y tablas expuestas. Los PR #1 a #3 documentan esas correcciones.
 
@@ -291,7 +295,6 @@ CRMFARMACIA/
 ## 🔭 Trabajo futuro
 
 - Facturación electrónica DIAN.
-- Migrar montos de `Float` a `Decimal` para precisión contable exacta.
 - Políticas RLS por tenant para usar Supabase Realtime directamente desde el cliente.
 - Pruebas E2E del recorrido demo con Playwright.
 - Desplegar el servicio de WhatsApp y el motor de IA como servicios gestionados.

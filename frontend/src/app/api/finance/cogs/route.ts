@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
     const productMap: Record<string, { name: string, category: string, quantity: number, unitCost: number, totalCogs: number }> = {};
 
     for (const sale of sales) {
-      totalIncome += sale.grand_total;
+      totalIncome += Number(sale.grand_total);
       
       const d = new Date(sale.created_at);
       const monthName = months[d.getMonth()];

@@ -37,7 +37,8 @@ export async function updateSession(request: NextRequest) {
 
   // Las rutas API exigen sesión. Cada handler valida además el tenant con requireAuth().
   if (request.nextUrl.pathname.startsWith('/api')) {
-    if (!user) {
+    // Las tareas programadas de Vercel no tienen sesión: se validan con CRON_SECRET
+    if (!user && !request.nextUrl.pathname.startsWith('/api/cron/')) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
     return supabaseResponse

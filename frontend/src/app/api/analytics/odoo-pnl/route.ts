@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       },
       _sum: { amount: true }
     });
-    const opex = opexAgg._sum.amount || 0;
+    const opex = Number(opexAgg._sum.amount || 0);
 
     const net_profit = income - cogs - opex;
 
