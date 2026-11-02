@@ -12,11 +12,34 @@ export type FefoResult = {
   allocations: BatchAllocation[];
   // Unidades que no alcanzó a cubrir ningún lote (sobreventa)
   shortfall: number;
+  // Unidades en lotes vencidos, que nunca se venden
+  expiredUnits: number;
 };
 
-export function allocateFefo(batches: BatchStock[], requested: number): FefoResult {
-  const ordered = batches
-    .filter((b) => b.quantity > 0)
+// Inicio del día (UTC) de una fecha; los lotes vencen al terminar su fecha
+function dayStart(value: Date | string): number {
+  const d = new Date(value);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
+export function isExpired(expiration: Date | string, today: Date = new Date()): boolean {
+  return dayStart(expiration) < dayStart(today);
+}
+
+// Estado de vencimiento para mostrar en pantalla
+export function expiryStatus(expiration: Date | string | null | undefined, today: Date = new Date(), warningDays = 30): 'expired' | 'expiring' | 'ok' | null {
+  if (!expiration) return null;
+  const days = (dayStart(expiration) - dayStart(today)) / 86_400_000;
+  if (days < 0) return 'expired';
+  if (days <= warningDays) return 'expiring';
+  return 'ok';
+}
+
+export function allocateFefo(batches: BatchStock[], requested: number, today: Date = new Date()): FefoResult {
+  const withStock = batches.filter((b) => b.quantity > 0);
+  const expiredUnits = withStock.filter((b) => isExpired(b.expiration_date, today)).reduce((acc, b) => acc + b.quantity, 0);
+  const ordered = withStock
+    .filter((b) => !isExpired(b.expiration_date, today))
     .sort((a, b) => new Date(a.expiration_date).getTime() - new Date(b.expiration_date).getTime());
 
   const allocations: BatchAllocation[] = [];
@@ -29,7 +52,7 @@ export function allocateFefo(batches: BatchStock[], requested: number): FefoResu
     remaining -= take;
   }
 
-  return { allocations, shortfall: Math.max(remaining, 0) };
+  return { allocations, shortfall: Math.max(remaining, 0), expiredUnits };
 }
 
 export type SaleOutMovement = {

@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
+import { purchaseAdherence, recentPurchaseCounts } from '@/lib/crm/adherence';
 
 // Campos que el cliente puede modificar en un paciente
 const EDITABLE_FIELDS = [
@@ -78,38 +79,34 @@ export async function GET(
       timeline.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }
 
-    // Chart Data (Gasto Mensual) - group by month
+    // Gasto de los últimos 6 meses (por año y mes, para no mezclar con el año anterior)
     const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    const currentMonth = new Date().getMonth();
-    const chart_data_map: Record<string, number> = {};
-    
-    // Initialize last 6 months
-    for (let i = 5; i >= 0; i--) {
-      let m = currentMonth - i;
-      if (m < 0) m += 12;
-      chart_data_map[months[m]] = 0;
+    const now = new Date();
+    const chart_data = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+      return { key: `${d.getFullYear()}-${d.getMonth()}`, name: months[d.getMonth()], gasto: 0 };
+    });
+    for (const sale of patient.sales) {
+      const d = new Date(sale.created_at);
+      const bucket = chart_data.find(c => c.key === `${d.getFullYear()}-${d.getMonth()}`);
+      if (bucket) bucket.gasto += Number(sale.grand_total);
     }
 
-    patient.sales.forEach(sale => {
-      const d = new Date(sale.created_at);
-      const m = months[d.getMonth()];
-      if (chart_data_map[m] !== undefined) {
-        chart_data_map[m] += Number(sale.grand_total);
-      }
-    });
-
-    const chart_data = Object.keys(chart_data_map).map(k => ({
-      name: k,
-      gasto: chart_data_map[k]
-    }));
+    // Adherencia y frecuencia calculadas con las fechas reales de compra
+    const saleDates = patient.sales.map(s => s.created_at);
+    const adherence = purchaseAdherence(saleDates, now);
 
     return NextResponse.json({
       ...patient,
       purchase_history,
-      chart_data,
+      chart_data: chart_data.map(({ name, gasto }) => ({ name, gasto })),
       timeline,
       ltv,
-      score: Math.min(100, Math.max(40, Math.floor(80 + (patient.sales.length * 2)))) // Mock adherence score
+      sales_count: patient.sales.length,
+      score: adherence.score,
+      avg_interval_days: adherence.avgIntervalDays,
+      days_since_last: adherence.daysSinceLast,
+      visits: recentPurchaseCounts(saleDates, now)
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

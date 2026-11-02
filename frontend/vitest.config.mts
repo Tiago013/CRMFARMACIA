@@ -12,7 +12,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json-summary'],
       // Lógica crítica: dinero, inventario y autorización
-      include: ['src/lib/pos/**', 'src/lib/inventory/**', 'src/lib/auth.ts', 'src/lib/decimal.ts'],
+      include: ['src/lib/pos/**', 'src/lib/inventory/**', 'src/lib/analytics/**', 'src/lib/crm/**', 'src/lib/auth.ts', 'src/lib/decimal.ts'],
       thresholds: { lines: 80, functions: 80, branches: 80, statements: 80 },
     },
   },

@@ -31,31 +31,7 @@ export async function GET(
       timestamp: ev.created_at
     }));
 
-    // If no messages, return a mock welcome message
-    if (messages.length === 0) {
-      messages.push({
-        id: 'mock-1',
-        text: '¡Hola! Bienvenido a nuestra farmacia. Estamos aquí para ayudarte con tus prescripciones y compras.',
-        isOutgoing: true,
-        sender: 'Sistema',
-        timestamp: new Date(Date.now() - 86400000 * 5)
-      });
-      messages.push({
-        id: 'mock-2',
-        text: 'Gracias por registrarte. ¿Tienen servicio a domicilio?',
-        isOutgoing: false,
-        sender: 'Paciente',
-        timestamp: new Date(Date.now() - 86400000 * 4)
-      });
-      messages.push({
-        id: 'mock-3',
-        text: 'Sí, claro. Cubrimos toda la ciudad. Tu pedido llegará en menos de 2 horas.',
-        isOutgoing: true,
-        sender: 'Asistente',
-        timestamp: new Date(Date.now() - 86400000 * 4 + 180000) // 3 mins later
-      });
-    }
-
+    // Sin historial se devuelve la lista vacía: la pantalla muestra "No hay mensajes"
     return NextResponse.json(messages);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
