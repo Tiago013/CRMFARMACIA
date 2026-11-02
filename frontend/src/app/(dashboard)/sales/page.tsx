@@ -6,6 +6,7 @@ import { apiClient as api } from '@/lib/axios';
 import { toast } from 'sonner';
 import { enqueueSale, getOfflineSales, syncOfflineSales } from '@/lib/offlineQueue';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { computeSaleTotals } from '@/lib/pos/pricing';
 
 function POSContent() {
   const [cart, setCart] = useState<Array<{id: string, name: string, qty: number, price: number, discount: number}>>([]);
@@ -149,9 +150,10 @@ function POSContent() {
     return () => clearTimeout(timeout);
   }, [showPatientModal, patientSearch, isOffline]);
 
-  const subtotal = cart.reduce((acc, item) => acc + (item.qty * item.price) * (1 - item.discount / 100), 0);
-  const taxes = subtotal * 0.19; // Ejemplo IVA 19%
-  const total = subtotal + taxes;
+  // Misma función que usa el servidor al cobrar
+  const { subtotal, taxTotal: taxes, grandTotal: total, discountTotal } = computeSaleTotals(
+    cart.map(item => ({ quantity: item.qty, unitPrice: item.price, discountPct: item.discount }))
+  );
 
   // Keyboard-First Workflow (F1-F10)
   useEffect(() => {
@@ -319,7 +321,7 @@ function POSContent() {
             grand_total: total,
             subtotal: subtotal,
             tax_total: taxes,
-            discount_total: checkoutData.items.reduce((acc, i) => acc + (i.discount || 0), 0)
+            discount_total: discountTotal
           })
         });
         

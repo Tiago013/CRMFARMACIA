@@ -6,6 +6,8 @@
 finanzas, pronóstico de demanda con IA y panel de administración SaaS.
 
 [![CI](https://github.com/Tiago013/CRMFARMACIA/actions/workflows/ci.yml/badge.svg)](https://github.com/Tiago013/CRMFARMACIA/actions/workflows/ci.yml)
+![Tests](https://img.shields.io/badge/tests-Vitest-6E9F18?logo=vitest&logoColor=white)
+![Cobertura](https://img.shields.io/badge/cobertura%20m%C3%ADnima-80%25-brightgreen)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
 ![Prisma](https://img.shields.io/badge/Prisma-7-2D3748?logo=prisma)
@@ -27,6 +29,7 @@ finanzas, pronóstico de demanda con IA y panel de administración SaaS.
 - [Arquitectura](#️-arquitectura)
 - [Seguridad](#-seguridad)
 - [Ejecutarlo en local](#-ejecutarlo-en-local)
+- [Pruebas](#-pruebas)
 - [Estructura del repositorio](#-estructura-del-repositorio)
 - [Decisiones técnicas y aprendizajes](#-decisiones-técnicas-y-aprendizajes)
 - [Trabajo futuro](#-trabajo-futuro)
@@ -232,6 +235,26 @@ Abre http://localhost:3000 e inicia sesión.
 
 ---
 
+## 🧪 Pruebas
+
+```bash
+cd frontend
+npm test                 # pruebas unitarias (Vitest)
+npm run test:coverage    # con reporte de cobertura
+```
+
+Cubren la lógica donde un error cuesta dinero o expone datos:
+
+| Módulo | Qué se prueba |
+|---|---|
+| `lib/pos/pricing.ts` | Descuento por línea, IVA 19 %, redondeo a centavos y validación de cantidades. El POS y el servidor usan la **misma función**, así el total que ve el cajero es el que se cobra. |
+| `lib/inventory/fefo.ts` | Selección del lote que vence primero, reparto entre lotes, sobreventa y devolución exacta a cada lote en un reembolso. |
+| `lib/auth.ts` | Aislamiento entre farmacias (el tenant nunca sale del cliente), permisos por rol (un cajero recibe 403 en acciones de administrador) y suplantación del superadmin. |
+
+El CI ejecuta las pruebas en cada PR y **falla si la cobertura de esta lógica baja del 80 %**; el resumen aparece en la pestaña *Summary* de cada ejecución.
+
+---
+
 ## 📂 Estructura del repositorio
 
 ```
@@ -241,14 +264,17 @@ CRMFARMACIA/
 │   │   ├── app/(dashboard)/   # Pantallas: POS, CRM, inventario, finanzas, SaaS...
 │   │   ├── app/api/           # API REST (Route Handlers)
 │   │   ├── lib/auth.ts        # requireAuth(): sesión + tenant + roles
+│   │   ├── lib/pos/           # Cálculo de la venta (compartido POS ↔ servidor)
+│   │   ├── lib/inventory/     # Asignación FEFO y reembolsos
 │   │   ├── proxy.ts           # Barrera de sesión para páginas y API
 │   │   └── stores/            # Estado global (Zustand)
 │   ├── prisma/                # Esquema, semillas y enable_rls.sql
+│   ├── tests/unit/            # Pruebas Vitest
 │   └── scripts/               # Servicio local de WhatsApp
 ├── crm-farma-ai-engine/       # Microservicio de pronóstico (FastAPI + Prophet)
 ├── docs/                      # Arquitectura y capturas
 ├── legal/                     # Términos y política de privacidad
-└── .github/workflows/ci.yml   # CI: type check + build
+└── .github/workflows/ci.yml   # CI: type check + pruebas + build
 ```
 
 ---
@@ -267,7 +293,7 @@ CRMFARMACIA/
 - Facturación electrónica DIAN.
 - Migrar montos de `Float` a `Decimal` para precisión contable exacta.
 - Políticas RLS por tenant para usar Supabase Realtime directamente desde el cliente.
-- Tests automatizados (unitarios del cálculo de POS/FEFO y E2E con Playwright).
+- Pruebas E2E del recorrido demo con Playwright.
 - Desplegar el servicio de WhatsApp y el motor de IA como servicios gestionados.
 
 ---

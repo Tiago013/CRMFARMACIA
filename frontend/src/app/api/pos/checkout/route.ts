@@ -2,8 +2,8 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
-
-const TAX_RATE = 0.19; // IVA, igual que en el POS
+import { TAX_RATE, computeSaleTotals, totalsMatch, validateLine } from '@/lib/pos/pricing';
+import { allocateFefo } from '@/lib/inventory/fefo';
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,29 +31,22 @@ export async function POST(request: NextRequest) {
     const priceById = new Map(products.map(p => [p.id, Number(p.unit_price)]));
 
     // Los precios salen de la base de datos, nunca del navegador.
-    // Misma fórmula que el POS: descuento % por línea + IVA sobre el subtotal.
-    const lines: { product_id: string; quantity: number; unit_price: number; gross: number; net: number }[] = [];
-    for (const item of items) {
-      const quantity = Number(item.quantity);
-      const discountPct = Number(item.discount || 0);
-      if (!Number.isInteger(quantity) || quantity <= 0) {
-        return NextResponse.json({ error: 'Cantidad inválida' }, { status: 400 });
-      }
-      if (!(discountPct >= 0 && discountPct <= 100)) {
-        return NextResponse.json({ error: 'Descuento inválido' }, { status: 400 });
-      }
-      const unit_price = priceById.get(item.product_id)!;
-      const gross = quantity * unit_price;
-      const net = gross * (1 - discountPct / 100);
-      lines.push({ product_id: item.product_id as string, quantity, unit_price, gross, net });
+    // computeSaleTotals es la misma función que usa el POS para mostrar el total.
+    const pricingInput = items.map((item: any) => ({
+      quantity: Number(item.quantity),
+      unitPrice: priceById.get(item.product_id)!,
+      discountPct: Number(item.discount || 0),
+    }));
+    for (const line of pricingInput) {
+      const invalid = validateLine(line);
+      if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
     }
-    const subtotal = lines.reduce((acc, l) => acc + l.net, 0);
-    const discount_total = lines.reduce((acc, l) => acc + (l.gross - l.net), 0);
-    const tax_total = subtotal * TAX_RATE;
-    const serverGrandTotal = subtotal + tax_total;
+    const totals = computeSaleTotals(pricingInput);
+    const lines = totals.lines.map((l, i) => ({ ...l, product_id: items[i].product_id as string }));
+    const { subtotal, discountTotal: discount_total, taxTotal: tax_total, grandTotal: serverGrandTotal } = totals;
 
     // Si el total del POS no coincide (precio cambiado o manipulado), no se cobra.
-    if (grand_total !== undefined && Math.abs(Number(grand_total) - serverGrandTotal) > 1) {
+    if (grand_total !== undefined && !totalsMatch(Number(grand_total), serverGrandTotal)) {
       return NextResponse.json({
         error: 'Los precios cambiaron. Vuelve a cargar los productos e intenta de nuevo.',
         expected_total: serverGrandTotal
@@ -88,63 +81,54 @@ export async function POST(request: NextRequest) {
             sale_id: newSale.id,
             product_id: item.product_id,
             quantity: item.quantity,
-            unit_price: item.unit_price,
+            unit_price: item.unitPrice,
             subtotal: item.net,
             tax_rate: TAX_RATE,
-            tax_amount: item.net * TAX_RATE,
+            tax_amount: item.tax,
             total: item.net
           }
         });
-        const usedBatchIds: string[] = [];
 
-        // Deduct inventory from the oldest batch
-        let qtyToDeduct = item.quantity;
+        // Descuenta del lote que vence primero (FEFO)
         const batches = await tx.batch.findMany({
           where: { product_id: item.product_id, tenant_id, quantity: { gt: 0 } },
-          orderBy: { expiration_date: 'asc' }
+          select: { id: true, quantity: true, expiration_date: true }
         });
+        const { allocations, shortfall } = allocateFefo(batches, item.quantity);
 
-        for (const batch of batches) {
-          if (qtyToDeduct <= 0) break;
-
-          const deduction = Math.min(batch.quantity, qtyToDeduct);
-          
+        for (const allocation of allocations) {
           await tx.batch.update({
-            where: { id: batch.id },
-            data: { quantity: batch.quantity - deduction }
+            where: { id: allocation.batchId },
+            data: { quantity: { decrement: allocation.quantity } }
           });
 
           await tx.stockMovement.create({
             data: {
               tenant_id,
               product_id: item.product_id,
-              batch_id: batch.id,
+              batch_id: allocation.batchId,
               user_id: cashier_id,
               movement_type: 'SALE_OUT',
-              quantity: -deduction,
+              quantity: -allocation.quantity,
               reference_id: newSale.id
             }
           });
-
-          usedBatchIds.push(batch.id);
-          qtyToDeduct -= deduction;
         }
 
         // Si todo salió de un único lote, se guarda en el ítem (útil para trazabilidad)
-        if (usedBatchIds.length === 1 && qtyToDeduct <= 0) {
-          await tx.saleItem.update({ where: { id: saleItem.id }, data: { batch_id: usedBatchIds[0] } });
+        if (allocations.length === 1 && shortfall === 0) {
+          await tx.saleItem.update({ where: { id: saleItem.id }, data: { batch_id: allocations[0].batchId } });
         }
 
-        // If we still have qtyToDeduct > 0, it means we oversold.
-        // We will just allow negative stock on a hypothetical "default" batch or just record a movement without batch
-        if (qtyToDeduct > 0) {
+        // Sobreventa: el faltante se registra como movimiento sin lote
+        if (shortfall > 0) {
           await tx.stockMovement.create({
             data: {
               tenant_id,
               product_id: item.product_id,
               user_id: cashier_id,
               movement_type: 'SALE_OUT',
-              quantity: -qtyToDeduct,
+              quantity: -shortfall,
               reference_id: newSale.id
             }
           });
@@ -171,7 +155,7 @@ export async function POST(request: NextRequest) {
           where: { trigger_event: 'SALE_COMPLETED', is_active: true, tenant_id },
           include: { template: true }
         });
-        
+
         if (auto && auto.template) {
           const patient = await prisma.patient.findFirst({ where: { id: body.customer_id, tenant_id }});
           if (patient && patient.phone) {
