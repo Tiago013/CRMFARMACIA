@@ -58,6 +58,24 @@ create table demo_template.whatsapp_automations    as select * from public.whats
 -- y los gráficos de los últimos días nunca quedan vacíos
 update demo_template.config set snapshot_date = (select max(created_at)::date from demo_template.sales);
 
+-- La demo es pública: teléfonos, documentos y correos claramente ficticios
+with t as (select id, row_number() over (order by id) n from demo_template.patients where phone like '+%')
+update demo_template.patients p set phone = '30099900' || lpad(t.n::text, 2, '0'), document_id = '1099900' || lpad(t.n::text, 3, '0')
+from t where p.id = t.id;
+update demo_template.suppliers set email = split_part(email, '@', 1) || '@example.com' where email is not null;
+
+-- Tres lotes que vencen pronto (6, 14 y 22 días después de la fecha de referencia),
+-- para que el recorrido muestre la alerta "PRÓXIMO A VENCER"
+with pick as (
+  select b.id, row_number() over (order by b.quantity desc, b.id) n
+  from demo_template.batches b
+  where b.quantity >= 10
+    and b.expiration_date > (select snapshot_date from demo_template.config) + 30
+    and (select count(*) from demo_template.batches x where x.product_id = b.product_id and x.quantity > 0) = 1
+  limit 3)
+update demo_template.batches b set expiration_date = (select snapshot_date from demo_template.config) + (array[6,14,22])[pick.n]
+from pick where b.id = pick.id;
+
 -- El esquema no se expone por la API, pero se activa RLS igual (defensa en profundidad)
 do $$
 declare t text;
