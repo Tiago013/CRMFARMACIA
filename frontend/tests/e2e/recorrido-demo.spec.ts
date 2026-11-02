@@ -38,19 +38,15 @@ test.describe('Recorrido demo del README', () => {
   test('Punto de Venta: abre caja, vende y la venta aparece en auditoría', async ({ page }) => {
     await page.getByRole('link', { name: 'Punto de Venta' }).click();
 
-    // Navegador nuevo = caja cerrada (el estado de la caja vive en el navegador)
-    const abrir = page.getByRole('button', { name: /Realizar Apertura de Caja/ });
-    if (await abrir.isVisible({ timeout: 10_000 }).catch(() => false)) {
-      await abrir.click();
-      await page.getByRole('button', { name: 'Confirmar Apertura' }).click();
-      await expect(page.getByText(/Caja abierta exitosamente/)).toBeVisible();
-    }
+    // Cada prueba usa un navegador limpio, así que la caja siempre empieza cerrada
+    // (su estado vive en localStorage). Se espera al botón antes de abrirla.
+    await page.getByRole('button', { name: /Realizar Apertura de Caja/ }).click({ timeout: 20_000 });
+    await page.getByRole('button', { name: 'Confirmar Apertura' }).click();
+    await expect(page.getByText(/Caja abierta exitosamente/)).toBeVisible();
 
-    // Agrega el primer producto del catálogo con Enter en el buscador
-    const buscador = page.getByPlaceholder(/Escanear código o buscar producto/);
-    await buscador.click();
-    await buscador.press('Enter');
-    await expect(page.getByRole('button', { name: /COBRAR/ })).toBeEnabled({ timeout: 20_000 });
+    // Agrega el primer producto cuando el catálogo ya cargó (cada tarjeta muestra "Stock:")
+    await page.getByRole('button', { name: /Stock:/ }).first().click({ timeout: 20_000 });
+    await expect(page.getByRole('button', { name: /COBRAR/ })).toBeEnabled();
 
     await page.getByRole('button', { name: /COBRAR/ }).click();
     await page.getByRole('button', { name: /Tarjeta/ }).click();
