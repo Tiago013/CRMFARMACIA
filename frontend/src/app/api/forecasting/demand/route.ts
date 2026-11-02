@@ -151,9 +151,8 @@ export async function GET(request: NextRequest) {
         const d = new Date(lastHistoricalDate);
         d.setDate(lastHistoricalDate.getDate() + i);
         const x = n + i - 1;
-        let predicted_value = Math.max(0, intercept + slope * x);
-        const noise = (Math.random() - 0.5) * stdDev * 0.5;
-        predicted_value = Math.max(0, predicted_value + noise);
+        // Tendencia lineal sin ruido aleatorio: mismos datos, mismo pronóstico
+        const predicted_value = Math.max(0, intercept + slope * x);
         const margin = stdDev * 1.5; 
         
         forecast_data.push({

@@ -1,6 +1,7 @@
 import type { RefObject } from 'react';
 import { HelpCircle, Lock, RefreshCw, Save, Search, Wifi, WifiOff, Zap } from 'lucide-react';
 import type { DrawerStatus } from './types';
+import { expiryStatus } from '@/lib/inventory/fefo';
 
 const HINTS = ['F2 Buscar', 'F4 Cliente', 'F7 Suspender', 'F8 Cobrar/Recuperar', 'F9 Anular'];
 
@@ -88,7 +89,9 @@ export function ProductPanel({ products, onAdd, searchQuery, onSearch, searchInp
       <div className="flex-1 p-4 overflow-y-auto">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {products.map((p: any) => {
-            const isExpiring = (p.total_stock || 0) > 0 && parseInt(p.sku?.replace(/\D/g, '') || '0') % 5 === 0;
+            // Estado del lote que se vendería primero (FEFO)
+            const expiry = expiryStatus(p.expiration_date);
+            const isExpiring = expiry === 'expiring';
             return (
               <button
                 key={p.id}
@@ -102,6 +105,7 @@ export function ProductPanel({ products, onAdd, searchQuery, onSearch, searchInp
                   </span>
                 </div>
                 {isExpiring && <span className="text-[8px] bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1 py-0.5 rounded font-bold mb-1">PRÓXIMO A VENCER (FEFO)</span>}
+                {expiry === 'expired' && <span className="text-[8px] bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-1 py-0.5 rounded font-bold mb-1">HAY UN LOTE VENCIDO</span>}
                 <span className="font-medium text-neutral-900 dark:text-neutral-100 text-sm mt-1 truncate w-full">{p.brand_name}</span>
                 <span className="mt-2 font-semibold text-neutral-900 dark:text-white text-sm">${(p.unit_price || 0).toLocaleString('es-CO')}</span>
               </button>

@@ -7,11 +7,14 @@ export function PatientHeader({ patient, onEdit, onMessage }: {
   onEdit: () => void;
   onMessage: () => void;
 }) {
-  const purchases = patient.purchase_history?.length || 0;
+  const salesCount: number = patient.sales_count || 0;
+  // Compras de los últimos 90 días contra los 90 anteriores
+  const visits = patient.visits;
+  const visitsTrend = visits?.previous > 0 ? Math.round(((visits.current - visits.previous) / visits.previous) * 100) : undefined;
 
   return (
     <>
-      {/* Critical Alerts Banner (Mocked) */}
+      {/* Alerta clínica según las condiciones registradas del paciente */}
       {patient.tags.includes('Diabético') && (
         <div className="bg-red-50 dark:bg-red-950/30 border-b border-red-200 dark:border-red-900 px-6 py-2.5 flex items-center gap-3">
           <ShieldAlert size={16} className="text-red-600 dark:text-red-400" />
@@ -64,12 +67,12 @@ export function PatientHeader({ patient, onEdit, onMessage }: {
         </div>
       </div>
 
-      {/* KPIs Row */}
+      {/* KPIs Row: todo sale de las ventas reales del paciente */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 px-8 py-6">
-        <KPICard label="Total Compras" value={purchases} trend={purchases > 5 ? 12 : -2} icon={CreditCard} />
-        <KPICard label="Ticket Promedio" value={`$${formatCOP(Math.round((patient.ltv || 0) / (purchases || 1)))}`} trend={5} icon={DollarSign} />
-        <KPICard label="Adherencia (Refills)" value={`${patient.score || 0}%`} trend={patient.score > 70 ? 5 : -5} icon={HeartPulse} />
-        <KPICard label="Frecuencia Visita" value={`Cada ${Math.max(7, Math.floor(90 / (purchases || 1)))} días`} trend={0} icon={Clock} />
+        <KPICard label="Total Compras" value={salesCount} trend={visitsTrend} icon={CreditCard} />
+        <KPICard label="Ticket Promedio" value={salesCount ? `$${formatCOP(Math.round((patient.ltv || 0) / salesCount))}` : '—'} icon={DollarSign} />
+        <KPICard label="Adherencia (Refills)" value={patient.score === null || patient.score === undefined ? 'Sin datos' : `${patient.score}%`} icon={HeartPulse} />
+        <KPICard label="Frecuencia Visita" value={patient.avg_interval_days ? `Cada ${patient.avg_interval_days} días` : 'Sin datos'} icon={Clock} />
       </div>
     </>
   );

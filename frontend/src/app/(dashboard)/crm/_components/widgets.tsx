@@ -1,12 +1,14 @@
 import { TrendingDown, TrendingUp, type LucideIcon } from 'lucide-react';
 
-export const CircularScore = ({ score }: { score: number }) => {
+// score null = menos de 2 compras, no hay ritmo que medir
+export const CircularScore = ({ score }: { score: number | null }) => {
   const radius = 36;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (score / 100) * circumference;
+  const strokeDashoffset = circumference - ((score ?? 0) / 100) * circumference;
 
   let color = 'text-red-500';
-  if (score >= 80) color = 'text-emerald-500';
+  if (score === null) color = 'text-neutral-300';
+  else if (score >= 80) color = 'text-emerald-500';
   else if (score >= 60) color = 'text-blue-500';
   else if (score >= 40) color = 'text-amber-500';
 
@@ -24,8 +26,8 @@ export const CircularScore = ({ score }: { score: number }) => {
         />
       </svg>
       <div className="absolute flex flex-col items-center justify-center">
-        <span className="text-xl font-bold text-neutral-900 dark:text-white leading-none">{score}</span>
-        <span className="text-[10px] text-neutral-500 font-medium uppercase tracking-wider mt-0.5">Score</span>
+        <span className="text-xl font-bold text-neutral-900 dark:text-white leading-none">{score ?? '—'}</span>
+        <span className="text-[10px] text-neutral-500 font-medium uppercase tracking-wider mt-0.5" title="Adherencia: puntualidad y regularidad de las recompras">Adherencia</span>
       </div>
     </div>
   );

@@ -33,15 +33,12 @@ export default function ExpensesTab({ period = '7d' }: { period?: string }) {
       
       if (!Array.isArray(data)) {
         console.error('API Error:', data);
-        setCategories([{ id: 'mock-1', name: 'Arriendo', color: '#6366f1' }, { id: 'mock-2', name: 'Nómina', color: '#10b981' }]);
+        setCategories([]);
         return;
       }
 
-      if (data.length === 0) {
-        setCategories([{ id: 'mock-1', name: 'Arriendo', color: '#6366f1' }, { id: 'mock-2', name: 'Nómina', color: '#10b981' }]);
-      } else {
-        setCategories(data);
-      }
+      // Solo categorías reales: un id inventado haría fallar el gasto al guardarlo
+      setCategories(data);
     } catch (e) { console.error(e); }
   };
 

@@ -5,6 +5,12 @@ import { requireAuth } from '@/lib/auth';
 import { TAX_RATE, computeSaleTotals, totalsMatch, validateLine } from '@/lib/pos/pricing';
 import { allocateFefo } from '@/lib/inventory/fefo';
 
+class ExpiredStockError extends Error {
+  constructor(public productId: string) {
+    super('Las unidades disponibles de este producto están vencidas');
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -94,7 +100,12 @@ export async function POST(request: NextRequest) {
           where: { product_id: item.product_id, tenant_id, quantity: { gt: 0 } },
           select: { id: true, quantity: true, expiration_date: true }
         });
-        const { allocations, shortfall } = allocateFefo(batches, item.quantity);
+        const { allocations, shortfall, expiredUnits } = allocateFefo(batches, item.quantity);
+
+        // Lo que falta solo existe en lotes vencidos: no se vende
+        if (shortfall > 0 && expiredUnits > 0) {
+          throw new ExpiredStockError(item.product_id);
+        }
 
         for (const allocation of allocations) {
           await tx.batch.update({
@@ -176,6 +187,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, sale });
   } catch (error: any) {
+    if (error instanceof ExpiredStockError) {
+      return NextResponse.json({ error: error.message, product_id: error.productId }, { status: 409 });
+    }
     console.error("Checkout error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

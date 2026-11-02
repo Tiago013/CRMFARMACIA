@@ -65,9 +65,9 @@ export async function GET(request: NextRequest) {
     const formattedProducts = products.map((p) => {
       const totalStock = p.batches.reduce((sum, batch) => sum + batch.quantity, 0);
       
-      // Find nearest expiration date
+      // Vencimiento más próximo entre los lotes que todavía tienen unidades
       let nearestExpiration: Date | null = null;
-      for (const batch of p.batches) {
+      for (const batch of p.batches.filter(b => b.quantity > 0)) {
         if (!nearestExpiration || batch.expiration_date < nearestExpiration) {
           nearestExpiration = batch.expiration_date;
         }

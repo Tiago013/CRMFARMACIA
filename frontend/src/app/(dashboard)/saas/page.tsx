@@ -124,11 +124,11 @@ export default function SuperAdminDashboard() {
                 <p className="text-2xl font-black text-neutral-900 dark:text-white">{metrics.usage.total_transactions.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
               </div>
               <div className="px-4 text-center">
-                <p className="text-sm text-neutral-500 mb-1">Adopción IA</p>
-                <p className="text-2xl font-black text-indigo-600">{metrics.usage.ai_adoption_percent}%</p>
+                <p className="text-sm text-neutral-500 mb-1">Farmacias con ventas (30 días)</p>
+                <p className="text-2xl font-black text-indigo-600">{metrics.usage.selling_tenants_percent}%</p>
               </div>
               <div className="px-4 text-center">
-                <p className="text-sm text-neutral-500 mb-1">Usuarios Activos (MAU)</p>
+                <p className="text-sm text-neutral-500 mb-1">Usuarios activos (30 días)</p>
                 <p className="text-2xl font-black text-neutral-900 dark:text-white">{metrics.usage.mau.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
               </div>
             </div>
@@ -136,7 +136,7 @@ export default function SuperAdminDashboard() {
             <div className="mt-8 border-t border-neutral-100 dark:border-neutral-800 pt-6">
                <h4 className="font-bold text-sm text-neutral-700 dark:text-neutral-300 mb-4">Métricas Unitarias Adicionales</h4>
                <div className="flex gap-8 text-sm">
-                 <div><span className="text-neutral-500">CAC Estimado:</span> <span className="font-bold">${metrics.unit_economics.cac.toLocaleString('es-CO')} COP</span></div>
+                 <div><span className="text-neutral-500">CAC Estimado:</span> <span className="font-bold">{metrics.unit_economics.cac ? `$${metrics.unit_economics.cac.toLocaleString('es-CO')} COP` : 'No medido'}</span></div>
                  <div><span className="text-neutral-500">LTV Estimado:</span> <span className="font-bold">${metrics.unit_economics.ltv.toLocaleString('es-CO')} COP</span></div>
                  <div><span className="text-neutral-500">Net MRR Growth:</span> <span className="font-bold text-emerald-500">+${metrics.net_mrr_growth} COP</span></div>
                </div>

@@ -2,6 +2,27 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
+import { compareToPrevious, daysInRange, periodRanges, type DateRange } from '@/lib/analytics/periods';
+
+const EXCLUDED_EXPENSES = ['Compras de Inventario', 'Compras a Proveedores'];
+
+// Totales de un periodo: ingresos, costo de lo vendido (COGS), gastos operativos y número de ventas
+async function periodTotals(tenant_id: string, { start, end }: DateRange) {
+  const [sales, expenses] = await Promise.all([
+    prisma.sale.findMany({
+      where: { tenant_id, status: 'COMPLETED', created_at: { gte: start, lt: end } },
+      select: { grand_total: true, items: { select: { quantity: true, product: { select: { cost_price: true } } } } }
+    }),
+    prisma.expense.aggregate({
+      where: { tenant_id, status: 'COMPLETED', date: { gte: start, lt: end }, category: { name: { notIn: EXCLUDED_EXPENSES } } },
+      _sum: { amount: true }
+    })
+  ]);
+  const revenue = sales.reduce((acc, s) => acc + Number(s.grand_total), 0);
+  const cogs = sales.reduce((acc, s) => acc + s.items.reduce((a, i) => a + Number(i.product.cost_price || 0) * i.quantity, 0), 0);
+  const opex = Number(expenses._sum.amount || 0);
+  return { revenue, cogs, opex, count: sales.length, net: revenue - cogs - opex };
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,13 +34,9 @@ export async function GET(request: NextRequest) {
 
     const tenant_id = auth.tenantId;
 
-    // Calculate date range
-    const now = new Date();
-    let startDate = new Date();
-    if (period === '7d') startDate.setDate(now.getDate() - 7);
-    else if (period === 'month') startDate.setMonth(now.getMonth() - 1);
-    else if (period === 'quarter') startDate.setMonth(now.getMonth() - 3);
-    else if (period === 'year') startDate.setFullYear(now.getFullYear() - 1);
+    // Periodo actual y el anterior de igual duración (para las tendencias)
+    const ranges = periodRanges(period);
+    const startDate = ranges.current.start;
 
     // 1. Fetch Sales
     const sales = await prisma.sale.findMany({
@@ -41,9 +58,7 @@ export async function GET(request: NextRequest) {
         status: 'COMPLETED',
         date: { gte: startDate },
         category: {
-          name: {
-            notIn: ['Compras de Inventario', 'Compras a Proveedores']
-          }
+          name: { notIn: EXCLUDED_EXPENSES }
         }
       },
       _sum: { amount: true }
@@ -53,7 +68,10 @@ export async function GET(request: NextRequest) {
     let totalRevenue = 0;
     let totalCogs = 0;
     const categoryMap: Record<string, number> = {};
-    const dateMap: Record<string, { revenue: number, orders: number }> = {};
+    // Todos los días del rango, también los que no tuvieron ventas
+    const dateMap: Record<string, { revenue: number, orders: number }> = Object.fromEntries(
+      daysInRange(ranges.current).map(day => [day, { revenue: 0, orders: 0 }])
+    );
     const hourMap: Record<string, { revenue: number, orders: number }> = {};
     const productProfits: Record<string, { revenue: number, cogs: number, name: string }> = {};
 
@@ -90,34 +108,18 @@ export async function GET(request: NextRequest) {
 
     const grossProfit = totalRevenue - totalCogs;
     const netProfit = grossProfit - totalExpenses;
-    const previousRevenue = totalRevenue * 0.8; // mock previous for trend
+    const ticket = sales.length > 0 ? totalRevenue / sales.length : 0;
 
-    // Format KPIs
+    // Tendencias reales contra el periodo anterior
+    const prev = await periodTotals(tenant_id, ranges.previous);
+    const prevTicket = prev.count > 0 ? prev.revenue / prev.count : 0;
+    const money = (v: number) => `$${v.toLocaleString('es-CO', { maximumFractionDigits: 0 })}`;
+
     const kpis = [
-      {
-        title: "Ingresos Totales",
-        value: `$${(totalRevenue).toLocaleString('es-CO', { maximumFractionDigits: 0 })}`,
-        change: "15%",
-        trend: "up"
-      },
-      {
-        title: "Gastos (Compras + Operativos)",
-        value: `$${(totalCogs + totalExpenses).toLocaleString('es-CO', { maximumFractionDigits: 0 })}`,
-        change: "8%",
-        trend: "down"
-      },
-      {
-        title: "Ticket Promedio",
-        value: `$${(sales.length > 0 ? totalRevenue / sales.length : 0).toLocaleString('es-CO', { maximumFractionDigits: 0 })}`,
-        change: "2%",
-        trend: "up"
-      },
-      {
-        title: "Utilidad Neta",
-        value: `$${netProfit.toLocaleString('es-CO', { maximumFractionDigits: 0 })}`,
-        change: "5%",
-        trend: "up"
-      }
+      { title: "Ingresos Totales", value: money(totalRevenue), ...compareToPrevious(totalRevenue, prev.revenue) },
+      { title: "Gastos (Compras + Operativos)", value: money(totalCogs + totalExpenses), ...compareToPrevious(totalCogs + totalExpenses, prev.cogs + prev.opex, false) },
+      { title: "Ticket Promedio", value: money(ticket), ...compareToPrevious(ticket, prevTicket) },
+      { title: "Utilidad Neta", value: money(netProfit), ...compareToPrevious(netProfit, prev.net) }
     ];
 
     // Format Trend
@@ -151,16 +153,16 @@ export async function GET(request: NextRequest) {
       };
     }).sort((a, b) => b.net_profit - a.net_profit).slice(0, 5);
 
-    // Expiration Risk (Mock for now, or real if we query batches)
+    // Riesgo de vencimiento: lotes con existencias que vencen en 30 días o menos
     const thirtyDaysFromNow = new Date();
     thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
     
     const atRiskBatches = await prisma.batch.aggregate({
-      where: { tenant_id, expiration_date: { lte: thirtyDaysFromNow } },
+      where: { tenant_id, quantity: { gt: 0 }, expiration_date: { lte: thirtyDaysFromNow } },
       _count: { id: true }
     });
     const safeBatches = await prisma.batch.aggregate({
-      where: { tenant_id, expiration_date: { gt: thirtyDaysFromNow } },
+      where: { tenant_id, quantity: { gt: 0 }, expiration_date: { gt: thirtyDaysFromNow } },
       _count: { id: true }
     });
 

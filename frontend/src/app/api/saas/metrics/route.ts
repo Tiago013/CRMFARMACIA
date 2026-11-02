@@ -54,27 +54,44 @@ export async function GET(request: NextRequest) {
 
     const arpu = activeCount > 0 ? mrr / activeCount : 0;
     const total_transactions = await prisma.sale.count();
-    const mau = await prisma.userProfile.count(); // mock as all users for now
+    // Usuarios de farmacias que iniciaron sesión en los últimos 30 días (Supabase Auth)
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000);
+    const [{ count: mau }] = await prisma.$queryRaw<{ count: number }[]>`
+      select count(*)::int as count from auth.users u
+      join public.user_profiles p on p.auth_id = u.id::text
+      where u.last_sign_in_at >= ${thirtyDaysAgo}`;
+    // Farmacias activas que registraron al menos una venta en 30 días
+    const sellingTenants = await prisma.sale.groupBy({ by: ['tenant_id'], where: { created_at: { gte: thirtyDaysAgo } } });
 
-    // For trends, we mock some dynamic looking data based on current counts
-    // In a real system, you would compare with last month's data
-    const mrrTrend = mrr > 0 ? "+12%" : "0%";
-    const tenantsTrend = activeCount > 0 ? `+${Math.max(1, Math.floor(activeCount * 0.1))} este mes` : "0 este mes";
-    const arpuTrend = arpu > 0 ? "+2.1%" : "0%";
-    
-    // CAC and LTV estimates based on current MRR
-    const estimatedLTV = arpu > 0 ? (arpu * 24) : 0; // Assuming 24 months lifespan
-    const estimatedCAC = estimatedLTV > 0 ? (estimatedLTV * 0.1) : 0; // Assuming 10% of LTV
+    // Tendencias: farmacias activas que ya existían al iniciar el mes contra las de hoy
+    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const priceOf = (p: typeof pharmacies[number]) => Number(p.mrr_override) || PLAN_PRICES[p.plan_type as keyof typeof PLAN_PRICES] || 0;
+    const activeAtMonthStart = pharmacies.filter(p => p.status === 'ACTIVE' && p.created_at < monthStart);
+    const mrrAtMonthStart = activeAtMonthStart.reduce((acc, p) => acc + priceOf(p), 0);
+    const arpuAtMonthStart = activeAtMonthStart.length ? mrrAtMonthStart / activeAtMonthStart.length : 0;
+    const pct = (now: number, before: number) => {
+      if (before === 0) return now > 0 ? 'nuevo' : '0%';
+      const v = ((now - before) / before) * 100;
+      return `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`;
+    };
+    const mrrTrend = pct(mrr, mrrAtMonthStart);
+    const newThisMonth = pharmacies.filter(p => p.created_at >= monthStart).length;
+    const tenantsTrend = `+${newThisMonth} este mes`;
+    const arpuTrend = pct(arpu, arpuAtMonthStart);
+
+    // LTV estimado con una vida media supuesta de 24 meses; el CAC no se mide (no hay gasto de adquisición registrado)
+    const estimatedLTV = arpu > 0 ? (arpu * 24) : 0;
+    const estimatedCAC = 0;
 
     return NextResponse.json({
       mrr: mrr,
       arpu: arpu,
-      net_mrr_growth: mrr > 0 ? Math.floor(mrr * 0.12).toLocaleString('es-CO') : '0',
+      net_mrr_growth: Math.round(mrr - mrrAtMonthStart).toLocaleString('es-CO'),
       trends: {
         mrr: mrrTrend,
         tenants: tenantsTrend,
         arpu: arpuTrend,
-        churn: "-0.5%"
+        churn: "0%"
       },
       unit_economics: {
         cac: estimatedCAC,
@@ -89,7 +106,7 @@ export async function GET(request: NextRequest) {
       },
       usage: {
         total_transactions: total_transactions,
-        ai_adoption_percent: 85,
+        selling_tenants_percent: activeCount ? Math.round((sellingTenants.length / activeCount) * 100) : 0,
         mau: mau
       }
     });

@@ -17,7 +17,8 @@ interface KPIData {
   title: string;
   value: string;
   change: string;
-  trend: 'up' | 'down';
+  trend: 'up' | 'down' | 'flat';
+  good: boolean; // verde si el cambio es favorable (en gastos, bajar es bueno)
 }
 
 interface SalesChartData {
@@ -233,8 +234,8 @@ export default function DashboardPage() {
                   <h3 className="text-xs font-bold text-neutral-500 mb-2 uppercase tracking-wider">{kpi.title}</h3>
                   <div className="flex items-baseline gap-2 mt-2 justify-between">
                     <span className="text-3xl font-black text-neutral-900 dark:text-white">{kpi.value}</span>
-                    <span className={`px-2 py-1 rounded text-xs font-bold ${kpi.trend === 'up' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400'}`}>
-                      {kpi.trend === 'up' ? '↑' : '↓'} {kpi.change}
+                    <span title="Contra el periodo anterior de igual duración" className={`px-2 py-1 rounded text-xs font-bold ${kpi.trend === 'flat' ? 'bg-neutral-100 text-neutral-500 dark:bg-neutral-900 dark:text-neutral-400' : kpi.good ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400'}`}>
+                      {kpi.trend === 'up' ? '↑' : kpi.trend === 'down' ? '↓' : '→'} {kpi.change}
                     </span>
                   </div>
                 </div>
