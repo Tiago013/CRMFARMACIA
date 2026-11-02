@@ -65,6 +65,8 @@ test.describe('Recorrido demo del README', () => {
   test('Dashboard: las cifras llegan como pesos, no como texto roto', async ({ page }) => {
     await page.getByRole('link', { name: 'Dashboard' }).click();
     await expect(page.getByText(/\$\s?\d{1,3}(\.\d{3})+/).first()).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText('NaN')).toHaveCount(0);
+    // Regex con límites de palabra y sensible a mayúsculas: getByText('NaN')
+    // también encontraría "Fi-nan-zas" en el menú.
+    await expect(page.getByText(/\bNaN\b/)).toHaveCount(0);
   });
 });
