@@ -54,6 +54,10 @@ create table demo_template.expenses                as select * from public.expen
 create table demo_template.whatsapp_templates      as select * from public.whatsapp_templates      where tenant_id = (select id from src);
 create table demo_template.whatsapp_automations    as select * from public.whatsapp_automations    where tenant_id = (select id from src);
 
+-- Fecha de referencia = última venta de la foto: al restaurar, esa venta cae en "hoy"
+-- y los gráficos de los últimos días nunca quedan vacíos
+update demo_template.config set snapshot_date = (select max(created_at)::date from demo_template.sales);
+
 -- El esquema no se expone por la API, pero se activa RLS igual (defensa en profundidad)
 do $$
 declare t text;

@@ -26,7 +26,8 @@ export function purchaseAdherence(purchaseDates: (Date | string)[], now: Date = 
   const intervals = days.slice(1).map((d, i) => d - days[i]);
   const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
   const variance = intervals.reduce((acc, x) => acc + (x - avg) ** 2, 0) / intervals.length;
-  const regularity = Math.max(0, 1 - Math.sqrt(variance) / avg);
+  // Con un solo intervalo no se sabe si el ritmo es estable: regularidad neutra
+  const regularity = intervals.length < 2 ? 0.5 : Math.max(0, 1 - Math.sqrt(variance) / avg);
 
   const overdue = Math.max(0, (daysSinceLast ?? 0) - avg);
   const timeliness = Math.max(0, 1 - overdue / avg);

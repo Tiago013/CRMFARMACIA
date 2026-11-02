@@ -32,6 +32,10 @@ describe('purchaseAdherence', () => {
     expect(irregular).toBeLessThan(regular);
   });
 
+  it('con dos compras la regularidad es neutra: no llega a 100', () => {
+    expect(purchaseAdherence([daysAgo(40), daysAgo(10)], now).score).toBe(80);
+  });
+
   it('varias ventas el mismo día cuentan como una visita', () => {
     const result = purchaseAdherence([daysAgo(30), daysAgo(30), daysAgo(0)], now);
     expect(result.purchases).toBe(2);
