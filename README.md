@@ -242,6 +242,7 @@ Abre http://localhost:3000 e inicia sesión.
 cd frontend
 npm test                 # pruebas unitarias (Vitest)
 npm run test:coverage    # con reporte de cobertura
+npm run e2e              # recorrido demo con Playwright (contra la demo pública)
 ```
 
 Cubren la lógica donde un error cuesta dinero o expone datos:
@@ -253,6 +254,8 @@ Cubren la lógica donde un error cuesta dinero o expone datos:
 | `lib/auth.ts` | Aislamiento entre farmacias (el tenant nunca sale del cliente), permisos por rol (un cajero recibe 403 en acciones de administrador) y suplantación del superadmin. |
 
 El CI ejecuta las pruebas en cada PR y **falla si la cobertura de esta lógica baja del 80 %**; el resumen aparece en la pestaña *Summary* de cada ejecución.
+
+Además, el workflow **E2E demo** recorre la demo pública cada mañana, después de la restauración nocturna, igual que lo haría un reclutador: login, pacientes, venta en el POS, auditoría, inventario y dashboard. Se puede lanzar a mano desde *Actions* contra cualquier URL, por ejemplo la vista previa de un PR en Vercel.
 
 ---
 
@@ -296,7 +299,6 @@ CRMFARMACIA/
 
 - Facturación electrónica DIAN.
 - Políticas RLS por tenant para usar Supabase Realtime directamente desde el cliente.
-- Pruebas E2E del recorrido demo con Playwright.
 - Desplegar el servicio de WhatsApp y el motor de IA como servicios gestionados.
 
 ---
