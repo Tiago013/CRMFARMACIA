@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { backtest, findSpikes, fitModel, forecast } from '@/lib/analytics/forecast';
+import { backtest, dailySeries, findSpikes, fitModel, forecast, reorderSuggestion } from '@/lib/analytics/forecast';
 
 // Serie diaria desde un lunes (2026-09-07) con patrón semanal
 function series(days: number, fn: (i: number, dow: number) => number) {
@@ -83,5 +83,66 @@ describe('findSpikes', () => {
 
   it('sin variación no hay picos', () => {
     expect(findSpikes(series(28, () => 5))).toEqual([]);
+  });
+
+  it('con ventas escasas un día con ventas no es un pico', () => {
+    // 3 ventas sueltas en 56 días: superan media + 3σ, pero no son anomalías
+    const h = series(56, (i) => ([5, 20, 40].includes(i) ? 2 : 0));
+    expect(findSpikes(h)).toEqual([]);
+  });
+
+  it('exige que el pico triplique un día típico con ventas', () => {
+    const h = series(56, (i) => (i % 2 ? 4 : 0) + (i === 30 ? 7 : 0));
+    expect(findSpikes(h)).toEqual([]);
+  });
+});
+
+describe('dailySeries', () => {
+  // 3 nov. 2026, 10:00 en Bogotá (15:00 UTC)
+  const now = new Date('2026-11-03T15:00:00Z');
+
+  it('agrupa en hora de Colombia: una venta a las 9 p. m. es del mismo día', () => {
+    const s = dailySeries([{ at: '2026-11-02T02:30:00Z', quantity: 3 }], 3, now); // 1 nov., 9:30 p. m.
+    expect(s).toEqual([
+      { date: '2026-10-31', value: 0 },
+      { date: '2026-11-01', value: 3 },
+      { date: '2026-11-02', value: 0 },
+    ]);
+  });
+
+  it('termina ayer: el día en curso no entra', () => {
+    const s = dailySeries([{ at: '2026-11-03T14:00:00Z', quantity: 5 }], 7, now);
+    expect(s.at(-1)!.date).toBe('2026-11-02');
+    expect(s.every((d) => d.value === 0)).toBe(true);
+  });
+
+  it('a las 8 p. m. en Bogotá el "hoy" sigue siendo el día local', () => {
+    const night = new Date('2026-11-04T01:00:00Z'); // 3 nov., 8 p. m.
+    expect(dailySeries([], 1, night)).toEqual([{ date: '2026-11-02', value: 0 }]);
+  });
+
+  it('ignora ventas fuera de la ventana y suma las del mismo día', () => {
+    const s = dailySeries([
+      { at: '2026-10-01T15:00:00Z', quantity: 9 },
+      { at: '2026-11-02T13:00:00Z', quantity: 1 },
+      { at: '2026-11-02T23:00:00Z', quantity: 2 },
+    ], 2, now);
+    expect(s).toEqual([{ date: '2026-11-01', value: 0 }, { date: '2026-11-02', value: 3 }]);
+  });
+});
+
+describe('reorderSuggestion', () => {
+  const f = [1, 2, 3].map((v, i) => ({ date: `2026-11-0${i + 4}`, value: v, lower_bound: v - 1, upper_bound: v + 1 }));
+
+  it('pide lo que falta para el escenario alto', () => {
+    expect(reorderSuggestion(f, 4)).toEqual({ needed: 9, stock: 4, order: 5, coverageDays: 2 });
+  });
+
+  it('no pide nada si el stock alcanza', () => {
+    expect(reorderSuggestion(f, 20)).toEqual({ needed: 9, stock: 20, order: 0, coverageDays: null });
+  });
+
+  it('sin stock no cubre ningún día', () => {
+    expect(reorderSuggestion(f, 0).coverageDays).toBe(0);
   });
 });
