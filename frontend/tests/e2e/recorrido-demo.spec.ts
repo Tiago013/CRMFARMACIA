@@ -64,7 +64,8 @@ test.describe('Recorrido demo del README', () => {
       page.getByRole('button', { name: 'Ver recibo' }).click(),
     ]);
     await expect(recibo.getByText(/Recibo N\.º/)).toBeVisible({ timeout: 20_000 });
-    await expect(recibo.getByText('TOTAL')).toBeVisible();
+    // exact: si no, también coincide con "Subtotal"
+    await expect(recibo.getByText('TOTAL', { exact: true })).toBeVisible();
     await recibo.close();
 
     await page.getByRole('link', { name: 'Ventas y Compras' }).click();
