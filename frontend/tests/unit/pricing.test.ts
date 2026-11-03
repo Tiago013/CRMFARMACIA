@@ -45,6 +45,18 @@ describe('computeSaleTotals', () => {
     expect(totals.lines[0].tax).toBe(190);
   });
 
+  it('las líneas (neto + IVA) suman exactamente el total de la venta', () => {
+    // Precios con centavos donde IVA(suma) ≠ suma(IVA por línea)
+    const totals = computeSaleTotals([
+      { quantity: 1, unitPrice: 0.05 },
+      { quantity: 1, unitPrice: 0.05 },
+      { quantity: 3, unitPrice: 1234.57, discountPct: 7 },
+    ]);
+    const linesTotal = roundMoney(totals.lines.reduce((acc, l) => acc + l.total, 0));
+    expect(linesTotal).toBe(totals.grandTotal);
+    expect(totals.lines[2].total).toBe(roundMoney(totals.lines[2].net + totals.lines[2].tax));
+  });
+
   it('acepta otra tasa de impuesto', () => {
     expect(computeSaleTotals([{ quantity: 1, unitPrice: 1000 }], 0).grandTotal).toBe(1000);
   });

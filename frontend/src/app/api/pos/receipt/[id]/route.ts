@@ -44,7 +44,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
         sku: i.product.sku,
         quantity: i.quantity,
         unit_price: i.unit_price,
-        total: i.total,
+        // Valor de la línea sin IVA: las líneas suman el Subtotal del recibo
+        total: i.subtotal,
       })),
       patient: sale.patient ? { name: `${sale.patient.first_name} ${sale.patient.last_name}`, document_id: sale.patient.document_id } : null,
       cashier: settings.receipt_hide_cashier ? null : cashier ? `${cashier.first_name} ${cashier.last_name}`.trim() : null,

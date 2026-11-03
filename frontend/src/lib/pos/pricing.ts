@@ -21,6 +21,7 @@ export type PricedLine = {
   gross: number;
   net: number;
   tax: number;
+  total: number;   // net + IVA: lo que se guarda en sale_items.total
 };
 
 export type SaleTotals = {
@@ -46,19 +47,23 @@ export function computeSaleTotals(items: PricingInput[], taxRate = TAX_RATE): Sa
     const discountPct = item.discountPct ?? 0;
     const gross = roundMoney(item.quantity * item.unitPrice);
     const net = roundMoney(gross * (1 - discountPct / 100));
+    const tax = roundMoney(net * taxRate);
     return {
       quantity: item.quantity,
       unitPrice: item.unitPrice,
       discountPct,
       gross,
       net,
-      tax: roundMoney(net * taxRate),
+      tax,
+      total: roundMoney(net + tax),
     };
   });
 
   const subtotal = roundMoney(lines.reduce((acc, l) => acc + l.net, 0));
   const discountTotal = roundMoney(lines.reduce((acc, l) => acc + (l.gross - l.net), 0));
-  const taxTotal = roundMoney(subtotal * taxRate);
+  // Suma del IVA de cada línea (no el IVA del subtotal): así las líneas
+  // guardadas suman exactamente el total de la venta, sin diferencias de centavos
+  const taxTotal = roundMoney(lines.reduce((acc, l) => acc + l.tax, 0));
 
   return { lines, subtotal, discountTotal, taxTotal, grandTotal: roundMoney(subtotal + taxTotal) };
 }
