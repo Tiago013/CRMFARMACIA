@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
 import { TAX_RATE, computeSaleTotals, totalsMatch, validateLine } from '@/lib/pos/pricing';
 import { allocateFefo } from '@/lib/inventory/fefo';
+import { sendWhatsApp } from '@/lib/whatsapp/send';
 
 class ExpiredStockError extends Error {
   constructor(public productId: string) {
@@ -158,32 +159,21 @@ export async function POST(request: NextRequest) {
       return newSale;
     });
 
-    // Attempt WhatsApp Notification in background if patient exists
-    try {
-      // Nota: el POS no envía customer_id, así que esta notificación está inactiva a propósito.
-      if (body?.customer_id) {
+    // Automatización "venta completada": recibo por WhatsApp al paciente
+    // (en la demo queda en la bandeja simulada). Un fallo aquí no anula la venta.
+    if (patient_id) {
+      try {
         const auto = await prisma.whatsappAutomation.findFirst({
           where: { trigger_event: 'SALE_COMPLETED', is_active: true, tenant_id },
-          include: { template: true }
+          select: { template_id: true },
         });
-
-        if (auto && auto.template) {
-          const patient = await prisma.patient.findFirst({ where: { id: body.customer_id, tenant_id }});
-          if (patient && patient.phone) {
-            let msg = auto.template.content;
-            // Basic variable replacement {{1}} = name, {{2}} = total
-            msg = msg.replace('{{1}}', patient.first_name);
-            msg = msg.replace('{{2}}', `$${Math.round(serverGrandTotal).toLocaleString('es-CO')}`);
-
-            await fetch('http://127.0.0.1:3001/api/send', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ phone: patient.phone, message: msg })
-            }).catch(e => console.error("WP API Not running", e));
-          }
+        if (auto) {
+          await sendWhatsApp({ tenantId: tenant_id, patientId: patient_id, templateId: auto.template_id, saleId: sale.id, userId: auth.profileId, trigger: 'SALE_COMPLETED' });
         }
+      } catch (e) {
+        console.error('WhatsApp tras la venta', e);
       }
-    } catch(e) {}
+    }
 
     return NextResponse.json({ success: true, sale });
   } catch (error: any) {

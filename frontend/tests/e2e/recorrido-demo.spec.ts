@@ -21,7 +21,7 @@ test.describe('Recorrido demo del README', () => {
   });
 
   test('el cajero ve los módulos del recorrido en el menú', async ({ page }) => {
-    for (const item of ['Dashboard', 'Punto de Venta', 'Ventas y Compras', 'Inventario', 'Finanzas', 'Pacientes']) {
+    for (const item of ['Dashboard', 'Punto de Venta', 'Ventas y Compras', 'Inventario', 'Finanzas', 'Pacientes', 'WhatsApp']) {
       await expect(page.getByRole('link', { name: item })).toBeVisible();
     }
     // Lo que es solo de administrador no aparece
@@ -70,6 +70,14 @@ test.describe('Recorrido demo del README', () => {
 
     await page.getByRole('link', { name: 'Ventas y Compras' }).click();
     await expect(page.getByRole('heading', { name: /Auditoría de Ventas/ })).toBeVisible();
+  });
+
+  test('WhatsApp: la bandeja está marcada como modo demo y no envía nada', async ({ page }) => {
+    await page.getByRole('link', { name: 'WhatsApp' }).click();
+    await expect(page.getByText('Modo demostración: ningún mensaje sale de aquí.')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText('Modo demo · no se envía nada')).toBeVisible();
+    // La conexión por QR solo existe en modo local
+    await expect(page.getByRole('button', { name: 'Conexión Dispositivo' })).toHaveCount(0);
   });
 
   test('Inventario: muestra lotes ordenados por vencimiento', async ({ page }) => {

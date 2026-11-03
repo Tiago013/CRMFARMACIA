@@ -51,7 +51,8 @@ finanzas, pronóstico de demanda y panel de administración SaaS.
 
 3. Recorrido sugerido:
    - **Pacientes** → abre un paciente y mira su ficha 360° (historial, gasto mensual, alergias).
-   - **Punto de Venta** → *Realizar Apertura de Caja* → agrega productos → cobra.
+   - **Punto de Venta** → *Realizar Apertura de Caja* → elige un paciente → agrega productos → cobra.
+   - **WhatsApp** → el recibo de esa venta aparece en la bandeja, marcado **Modo demo** (no se envía nada).
    - **Inventario** → lotes ordenados por vencimiento (FEFO) y alertas de productos vencidos.
    - **Ventas y Compras** → auditoría de tickets.
    - **Dashboard / Finanzas** → cambia el filtro a **"Año"** para ver los meses de datos simulados.
@@ -90,7 +91,7 @@ quiebres de stock y cero seguimiento a pacientes crónicos.
 | 🔄 **Ventas y compras** | Auditoría de tickets, reembolsos (devuelven el stock al lote original) y entrada de mercancía por proveedor. |
 | 💰 **Finanzas** | Estado de resultados (P&L), gastos operativos por categoría y costo de ventas (COGS). |
 | 📈 **Pronóstico** | Demanda a 15 días por producto con un modelo estacional semanal determinista; muestra cuánto se equivocó al predecir la última semana (WAPE) y sugiere cuánto pedir según el stock vigente. |
-| 💬 **WhatsApp** | Plantillas y automatizaciones de mensajes (servicio local con `whatsapp-web.js`). |
+| 💬 **WhatsApp** | Recibo automático al cobrar y mensajes con plantilla desde la ficha del paciente. En la demo pública los mensajes quedan en una bandeja simulada; en local se envían con `whatsapp-web.js`. |
 | 🏢 **SaaS / Super Admin** | MRR, tenants activos, planes (Starter / Pro / Enterprise) y suplantación de farmacias para soporte. |
 | ⚙️ **Configuración** | Datos legales de la farmacia, logo, usuarios y roles (admin, regente, cajero). |
 
@@ -129,7 +130,7 @@ flowchart LR
     API -->|Prisma 7 + pg| DB[(Supabase Postgres<br/>RLS activado)]
     U -->|login| AUTH[Supabase Auth]
     API -.->|opcional| G[Google Gemini]
-    U -.->|solo local| WA[Servicio WhatsApp<br/>Express + whatsapp-web.js]
+    API -.->|WHATSAPP_MODE=local| WA[Servicio WhatsApp<br/>Express + whatsapp-web.js]
 ```
 
 | Capa | Tecnología |
@@ -237,7 +238,20 @@ Abre http://localhost:3000 e inicia sesión.
 | Servicio | Cómo activarlo |
 |---|---|
 | Recomendaciones con Gemini | Añade `GEMINI_API_KEY` en `.env` |
-| WhatsApp | `npm run whatsapp` y escanea el QR (solo en local) |
+| WhatsApp real | `WHATSAPP_MODE=local` en `.env`, `npm run whatsapp` y escanea el QR en **WhatsApp → Conexión** |
+
+#### WhatsApp: modo demo y modo local
+
+`whatsapp-web.js` controla una sesión de WhatsApp Web con un navegador; no sirve en un servidor sin estado
+como Vercel y no es una API oficial. Por eso hay dos modos (variable `WHATSAPP_MODE`):
+
+| Modo | Dónde | Qué pasa al enviar |
+|---|---|---|
+| `demo` (por defecto) | Vercel / demo pública | El servidor arma el mensaje con la plantilla y los datos reales, **no lo envía** y lo deja en la bandeja con la etiqueta *Modo demo*. |
+| `local` | Tu máquina | El servidor lo envía por el servicio local (`127.0.0.1:3001`) y guarda si salió o falló. |
+
+En ambos modos el mensaje queda en la pestaña *Comunicación* del paciente. Para producción real, el paso
+siguiente sería la API oficial de WhatsApp Business (Cloud API).
 
 ---
 
@@ -303,7 +317,7 @@ CRMFARMACIA/
 
 - Facturación electrónica DIAN.
 - Políticas RLS por tenant para usar Supabase Realtime directamente desde el cliente.
-- Desplegar el servicio de WhatsApp y el motor de IA como servicios gestionados.
+- Enviar WhatsApp por la API oficial (WhatsApp Business Cloud API) en lugar de `whatsapp-web.js`.
 
 ---
 

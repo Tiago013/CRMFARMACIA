@@ -112,8 +112,11 @@ export function CommunicationTab({ messages, loading }: { messages: any[]; loadi
           {messages.map((msg: any) => (
             <div key={msg.id} className="p-4 bg-white dark:bg-[#111111] rounded-lg border border-neutral-100 dark:border-neutral-800 shadow-sm">
               <div className="flex justify-between items-start mb-2">
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">{msg.isOutgoing ? 'Enviado' : 'Recibido'} por {msg.sender || 'Sistema'}</span>
-                <span className="text-xs text-neutral-500">{String(msg.timestamp).split(' ')[0]}</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${msg.demo ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-green-100 text-green-700'}`}>{msg.status}</span>
+                  <span className="text-xs text-neutral-500">{msg.sender}</span>
+                </div>
+                <span className="text-xs text-neutral-500">{format(new Date(msg.timestamp), "d MMM yyyy, h:mm a", { locale: es })}</span>
               </div>
               <p className="text-sm text-neutral-700 dark:text-neutral-300 mt-2 whitespace-pre-wrap">{msg.text || ''}</p>
             </div>
