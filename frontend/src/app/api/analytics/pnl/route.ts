@@ -25,6 +25,13 @@ export async function GET(request: NextRequest) {
 
     const income = Number(salesAgg._sum.grand_total || 0);
 
+    // Ventas del periodo que luego se reembolsaron: ya no cuentan como ingreso
+    const refundsAgg = await prisma.sale.aggregate({
+      where: { tenant_id: auth.tenantId, status: 'REFUNDED', created_at: { gte: startDate } },
+      _sum: { grand_total: true }
+    });
+    const refunds = Number(refundsAgg._sum.grand_total || 0);
+
     const saleItems = await prisma.saleItem.findMany({
       where: { sale: { tenant_id: auth.tenantId, status: 'COMPLETED', created_at: { gte: startDate } } },
       include: { product: true }
@@ -53,7 +60,8 @@ export async function GET(request: NextRequest) {
     const net_profit = income - cogs - opex;
 
     return NextResponse.json({
-      income,
+      income,           // ventas netas (sin reembolsos)
+      refunds,
       cogs,
       opex,
       net_profit
