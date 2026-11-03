@@ -64,7 +64,7 @@ export default function ForecastingPage() {
       <div className="flex-1 p-8 flex items-center justify-center bg-white dark:bg-[#000000]">
         <div className="flex flex-col items-center gap-4 text-neutral-500">
           <BrainCircuit className="animate-pulse" size={32} />
-          <p className="text-sm font-medium tracking-wide">Iniciando motor de predicción Prophet...</p>
+          <p className="text-sm font-medium tracking-wide">Calculando el pronóstico...</p>
         </div>
       </div>
     );
@@ -164,7 +164,13 @@ export default function ForecastingPage() {
                       Análisis de la Inteligencia Artificial
                     </h3>
                     <p className="text-sm text-neutral-700 dark:text-neutral-400 leading-relaxed">
-                      El modelo proyecta una demanda total de <strong className="text-neutral-900 dark:text-white">{data.executive_summary.total_predicted_demand} unidades</strong> para los próximos 15 días, mostrando una tendencia <strong className="text-neutral-900 dark:text-white">{data.executive_summary.trend_direction.toLowerCase()}</strong>. Te sugerimos mantener un stock de seguridad de <strong className="text-neutral-900 dark:text-white">{data.executive_summary.recommended_stock} unidades</strong> para evitar quiebres de inventario, dado el nivel de confianza actual del {(data.confidence_level * 100).toFixed(0)}%.
+                      El modelo proyecta una demanda total de <strong className="text-neutral-900 dark:text-white">{data.executive_summary.total_predicted_demand} unidades</strong> para los próximos 15 días, mostrando una tendencia <strong className="text-neutral-900 dark:text-white">{data.executive_summary.trend_direction.toLowerCase()}</strong>. Te sugerimos mantener un stock de seguridad de <strong className="text-neutral-900 dark:text-white">{data.executive_summary.recommended_stock} unidades</strong> para evitar quiebres de inventario.
+                    </p>
+                    <p className="text-xs text-neutral-500 mt-2">
+                      Modelo: {data.model?.name ?? 'estacional semanal'} · determinista (mismos datos, mismo resultado) ·{' '}
+                      {data.model?.validation
+                        ? <>al predecir la última semana con los datos anteriores se equivocó en un <strong>{Math.round(data.model.validation.wape * 100)} %</strong> de las unidades (WAPE), unas {data.model.validation.mae.toFixed(1)} unidades por día.</>
+                        : 'la última semana no tuvo ventas de este producto, así que todavía no hay error medido.'}
                     </p>
                   </div>
 
@@ -196,7 +202,7 @@ export default function ForecastingPage() {
                   </div>
                   <div className="flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 rounded-md text-xs font-semibold">
                     <TrendingUp size={14} />
-                    {(data?.confidence_level * 100).toFixed(0)}% Confianza
+                    {data?.model?.validation ? `Error última semana: ${Math.round(data.model.validation.wape * 100)} %` : 'Sin validación aún'}
                   </div>
                 </div>
                 
