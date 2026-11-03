@@ -26,24 +26,32 @@ async function takeAiQuota(tenantId: string): Promise<{ allowed: boolean; used: 
   return rows.length ? { allowed: true, used: rows[0].used } : { allowed: false, used: DAILY_LIMIT };
 }
 
-async function askGemini(prompt: string): Promise<string | null> {
+// text = respuesta del modelo; problem = por qué no la hay (se muestra al usuario)
+type ModelReply = { text: string | null; problem?: string };
+
+async function askGemini(prompt: string): Promise<ModelReply> {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return null;
-  const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, responseMimeType: 'application/json' } }),
-    signal: AbortSignal.timeout(15_000),
-  });
-  if (!res.ok) {
-    console.error('Gemini API error:', res.status, await res.text().catch(() => ''));
-    return null;
+  if (!apiKey) return { text: null, problem: 'La IA no está configurada en este servidor (falta GEMINI_API_KEY)' };
+  try {
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, responseMimeType: 'application/json' } }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) {
+      console.error('Gemini API error:', res.status, await res.text().catch(() => ''));
+      return { text: null, problem: res.status === 429 ? 'Gemini alcanzó su cuota gratuita' : `Gemini respondió con error ${res.status}` };
+    }
+    const data = await res.json();
+    return { text: data?.candidates?.[0]?.content?.parts?.[0]?.text ?? null, problem: 'Gemini no devolvió texto' };
+  } catch (error) {
+    console.error('Gemini request failed:', error);
+    return { text: null, problem: 'Gemini no respondió a tiempo' };
   }
-  const data = await res.json();
-  return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
 }
 
-async function askOllama(model: string, prompt: string): Promise<string | null> {
+async function askOllama(model: string, prompt: string): Promise<ModelReply> {
   const url = process.env.OLLAMA_API_URL || 'http://127.0.0.1:11434';
   const res = await fetch(`${url}/api/generate`, {
     method: 'POST',
@@ -51,8 +59,8 @@ async function askOllama(model: string, prompt: string): Promise<string | null> 
     body: JSON.stringify({ model, prompt, format: 'json', stream: false, options: { temperature: 0.2 } }),
     signal: AbortSignal.timeout(30_000),
   }).catch(() => null);
-  if (!res?.ok) return null;
-  return (await res.json())?.response ?? null;
+  if (!res?.ok) return { text: null, problem: `No hay un servidor Ollama local con el modelo ${model}` };
+  return { text: (await res.json())?.response ?? null, problem: 'El modelo local no devolvió texto' };
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -109,9 +117,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!quota.allowed) {
       notice = `Se alcanzó el límite de ${DAILY_LIMIT} consultas de IA de hoy. Se muestran recomendaciones por reglas.`;
     } else {
-      const raw = model === 'gemini' ? await askGemini(buildPrompt(context, eligible)) : await askOllama(model, buildPrompt(context, eligible));
-      if (raw === null) notice = 'La IA no está disponible en este momento. Se muestran recomendaciones por reglas.';
-      else recommendations = validateModelOutput(raw, eligible);
+      const reply = model === 'gemini' ? await askGemini(buildPrompt(context, eligible)) : await askOllama(model, buildPrompt(context, eligible));
+      if (reply.text === null) notice = `${reply.problem}. Se muestran recomendaciones por reglas.`;
+      else recommendations = validateModelOutput(reply.text, eligible);
     }
 
     if (recommendations.length === 0) {
