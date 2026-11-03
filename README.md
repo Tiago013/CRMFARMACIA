@@ -89,7 +89,7 @@ quiebres de stock y cero seguimiento a pacientes crónicos.
 | 👥 **CRM de pacientes** | Ficha 360°: datos clínicos, historial de compras, gasto mensual, etiquetas (VIP, crónicos, alto riesgo) y recomendaciones con IA. |
 | 🔄 **Ventas y compras** | Auditoría de tickets, reembolsos (devuelven el stock al lote original) y entrada de mercancía por proveedor. |
 | 💰 **Finanzas** | Estado de resultados (P&L), gastos operativos por categoría y costo de ventas (COGS). |
-| 📈 **Pronóstico (IA)** | Demanda proyectada a 15 días por producto (microservicio Prophet en Python, con respaldo matemático si no está disponible). |
+| 📈 **Pronóstico** | Demanda a 15 días por producto con un modelo estacional semanal determinista; muestra cuánto se equivocó al predecir la última semana (WAPE). |
 | 💬 **WhatsApp** | Plantillas y automatizaciones de mensajes (servicio local con `whatsapp-web.js`). |
 | 🏢 **SaaS / Super Admin** | MRR, tenants activos, planes (Starter / Pro / Enterprise) y suplantación de farmacias para soporte. |
 | ⚙️ **Configuración** | Datos legales de la farmacia, logo, usuarios y roles (admin, regente, cajero). |
@@ -124,7 +124,6 @@ flowchart LR
     P --> API[Route Handlers /api/*<br/>requireAuth + tenant]
     API -->|Prisma 7 + pg| DB[(Supabase Postgres<br/>RLS activado)]
     U -->|login| AUTH[Supabase Auth]
-    API -.->|opcional| AI[Microservicio IA<br/>FastAPI + Prophet]
     API -.->|opcional| G[Google Gemini]
     U -.->|solo local| WA[Servicio WhatsApp<br/>Express + whatsapp-web.js]
 ```
@@ -135,7 +134,7 @@ flowchart LR
 | Backend | Route Handlers de Next.js (API REST), Prisma 7 con adaptador `pg` |
 | Base de datos | PostgreSQL en Supabase, con Row Level Security |
 | Autenticación | Supabase Auth (cookies SSR con `@supabase/ssr`) |
-| IA | Google Gemini (recomendaciones), FastAPI + Prophet (pronóstico, `crm-farma-ai-engine/`) |
+| IA | Google Gemini Flash-Lite desde el servidor (recomendaciones validadas) · pronóstico estacional en TypeScript |
 | Infraestructura | Vercel (app), Supabase (BD + Auth), GitHub Actions (CI: type check + build) |
 
 **Modelo multi-tenant:** cada tabla tiene `tenant_id`. El tenant **nunca** se toma del cliente:
@@ -234,7 +233,6 @@ Abre http://localhost:3000 e inicia sesión.
 | Servicio | Cómo activarlo |
 |---|---|
 | Recomendaciones con Gemini | Añade `GEMINI_API_KEY` en `.env` |
-| Pronóstico con Prophet | En `crm-farma-ai-engine/`: `pip install fastapi uvicorn pandas prophet` y `uvicorn main:app --port 8000` |
 | WhatsApp | `npm run whatsapp` y escanea el QR (solo en local) |
 
 ---
@@ -279,7 +277,6 @@ CRMFARMACIA/
 │   ├── prisma/sql/            # Migración a Decimal, restauración de la demo y turnos de caja
 │   ├── tests/unit/            # Pruebas Vitest
 │   └── scripts/               # Servicio local de WhatsApp
-├── crm-farma-ai-engine/       # Microservicio de pronóstico (FastAPI + Prophet)
 ├── docs/                      # Arquitectura y capturas
 ├── legal/                     # Términos y política de privacidad
 └── .github/workflows/ci.yml   # CI: type check + pruebas + build

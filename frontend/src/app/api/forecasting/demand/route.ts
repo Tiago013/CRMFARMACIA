@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
+import { backtest, findSpikes, forecast } from '@/lib/analytics/forecast';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,128 +48,35 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
     }
 
-    // 2. Fetch Historical Sales (Last 30 Days)
+    // 2. Historial diario de las últimas 8 semanas (para aprender el patrón semanal)
+    const HISTORY_DAYS = 56;
     const today = new Date();
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(today.getDate() - 30);
+    const since = new Date(today.getTime() - (HISTORY_DAYS - 1) * 86_400_000);
+    since.setUTCHours(0, 0, 0, 0);
 
     const sales = await prisma.saleItem.findMany({
-      where: {
-        product_id: productId,
-        sale: {
-          tenant_id,
-          created_at: {
-            gte: thirtyDaysAgo
-          }
-        }
-      },
-      include: {
-        sale: true
-      }
+      where: { product_id: productId, sale: { tenant_id, status: 'COMPLETED', created_at: { gte: since } } },
+      select: { quantity: true, sale: { select: { created_at: true } } },
     });
 
-    // Aggregate by Day
     const dailySalesMap = new Map<string, number>();
-    
-    // Initialize last 30 days with 0
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(today.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0];
-      dailySalesMap.set(dateStr, 0);
+    for (let i = HISTORY_DAYS - 1; i >= 0; i--) {
+      dailySalesMap.set(new Date(today.getTime() - i * 86_400_000).toISOString().split('T')[0], 0);
     }
-
-    sales.forEach(item => {
+    for (const item of sales) {
       const dateStr = item.sale.created_at.toISOString().split('T')[0];
-      if (dailySalesMap.has(dateStr)) {
-        dailySalesMap.set(dateStr, dailySalesMap.get(dateStr)! + item.quantity);
-      }
-    });
-
-    const historical_data = Array.from(dailySalesMap.entries())
-      .map(([date, value]) => ({ date, value }))
-      .sort((a, b) => a.date.localeCompare(b.date));
-
-    // 3. Simple Predictive Algorithm (Prophet Simulation) OR REAL PROPHET AI
-    let forecast_data = [];
-    let anomaly_detected = false;
-    let explanation = "La proyección indica una demanda estable basada en el comportamiento reciente.";
-
-    try {
-      // Intentar conectar con la verdadera IA en Python (FastAPI + Prophet)
-      const aiUrl = process.env.AI_API_URL || 'http://127.0.0.1:8000';
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
-      const response = await fetch(`${aiUrl}/predict`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          historical_data: historical_data,
-          days_to_predict: 15
-        }),
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        const ai_data = await response.json();
-        forecast_data = ai_data.predictions;
-        
-        // Explicabilidad de la IA: detectar picos para Prophet
-        const mean = historical_data.reduce((acc, d) => acc + d.value, 0) / (historical_data.length || 1);
-        const maxSaleDay = historical_data.reduce((prev, current) => (prev.value > current.value) ? prev : current, {date: '', value: -1});
-        if (maxSaleDay.value > mean * 3 && maxSaleDay.value > 0) {
-          anomaly_detected = true;
-          explanation = `Prophet detectó un pico inusual en las ventas el ${maxSaleDay.date} (${maxSaleDay.value} unidades). El modelo ha ajustado la estacionalidad para no sobreestimar.`;
-        }
-      } else {
-        throw new Error("IA Python no disponible");
-      }
-    } catch (e) {
-      // Fallback a matemáticas simples si la IA de Python no está encendida
-      console.log("IA Python no encontrada, usando Fallback Matemático.");
-      let totalSales = 0, sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
-      const n = historical_data.length;
-      const values = historical_data.map(d => d.value);
-      
-      historical_data.forEach((d, i) => {
-        totalSales += d.value;
-        sumX += i; sumY += d.value; sumXY += i * d.value; sumX2 += i * i;
-      });
-
-      let slope = 0, intercept = 0;
-      if (n > 1) {
-        slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-        intercept = (sumY - slope * sumX) / n;
-      }
-
-      const mean = totalSales / (n || 1);
-      const variance = values.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / (n || 1);
-      const stdDev = Math.sqrt(variance);
-
-      const lastHistoricalDate = new Date();
-      for (let i = 1; i <= 15; i++) {
-        const d = new Date(lastHistoricalDate);
-        d.setDate(lastHistoricalDate.getDate() + i);
-        const x = n + i - 1;
-        // Tendencia lineal sin ruido aleatorio: mismos datos, mismo pronóstico
-        const predicted_value = Math.max(0, intercept + slope * x);
-        const margin = stdDev * 1.5; 
-        
-        forecast_data.push({
-          date: d.toISOString().split('T')[0],
-          value: Math.round(predicted_value),
-          lower_bound: Math.max(0, Math.round(predicted_value - margin)),
-          upper_bound: Math.round(predicted_value + margin)
-        });
-      }
-      
-      const maxSaleDay = historical_data.reduce((prev, current) => (prev.value > current.value) ? prev : current, {date: '', value: -1});
-      if (maxSaleDay.value > mean + (stdDev * 2) && maxSaleDay.value > 0) {
-        anomaly_detected = true;
-        explanation = `Se detectó un pico inusual en las ventas el ${maxSaleDay.date} (${maxSaleDay.value} unidades). El modelo matemático ha suavizado este evento.`;
-      }
+      if (dailySalesMap.has(dateStr)) dailySalesMap.set(dateStr, dailySalesMap.get(dateStr)! + item.quantity);
     }
+    const historical_data = Array.from(dailySalesMap.entries()).map(([date, value]) => ({ date, value }));
+
+    // 3. Modelo estacional semanal determinista (lib/analytics/forecast.ts)
+    const forecast_data = forecast(historical_data, 15);
+    const validation = backtest(historical_data, 7);
+    const spikes = findSpikes(historical_data);
+    const anomaly_detected = spikes.length > 0;
+    const explanation = anomaly_detected
+      ? `Se detectó un pico inusual el ${spikes[0].date} (${spikes[0].value} unidades). El modelo usa promedios por día de la semana, así que un pico aislado pesa poco en la proyección.`
+      : 'La proyección combina el nivel de las últimas dos semanas, una tendencia amortiguada y el patrón de cada día de la semana.';
 
     // Fetch all products for the dropdown menu
     const allProducts = await prisma.product.findMany({
@@ -178,7 +86,7 @@ export async function GET(request: NextRequest) {
     });
 
     // 6. Executive Summary Metrics
-    const total_predicted_demand = forecast_data.reduce((sum: number, day: any) => sum + day.value, 0);
+    const total_predicted_demand = Math.round(forecast_data.reduce((sum, day) => sum + day.value, 0));
     
     // Determine trend by comparing the first and last day of the forecast
     let trend_direction = "Estable";
@@ -195,20 +103,8 @@ export async function GET(request: NextRequest) {
     const maxDailyExpected = forecast_data.reduce((max: number, day: any) => Math.max(max, day.upper_bound), 0);
     const recommended_stock = total_predicted_demand === 0 ? 0 : Math.ceil(maxDailyExpected * 3); // E.g., keep 3 days worth of the absolute worst-case peak scenario
 
-    // Calculate Dynamic Confidence Level
-    let dynamic_confidence = 0.95;
-    if (total_predicted_demand === 0) {
-      dynamic_confidence = 0.99; // Very confident in zero demand if history is flat
-    } else {
-      const values = historical_data.map(d => d.value);
-      const histMean = values.reduce((a, b) => a + b, 0) / (values.length || 1);
-      const histVar = values.reduce((acc, val) => acc + Math.pow(val - histMean, 2), 0) / (values.length || 1);
-      const histStdDev = Math.sqrt(histVar);
-      
-      const cv = histStdDev / (histMean || 1); // Coefficient of variation
-      // Higher volatility (high CV) means lower confidence
-      dynamic_confidence = Math.max(0.45, Math.min(0.98, 1 - (cv * 0.35)));
-    }
+    // Confianza = 1 − error medido en la última semana (sin validación, no se inventa un número)
+    const dynamic_confidence = validation ? Math.max(0, Math.min(1, 1 - validation.wape)) : null;
 
     // 7. Global Customer Scoring Metrics (Real data approximation)
     const thirtyDaysAgoGlobal = new Date();
@@ -243,6 +139,12 @@ export async function GET(request: NextRequest) {
       anomaly_detected,
       explanation,
       confidence_level: dynamic_confidence,
+      model: {
+        name: 'Estacional semanal (nivel + tendencia amortiguada)',
+        deterministic: true,
+        history_days: HISTORY_DAYS,
+        validation: validation && { wape: validation.wape, mae: validation.mae, last_week: validation.actual },
+      },
       all_products: allProducts,
       executive_summary: {
         total_predicted_demand,
