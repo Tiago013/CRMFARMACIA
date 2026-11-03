@@ -221,8 +221,8 @@ export default function DashboardPage() {
               {data.kpis.map((kpi, i) => (
                 <div key={i} className="p-5 bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm">
                   <h3 className="text-xs font-bold text-neutral-500 mb-2 uppercase tracking-wider">{kpi.title}</h3>
-                  <div className="flex items-baseline gap-2 mt-2 justify-between">
-                    <span className="text-3xl font-black text-neutral-900 dark:text-white">{kpi.value}</span>
+                  <div className="flex flex-wrap items-baseline gap-2 mt-2 justify-between">
+                    <span className="text-2xl xl:text-3xl font-black text-neutral-900 dark:text-white tabular-nums">{kpi.value}</span>
                     <span title="Contra el periodo anterior de igual duración" className={`px-2 py-1 rounded text-xs font-bold ${kpi.trend === 'flat' ? 'bg-neutral-100 text-neutral-500 dark:bg-neutral-900 dark:text-neutral-400' : kpi.good ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400'}`}>
                       {kpi.trend === 'up' ? '↑' : kpi.trend === 'down' ? '↓' : '→'} {kpi.change}
                     </span>
@@ -239,24 +239,24 @@ export default function DashboardPage() {
                   <h3 className="text-indigo-200 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
                     <DollarSign size={18} className="text-indigo-300" /> Utilidad Neta Contable
                   </h3>
-                  <span className="text-xs bg-black/30 px-3 py-1 rounded-full text-indigo-200 font-medium">Tiempo Real</span>
+                  <span className="text-xs bg-black/30 px-3 py-1 rounded-full text-indigo-200 font-medium">{PERIOD_LABELS[period]}</span>
                 </div>
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <p className="text-indigo-200 text-xs font-semibold uppercase tracking-wider">Ingresos Facturados</p>
-                    <p className="text-2xl font-bold mt-1">${pnl.income.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
+                    <p className="text-xl xl:text-2xl font-bold mt-1 tabular-nums break-words">${pnl.income.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
                   </div>
                   <div>
                     <p className="text-rose-300 text-xs font-semibold uppercase tracking-wider">COGS (Productos)</p>
-                    <p className="text-2xl font-bold mt-1">-${pnl.cogs.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
+                    <p className="text-xl xl:text-2xl font-bold mt-1 tabular-nums break-words">-${pnl.cogs.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
                   </div>
                   <div>
                     <p className="text-rose-300 text-xs font-semibold uppercase tracking-wider">OPEX (Operativos)</p>
-                    <p className="text-2xl font-bold mt-1">-${pnl.opex.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
+                    <p className="text-xl xl:text-2xl font-bold mt-1 tabular-nums break-words">-${pnl.opex.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
                   </div>
                   <div className="bg-black/20 p-3 rounded-lg border border-white/10">
                     <p className="text-emerald-300 text-xs font-semibold uppercase tracking-wider">Utilidad Neta</p>
-                    <p className="text-3xl font-black text-emerald-400 mt-1">${pnl.net_profit.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
+                    <p className="text-2xl xl:text-3xl font-black text-emerald-400 mt-1 tabular-nums break-words">${pnl.net_profit.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
                   </div>
                 </div>
               </div>

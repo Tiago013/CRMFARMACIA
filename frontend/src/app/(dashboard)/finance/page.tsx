@@ -6,6 +6,13 @@ import { apiClient as api } from '@/lib/axios';
 import ExpensesTab from '@/components/finance/ExpensesTab';
 import COGSTab from '@/components/finance/COGSTab';
 import PremiumGuard from '@/components/PremiumGuard';
+import Link from 'next/link';
+import { ExportButtons } from '@/components/reports/ExportButtons';
+import { formatMoney, type ReportDocument } from '@/lib/reports/table';
+
+const PERIOD_LABELS: Record<string, string> = {
+  '7d': 'Últimos 7 días', month: 'Este mes', quarter: 'Este trimestre', year: 'Año actual',
+};
 
 interface FinancialMetrics {
   total_revenue: number;
@@ -15,7 +22,8 @@ interface FinancialMetrics {
 }
 
 interface PnL {
-  income: number;
+  income: number;   // ventas netas, ya sin reembolsos
+  refunds: number;
   cogs: number;
   opex: number;
   net_profit: number;
@@ -63,14 +71,14 @@ export default function FinancePage() {
     <PremiumGuard featureName="Suite Financiera Avanzada" requiredPlan="PRO">
     <div className="flex flex-col h-full bg-white dark:bg-[#000000]">
       {/* Header Premium */}
-      <div className="flex justify-between items-end px-8 py-6 border-b border-neutral-200 dark:border-neutral-800">
+      <div className="flex flex-wrap justify-between items-end gap-4 px-8 py-6 border-b border-neutral-200 dark:border-neutral-800">
         <div>
           <h1 className="text-xl font-bold text-neutral-900 dark:text-white flex items-center gap-2">
             Suite Financiera Pro
           </h1>
           <p className="text-neutral-500 text-sm mt-1">P&L, Arqueo de caja, Cuentas por cobrar y Gestión de Impuestos.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <select 
             value={period} 
             onChange={(e) => setPeriod(e.target.value)}
@@ -81,12 +89,11 @@ export default function FinancePage() {
             <option value="quarter">Este trimestre</option>
             <option value="year">Año actual</option>
           </select>
-          <button className="flex items-center gap-2 border border-neutral-200 dark:border-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-900 px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-sm">
-            <PieChart size={16} /> Exportar Excel
-          </button>
-          <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-sm">
+          {/* Estado de resultados del periodo en Excel o PDF */}
+          <ExportButtons disabled={!pnl} document={() => pnlDocument(pnl!, period)} />
+          <Link href="/transactions?tab=cierre" className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-sm">
             <FileText size={16} /> Reporte Z (Cierre)
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -150,23 +157,21 @@ export default function FinancePage() {
             <div className="bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm p-6 lg:p-8">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-lg font-bold text-neutral-900 dark:text-white flex items-center gap-2">
-                  <FileText className="text-indigo-500" /> Desglose del Estado de Resultados (Tiempo Real)
+                  <FileText className="text-indigo-500" /> Desglose del Estado de Resultados
                 </h2>
-                <span className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Sincronizado
-                </span>
+                <span className="text-xs text-neutral-500">{PERIOD_LABELS[period]}</span>
               </div>
               <div className="space-y-4 max-w-4xl">
                 <div className="flex justify-between items-center pb-4 border-b border-neutral-100 dark:border-neutral-800">
                   <span className="font-semibold text-neutral-700 dark:text-neutral-300">Ventas Brutas Totales</span>
-                  <span className="font-medium text-neutral-900 dark:text-white">{formatCurrency(pnl?.income)}</span>
+                  <span className="font-medium text-neutral-900 dark:text-white">{formatCurrency((pnl?.income || 0) + (pnl?.refunds || 0))}</span>
                 </div>
                 <div className="flex justify-between items-center pb-4 border-b border-neutral-100 dark:border-neutral-800">
-                  <span className="font-semibold text-neutral-700 dark:text-neutral-300 text-sm ml-4">(-) Devoluciones / Reembolsos (Local)</span>
-                  <span className="font-medium text-rose-500">{formatCurrency(0)}</span>
+                  <span className="font-semibold text-neutral-700 dark:text-neutral-300 text-sm ml-4">(-) Devoluciones / Reembolsos</span>
+                  <span className="font-medium text-rose-500">-{formatCurrency(pnl?.refunds)}</span>
                 </div>
                 <div className="flex justify-between items-center pb-4 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] p-3 rounded-lg">
-                  <span className="font-bold text-neutral-900 dark:text-white">Ingresos Netos Oficiales</span>
+                  <span className="font-bold text-neutral-900 dark:text-white">Ingresos Netos</span>
                   <span className="font-bold text-neutral-900 dark:text-white">{formatCurrency(pnl?.income)}</span>
                 </div>
                 
@@ -204,4 +209,26 @@ export default function FinancePage() {
     </div>
     </PremiumGuard>
   );
+}
+
+// Estado de resultados para exportar: el mismo desglose que se ve en pantalla
+function pnlDocument(p: PnL, period: string): ReportDocument {
+  const gross = p.income - p.cogs;
+  const margin = p.income ? `${((p.net_profit / p.income) * 100).toFixed(1)} %` : '0 %';
+  return {
+    filename: `estado_resultados_${period}`,
+    title: 'Estado de resultados (P&L)',
+    subtitle: PERIOD_LABELS[period] ?? period,
+    summary: [
+      ['Ventas brutas', formatMoney(p.income + p.refunds)],
+      ['Devoluciones y reembolsos', `-${formatMoney(p.refunds)}`],
+      ['Ingresos netos', formatMoney(p.income)],
+      ['Costo de ventas (COGS)', `-${formatMoney(p.cogs)}`],
+      ['Utilidad bruta', formatMoney(gross)],
+      ['Gastos operativos (OPEX)', `-${formatMoney(p.opex)}`],
+      ['Utilidad neta', formatMoney(p.net_profit)],
+      ['Margen neto', margin],
+    ],
+    tables: [],
+  };
 }
