@@ -5,11 +5,24 @@ import { ExpiryPanel } from '@/components/dashboard/ExpiryPanel';
 import dynamic from 'next/dynamic';
 import { apiClient as api } from '@/lib/axios';
 import { Spinner } from '@/components/ui/Spinner';
-import { BarChart3, PieChart as PieChartIcon, Download, SlidersHorizontal, Table, Users, Package, DollarSign, AlertTriangle, FileText, X } from 'lucide-react';
+import { BarChart3, PieChart as PieChartIcon, SlidersHorizontal, Table, Users, Package, DollarSign, AlertTriangle, FileText, X } from 'lucide-react';
 
 // For Recharts, ResponsiveContainer needs dynamic import for SSR, but inner components can be static to prevent props stripping.
 import { BarChart as RechartsBarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useRouter } from 'next/navigation';
+import { ExportButtons } from '@/components/reports/ExportButtons';
+import { formatCell, inferColumns, type ReportDocument } from '@/lib/reports/table';
+
+const REPORT_TITLES: Record<string, string> = {
+  'top-products': 'Top 20 productos',
+  'vip-patients': 'Pacientes VIP (LTV)',
+  'churn-risk': 'Riesgo de abandono',
+  'stagnant-inventory': 'Inventario estancado',
+};
+
+const PERIOD_LABELS: Record<string, string> = {
+  '7d': 'Últimos 7 días', month: 'Este mes', quarter: 'Este trimestre', year: 'Año actual',
+};
 
 // Fix SSR for the container wrapper
 const ClientResponsiveContainer = dynamic(() => Promise.resolve(ResponsiveContainer), { ssr: false, loading: () => <Spinner size={24} /> });
@@ -137,34 +150,15 @@ export default function DashboardPage() {
     }
   };
 
-  const handleDownloadCSV = async (endpoint: string, filename: string) => {
-    try {
-      // Si ya tenemos los datos y es el mismo reporte, no volvemos a descargar
-      let dataToExport = reportData;
-      if (selectedReport !== endpoint || !reportData) {
-         const response = await api.get(`/analytics/reports/${endpoint}`);
-         dataToExport = response.data;
-      }
-      
-      if (!dataToExport || dataToExport.length === 0) return;
-
-      const keys = Object.keys(dataToExport[0]);
-      const csvContent = [
-        keys.join(','),
-        ...dataToExport.map((row: any) => keys.map(k => `"${row[k] !== null ? row[k] : ''}"`).join(','))
-      ].join('\n');
-
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", `${filename}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (err) {
-      console.error(err);
+  // Reporte listo para Excel/PDF; reutiliza los datos si ya está abierto en pantalla
+  const reportDocument = async (endpoint: string): Promise<ReportDocument> => {
+    let rows = reportData;
+    if (selectedReport !== endpoint || !reportData) {
+      const response = await api.get(`/analytics/reports/${endpoint}`);
+      rows = response.data;
     }
+    const title = REPORT_TITLES[endpoint] ?? endpoint;
+    return { filename: title, title, tables: [{ columns: inferColumns(rows ?? []), rows: rows ?? [] }] };
   };
 
   if (loading || !data) {
@@ -274,7 +268,24 @@ export default function DashboardPage() {
               <div className="lg:col-span-2 flex flex-col p-6 bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-sm font-bold text-neutral-900 dark:text-white uppercase tracking-wider">Tendencia de Ingresos</h3>
-                  <button className="text-neutral-400 hover:text-indigo-600 transition-colors"><Download size={16}/></button>
+                  <div className="flex gap-2">
+                    <ExportButtons
+                      size="sm"
+                      document={() => ({
+                        filename: `ingresos_${period}`,
+                        title: 'Tendencia de ingresos',
+                        subtitle: PERIOD_LABELS[period],
+                        tables: [{
+                          columns: [
+                            { key: 'date', header: 'Fecha', format: 'date' },
+                            { key: 'revenue', header: 'Ingresos', format: 'money' },
+                            { key: 'orders', header: 'Ventas', format: 'number' },
+                          ],
+                          rows: data.sales_trend,
+                        }],
+                      })}
+                    />
+                  </div>
                 </div>
                 <div className="flex-1 min-h-0 relative">
                   <ClientResponsiveContainer width="100%" height="100%">
@@ -427,14 +438,11 @@ export default function DashboardPage() {
                   <button onClick={() => setSelectedReport(null)} className="text-sm font-bold text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors">
                     ← Volver
                   </button>
-                  <h3 className="font-bold text-neutral-900 dark:text-white">Vista de Reporte</h3>
+                  <h3 className="font-bold text-neutral-900 dark:text-white">{REPORT_TITLES[selectedReport] ?? 'Vista de Reporte'}</h3>
                 </div>
-                <button 
-                  onClick={() => handleDownloadCSV(selectedReport, selectedReport)}
-                  className="px-4 py-1.5 text-xs font-bold bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors flex items-center gap-2"
-                >
-                  <Download size={14} /> Exportar CSV
-                </button>
+                <div className="flex gap-2">
+                  <ExportButtons disabled={!reportData?.length} document={() => reportDocument(selectedReport)} />
+                </div>
               </div>
               <div className="flex-1 overflow-auto p-4">
                 {reportLoading ? (
@@ -447,17 +455,17 @@ export default function DashboardPage() {
                   <table className="w-full text-left text-sm whitespace-nowrap">
                     <thead>
                       <tr className="bg-neutral-50 dark:bg-[#111111] border-b border-neutral-200 dark:border-neutral-800">
-                        {Object.keys(reportData[0]).map(k => (
-                          <th key={k} className="px-4 py-3 font-bold text-neutral-500 uppercase tracking-wider text-xs">{k.replace(/_/g, ' ')}</th>
+                        {inferColumns(reportData).map(c => (
+                          <th key={c.key} className="px-4 py-3 font-bold text-neutral-500 uppercase tracking-wider text-xs">{c.header}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
                       {reportData.map((row, i) => (
                         <tr key={i} className="hover:bg-neutral-50 dark:hover:bg-[#111111]">
-                          {Object.values(row).map((val: any, j) => (
-                            <td key={j} className="px-4 py-3 text-neutral-900 dark:text-neutral-300">
-                              {typeof val === 'number' && val > 100 ? `$${val.toLocaleString('es-CO', { maximumFractionDigits: 0 })}` : val}
+                          {inferColumns(reportData).map(c => (
+                            <td key={c.key} className={`px-4 py-3 text-neutral-900 dark:text-neutral-300 ${c.format === 'money' || c.format === 'number' ? 'text-right' : ''}`}>
+                              {formatCell(row[c.key], c.format)}
                             </td>
                           ))}
                         </tr>
@@ -477,7 +485,7 @@ export default function DashboardPage() {
                 <p className="text-sm text-neutral-500 mb-4">Análisis de los productos más vendidos con márgenes y velocidad de rotación semanal.</p>
                 <div className="flex gap-2">
                   <button onClick={(e) => { e.stopPropagation(); handleOpenReport('top-products'); }} className="flex-1 py-1.5 text-xs font-bold border border-neutral-300 dark:border-neutral-700 rounded hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">Ver Tabla</button>
-                  <button onClick={(e) => { e.stopPropagation(); handleDownloadCSV('top-products', 'top_productos'); }} className="flex-1 py-1.5 text-xs font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 rounded hover:bg-indigo-100 transition-colors">Descargar .csv</button>
+                  <ExportButtons size="sm" document={() => reportDocument('top-products')} />
                 </div>
               </div>
 
@@ -489,7 +497,7 @@ export default function DashboardPage() {
                 <p className="text-sm text-neutral-500 mb-4">Listado de los 50 clientes más valiosos ordenados por Lifetime Value y retención.</p>
                 <div className="flex gap-2">
                   <button onClick={(e) => { e.stopPropagation(); handleOpenReport('vip-patients'); }} className="flex-1 py-1.5 text-xs font-bold border border-neutral-300 dark:border-neutral-700 rounded hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">Ver Tabla</button>
-                  <button onClick={(e) => { e.stopPropagation(); handleDownloadCSV('vip-patients', 'pacientes_vip'); }} className="flex-1 py-1.5 text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded hover:bg-emerald-100 transition-colors">Descargar .csv</button>
+                  <ExportButtons size="sm" document={() => reportDocument('vip-patients')} />
                 </div>
               </div>
 
@@ -501,7 +509,7 @@ export default function DashboardPage() {
                 <p className="text-sm text-neutral-500 mb-4">Pacientes con enfermedades crónicas que no han comprado su refill en más de 30 días.</p>
                 <div className="flex gap-2">
                   <button onClick={(e) => { e.stopPropagation(); handleOpenReport('churn-risk'); }} className="flex-1 py-1.5 text-xs font-bold border border-neutral-300 dark:border-neutral-700 rounded hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">Ver Tabla</button>
-                  <button onClick={(e) => { e.stopPropagation(); handleDownloadCSV('churn-risk', 'riesgo_churn'); }} className="flex-1 py-1.5 text-xs font-bold bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded hover:bg-amber-100 transition-colors">Descargar .csv</button>
+                  <ExportButtons size="sm" document={() => reportDocument('churn-risk')} />
                 </div>
               </div>
               
@@ -513,7 +521,7 @@ export default function DashboardPage() {
                 <p className="text-sm text-neutral-500 mb-4">Productos que no han tenido movimiento en los últimos 45 días, capital inmovilizado.</p>
                 <div className="flex gap-2">
                   <button onClick={(e) => { e.stopPropagation(); handleOpenReport('stagnant-inventory'); }} className="flex-1 py-1.5 text-xs font-bold border border-neutral-300 dark:border-neutral-700 rounded hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">Ver Tabla</button>
-                  <button onClick={(e) => { e.stopPropagation(); handleDownloadCSV('stagnant-inventory', 'inventario_estancado'); }} className="flex-1 py-1.5 text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded hover:bg-blue-100 transition-colors">Descargar .csv</button>
+                  <ExportButtons size="sm" document={() => reportDocument('stagnant-inventory')} />
                 </div>
               </div>
             </div>
@@ -582,23 +590,11 @@ export default function DashboardPage() {
                 {builderLoading ? 'Generando...' : 'Generar Reporte'}
               </button>
               {builderResult && builderResult.length > 0 && (
-                <button
-                  onClick={() => {
-                    const keys = Object.keys(builderResult![0]);
-                    const csv = [keys.join(','), ...builderResult!.map((row: any) => keys.map(k => `"${row[k] !== null ? row[k] : ''}"`).join(','))].join('\n');
-                    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.setAttribute('href', url);
-                    link.setAttribute('download', 'reporte_personalizado.csv');
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                  }}
-                  className="px-6 py-3 text-sm font-bold border border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-400 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors flex items-center gap-2"
-                >
-                  <Download size={16} /> Exportar CSV
-                </button>
+                <ExportButtons document={() => ({
+                  filename: 'reporte_personalizado',
+                  title: 'Reporte personalizado',
+                  tables: [{ columns: inferColumns(builderResult!), rows: builderResult! }],
+                })} />
               )}
             </div>
             {/* Results Table */}
@@ -611,17 +607,17 @@ export default function DashboardPage() {
                     <table className="w-full text-left text-sm whitespace-nowrap">
                       <thead>
                         <tr className="bg-neutral-50 dark:bg-[#111111] border-b border-neutral-200 dark:border-neutral-800 sticky top-0">
-                          {Object.keys(builderResult[0]).map(k => (
-                            <th key={k} className="px-4 py-3 font-bold text-neutral-500 uppercase tracking-wider text-xs">{k.replace(/_/g, ' ')}</th>
+                          {inferColumns(builderResult).map(c => (
+                            <th key={c.key} className="px-4 py-3 font-bold text-neutral-500 uppercase tracking-wider text-xs">{c.header}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
                         {builderResult.map((row, i) => (
                           <tr key={i} className="hover:bg-neutral-50 dark:hover:bg-[#111111]">
-                            {Object.values(row).map((val: any, j) => (
-                              <td key={j} className="px-4 py-3 text-neutral-900 dark:text-neutral-300">
-                                {typeof val === 'number' && val > 100 ? `$${val.toLocaleString('es-CO', { maximumFractionDigits: 0 })}` : val}
+                            {inferColumns(builderResult).map(c => (
+                              <td key={c.key} className={`px-4 py-3 text-neutral-900 dark:text-neutral-300 ${c.format === 'money' || c.format === 'number' ? 'text-right' : ''}`}>
+                                {formatCell(row[c.key], c.format)}
                               </td>
                             ))}
                           </tr>

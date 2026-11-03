@@ -54,7 +54,7 @@ finanzas, pronóstico de demanda y panel de administración SaaS.
    - **Punto de Venta** → *Realizar Apertura de Caja* → elige un paciente → agrega productos → cobra.
    - **WhatsApp** → el recibo de esa venta aparece en la bandeja, marcado **Modo demo** (no se envía nada).
    - **Inventario** → lotes ordenados por vencimiento (FEFO) y alertas de productos vencidos.
-   - **Ventas y Compras** → auditoría de tickets.
+   - **Ventas y Compras** → auditoría de tickets y **Cierre del día (Z)**, exportable a Excel y PDF.
    - **Dashboard / Finanzas** → cambia el filtro a **"Año"** para ver los meses de datos simulados.
 
 > ℹ️ Todos los datos (pacientes, productos, ventas) son **ficticios**. La cuenta demo trabaja en su propia farmacia,
@@ -88,11 +88,12 @@ quiebres de stock y cero seguimiento a pacientes crónicos.
 | 🧾 **Punto de Venta** | Apertura/cierre de caja con denominaciones, carrito, descuentos por línea, IVA 19 % y cobro. El total se **recalcula en el servidor** con los precios de la base de datos. |
 | 📦 **Inventario FEFO** | Lotes con fecha de vencimiento, descuento automático del lote más próximo a vencer, ajustes, conteo físico y compras sugeridas. |
 | 👥 **CRM de pacientes** | Ficha 360°: datos clínicos, historial de compras, gasto mensual, etiquetas (VIP, crónicos, alto riesgo) y recomendaciones con IA. |
-| 🔄 **Ventas y compras** | Auditoría de tickets, reembolsos (devuelven el stock al lote original) y entrada de mercancía por proveedor. |
+| 🔄 **Ventas y compras** | Auditoría de tickets, reembolsos (devuelven el stock al lote original), entrada de mercancía por proveedor y **cierre del día (reporte Z)**: ventas, medios de pago, devoluciones y cuadre de cada turno de caja. |
+| 📊 **Reportes** | Productos más vendidos, pacientes VIP, riesgo de abandono, inventario estancado y un creador de reportes. Todo se exporta a **Excel y PDF**, incluido el reporte Z. |
 | 💰 **Finanzas** | Estado de resultados (P&L), gastos operativos por categoría y costo de ventas (COGS). |
 | 📈 **Pronóstico** | Demanda a 15 días por producto con un modelo estacional semanal determinista; muestra cuánto se equivocó al predecir la última semana (WAPE) y sugiere cuánto pedir según el stock vigente. |
 | 💬 **WhatsApp** | Recibo automático al cobrar y mensajes con plantilla desde la ficha del paciente. En la demo pública los mensajes quedan en una bandeja simulada; en local se envían con `whatsapp-web.js`. |
-| 🏢 **SaaS / Super Admin** | MRR, tenants activos, planes (Starter / Pro / Enterprise) y suplantación de farmacias para soporte. |
+| 🏢 **SaaS / Super Admin** | MRR, tenants activos, planes (Starter / Pro / Enterprise) y suplantación de farmacias para soporte. El cobro con pasarela está [diseñado, no implementado](docs/diseno-pagos.md). |
 | ⚙️ **Configuración** | Datos legales de la farmacia, logo, usuarios y roles (admin, regente, cajero). |
 
 ---
@@ -316,6 +317,7 @@ CRMFARMACIA/
 ## 🔭 Trabajo futuro
 
 - Facturación electrónica DIAN.
+- Cobro de planes con Wompi en modo prueba ([diseño](docs/diseno-pagos.md)).
 - Políticas RLS por tenant para usar Supabase Realtime directamente desde el cliente.
 - Enviar WhatsApp por la API oficial (WhatsApp Business Cloud API) en lugar de `whatsapp-web.js`.
 

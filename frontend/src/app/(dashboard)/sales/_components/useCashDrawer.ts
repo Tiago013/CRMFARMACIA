@@ -52,7 +52,10 @@ export function useCashDrawer() {
         toast.success(`Caja abierta exitosamente con base de $${data.summary.opening.toLocaleString('es-CO')}`);
       } else {
         const dif = data.summary.difference;
-        toast.success(`Turno finalizado. ${dif === 0 ? 'Caja cuadrada' : `${dif > 0 ? 'Sobrante' : 'Faltante'}: $${Math.abs(dif).toLocaleString('es-CO')}`}`);
+        toast.success(`Turno finalizado. ${dif === 0 ? 'Caja cuadrada' : `${dif > 0 ? 'Sobrante' : 'Faltante'}: $${Math.abs(dif).toLocaleString('es-CO')}`}`, {
+          duration: 10000,
+          action: { label: 'Reporte Z', onClick: () => { window.location.href = '/transactions?tab=cierre'; } },
+        });
       }
       setShowDrawerModal(false);
       await refresh();
