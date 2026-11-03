@@ -1,18 +1,6 @@
 import { useState } from 'react';
 import { apiClient as api } from '@/lib/axios';
 
-// Cuenta un uso en una ventana de tiempo (para mostrar la cuota de Gemini)
-function trackQuota(prefix: 'rpm' | 'rpd', windowMs: number) {
-  let count = parseInt(sessionStorage.getItem(`gemini_${prefix}_count`) || localStorage.getItem(`gemini_${prefix}_count`) || '0');
-  let reset = parseInt(sessionStorage.getItem(`gemini_${prefix}_reset`) || localStorage.getItem(`gemini_${prefix}_reset`) || '0');
-  if (!reset || Date.now() > reset) {
-    reset = Date.now() + windowMs;
-    count = 0;
-    localStorage.setItem(`gemini_${prefix}_reset`, reset.toString());
-  }
-  localStorage.setItem(`gemini_${prefix}_count`, (count + 1).toString());
-}
-
 // Recomendaciones de la IA para un paciente, con caché por sesión
 export function useAiRecommendations() {
   const [aiContext, setAiContext] = useState<any>(null);
@@ -26,7 +14,7 @@ export function useAiRecommendations() {
     if (cached) {
       try {
         const parsedCache = JSON.parse(cached);
-        if (parsedCache?.recommendations?.length > 0 && !parsedCache.recommendations[0]?.reason?.includes('Error')) {
+        if (parsedCache?.recommendations?.length > 0 && !parsedCache.notice) {
           setAiContext(parsedCache);
           return;
         }
@@ -37,11 +25,8 @@ export function useAiRecommendations() {
 
     setLoadingAi(true);
     try {
+      // El límite de uso lo controla el servidor (por farmacia y día)
       const selectedModel = localStorage.getItem('AI_MODEL') || 'gemini';
-      if (selectedModel === 'gemini') {
-        trackQuota('rpm', 60_000);
-        trackQuota('rpd', 24 * 60 * 60 * 1000);
-      }
 
       const res = await api.get(`/ai/patient/${patientId}?model=${selectedModel}`);
       setAiContext(res.data);

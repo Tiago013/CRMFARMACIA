@@ -2,192 +2,131 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
+import {
+  Candidate, PatientContext, Recommendation, ageRange, allergyTriggers, buildPrompt,
+  eligibleCandidates, isContraindicated, ruleBasedRecommendations, validateModelOutput,
+} from '@/lib/ai/recommendations';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+// Usos de IA por farmacia y día: protege la cuota gratuita de la clave de la app
+const DAILY_LIMIT = Number(process.env.AI_DAILY_LIMIT || 40);
+
+// Suma un uso solo si no se pasó del límite (un único UPDATE atómico)
+async function takeAiQuota(tenantId: string): Promise<{ allowed: boolean; used: number }> {
+  const today = new Date().toISOString().split('T')[0];
+  const rows = await prisma.$queryRaw<{ used: number }[]>`
+    update public.pharmacies
+    set settings = jsonb_set(coalesce(settings, '{}'::jsonb), '{ai_usage}', jsonb_build_object(
+      'date', ${today}::text,
+      'count', case when settings->'ai_usage'->>'date' = ${today}::text
+                    then coalesce((settings->'ai_usage'->>'count')::int, 0) + 1 else 1 end))
+    where id = ${tenantId}
+      and (settings->'ai_usage'->>'date' is distinct from ${today}::text
+           or coalesce((settings->'ai_usage'->>'count')::int, 0) < ${DAILY_LIMIT})
+    returning (settings->'ai_usage'->>'count')::int as used`;
+  return rows.length ? { allowed: true, used: rows[0].used } : { allowed: false, used: DAILY_LIMIT };
+}
+
+async function askGemini(prompt: string): Promise<string | null> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+  const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, responseMimeType: 'application/json' } }),
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) {
+    console.error('Gemini API error:', res.status, await res.text().catch(() => ''));
+    return null;
+  }
+  const data = await res.json();
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+}
+
+async function askOllama(model: string, prompt: string): Promise<string | null> {
+  const url = process.env.OLLAMA_API_URL || 'http://127.0.0.1:11434';
+  const res = await fetch(`${url}/api/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, prompt, format: 'json', stream: false, options: { temperature: 0.2 } }),
+    signal: AbortSignal.timeout(30_000),
+  }).catch(() => null);
+  if (!res?.ok) return null;
+  return (await res.json())?.response ?? null;
+}
+
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const auth = await requireAuth();
     if (auth instanceof NextResponse) return auth;
     const { id } = await params;
-    const url = new URL(request.url);
-    const model = url.searchParams.get('model') || 'gemini';
+    const model = new URL(request.url).searchParams.get('model') || 'gemini';
+
     const patient = await prisma.patient.findFirst({
       where: { id, tenant_id: auth.tenantId },
-      include: {
-        sales: {
-          include: {
-            items: {
-              include: {
-                product: {
-                  include: {
-                    category: true
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
+      select: {
+        allergies: true, tags: true, birth_date: true,
+        sales: { select: { items: { select: { product_id: true, product: { select: { category: { select: { name: true } } } } } } } },
+      },
     });
+    if (!patient) return NextResponse.json({ error: 'Paciente no encontrado' }, { status: 404 });
 
-    if (!patient) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    const items = patient.sales.flatMap(s => s.items);
+    const context: PatientContext = {
+      allergies: patient.allergies,
+      conditions: patient.tags,
+      purchasedCategories: [...new Set(items.map(i => i.product.category?.name).filter(Boolean) as string[])],
+      purchasedProductIds: [...new Set(items.map(i => i.product_id))],
+      ageRange: ageRange(patient.birth_date),
+    };
 
-    // Generate AI recommendations based on past purchases
-    let recommendations: any[] = [];
-    
-    // Find categories they bought
-    const boughtCategories = new Set<string>();
-    const boughtProducts = new Set<string>();
-    
-    patient.sales.forEach(sale => {
-      sale.items.forEach(item => {
-        boughtProducts.add(item.product.id);
-        if (item.product.category) boughtCategories.add(item.product.category.name);
-      });
+    // Catálogo real de la farmacia con su stock
+    const products = await prisma.product.findMany({
+      where: { tenant_id: auth.tenantId },
+      select: { id: true, brand_name: true, active_ingredient: true, category: { select: { name: true } }, batches: { select: { quantity: true } } },
     });
+    const candidates: Candidate[] = products.map(p => ({
+      id: p.id,
+      name: p.brand_name,
+      active_ingredient: p.active_ingredient,
+      category: p.category?.name ?? null,
+      stock: p.batches.reduce((acc, b) => acc + b.quantity, 0),
+    }));
+    const eligible = eligibleCandidates(candidates, context);
 
-    const apiKey = process.env.GEMINI_API_KEY || '';
+    // Lo que se le muestra al regente para que entienda de dónde sale cada sugerencia
+    const triggers = allergyTriggers(context.allergies);
+    const evidence = {
+      purchased_categories: context.purchasedCategories,
+      allergies: context.allergies || 'Ninguna registrada',
+      excluded_by_allergy: candidates.filter(c => c.stock > 0 && isContraindicated(c, triggers)).length,
+    };
 
-    const prompt = `Eres un asistente de Inteligencia Artificial para una farmacia. Analiza el perfil médico de este paciente:
-    - Nombre: ${patient.first_name} ${patient.last_name}
-    - EPS: ${patient.eps || 'Ninguna'}
-    - Alergias: ${patient.allergies || 'Ninguna'}
-    - Condiciones médicas: ${patient.tags.join(', ')}
-    - Compras recientes de categorías: ${Array.from(boughtCategories).join(', ')}
+    let recommendations: Recommendation[] = [];
+    let notice: string | null = null;
 
-    Debes devolver un JSON con una lista de recomendaciones de productos que el farmacéutico podría ofrecerle (cross-selling o mejora de salud).
-    La respuesta debe ser EXACTAMENTE este formato JSON (sin texto adicional ni markdown \`\`\`json \`\`\`):
-    [
-      {
-        "product_name": "Nombre corto del producto",
-        "confidence_score": 0.95,
-        "reason": "Razón corta de por qué se recomienda (basado en sus compras o alergias)",
-        "search_query": "Término corto de búsqueda para el POS (ej. ibuprofeno)"
-      }
-    ]
-    Devuelve máximo 2 recomendaciones.`;
-
-    let rawText = '';
-
-    if (model === 'gemini') {
-      const apiKey = process.env.GEMINI_API_KEY || '';
-      if (!apiKey) {
-        throw new Error('GEMINI_API_KEY no está configurada');
-      }
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.2,
-          }
-        })
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        console.error("Gemini API Error:", errText);
-        // Fallback si hay error de cuota o red
-        return NextResponse.json({ 
-          recommendations: [
-            {
-              product_name: 'Vitamina C',
-              confidence_score: 0.60,
-              reason: 'Límite de la API de IA alcanzado. Recomendación preventiva por defecto.',
-              search_query: 'vitamina c'
-            }
-          ] 
-        });
-      }
-
-      const result = await response.json();
-      rawText = result.candidates[0].content.parts[0].text;
+    const quota = await takeAiQuota(auth.tenantId);
+    if (!quota.allowed) {
+      notice = `Se alcanzó el límite de ${DAILY_LIMIT} consultas de IA de hoy. Se muestran recomendaciones por reglas.`;
     } else {
-      // Local Ollama
-      const ollamaUrl = process.env.OLLAMA_API_URL || 'http://127.0.0.1:11434';
-      const response = await fetch(`${ollamaUrl}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: model,
-          prompt: prompt,
-          format: 'json',
-          stream: false,
-          options: {
-            temperature: 0.2
-          }
-        })
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        console.error("Ollama API Error:", errText);
-        return NextResponse.json({ 
-          recommendations: [
-            {
-              product_name: 'Vitamina C',
-              confidence_score: 0.60,
-              reason: `Error conectando al modelo local '${model}'. Verifica que Ollama esté corriendo y el modelo descargado.`,
-              search_query: 'vitamina c'
-            }
-          ] 
-        });
-      }
-
-      const result = await response.json();
-      rawText = result.response;
-    }
-    
-    // Clean up markdown code blocks if Gemini returns them
-    rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-
-    try {
-      let parsed = JSON.parse(rawText);
-      if (Array.isArray(parsed)) {
-        recommendations = parsed;
-      } else if (parsed && Array.isArray(parsed.recommendations)) {
-        recommendations = parsed.recommendations;
-      } else if (parsed && typeof parsed === 'object') {
-        // Just wrap whatever it gave us in an array if it looks somewhat valid, 
-        // or trigger fallback
-        recommendations = [
-          {
-            product_name: parsed.product_name || 'Recomendación IA',
-            confidence_score: parsed.confidence_score || 0.5,
-            reason: parsed.reason || JSON.stringify(parsed).substring(0, 100),
-            search_query: parsed.search_query || ''
-          }
-        ];
-      } else {
-        throw new Error("Invalid format");
-      }
-    } catch (parseError) {
-      console.error("Error parsing Gemini JSON:", rawText);
-      // Fallback if parsing fails
-      recommendations = [
-        {
-          product_name: 'Vitamina C',
-          confidence_score: 0.65,
-          reason: 'Mejora del sistema inmunológico general. (Respuesta no estructurada)',
-          search_query: 'vitamina c'
-        }
-      ];
+      const raw = model === 'gemini' ? await askGemini(buildPrompt(context, eligible)) : await askOllama(model, buildPrompt(context, eligible));
+      if (raw === null) notice = 'La IA no está disponible en este momento. Se muestran recomendaciones por reglas.';
+      else recommendations = validateModelOutput(raw, eligible);
     }
 
-    return NextResponse.json({ recommendations });
-  } catch (error: any) {
-    return NextResponse.json({ 
-      recommendations: [
-        {
-          product_name: 'Vitamina C',
-          confidence_score: 0.60,
-          reason: 'Error de conexión. Recomendación preventiva por defecto.',
-          search_query: 'vitamina c'
-        }
-      ] 
+    if (recommendations.length === 0) {
+      recommendations = ruleBasedRecommendations(eligible, context);
+      if (!notice && recommendations.length) notice = 'La IA no propuso productos válidos del inventario. Se muestran recomendaciones por reglas.';
+    }
+
+    return NextResponse.json({
+      recommendations,
+      evidence,
+      notice,
+      usage: { used: quota.used, limit: DAILY_LIMIT },
     });
+  } catch (error) {
+    console.error('AI recommendations error:', error);
+    return NextResponse.json({ error: 'No se pudieron generar recomendaciones' }, { status: 500 });
   }
 }
