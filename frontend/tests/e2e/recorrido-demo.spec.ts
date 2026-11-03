@@ -108,3 +108,19 @@ test.describe('Recorrido demo del README', () => {
     await expect(page.getByText('≤ 30 días')).toBeVisible();
   });
 });
+
+// Sin sesión previa: la página de inicio lleva a la demo con el recorrido abierto
+test.describe('Página de inicio', () => {
+  test('"Probar la demo" entra como cajero y abre el recorrido guiado', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByRole('heading', { name: 'CRM y punto de venta para droguerías' })).toBeVisible();
+    await page.getByRole('link', { name: 'Probar la demo' }).click();
+    await expect(page).toHaveURL(/\/(dashboard|crm)/, { timeout: 30_000 });
+    const tour = page.getByRole('dialog', { name: 'Recorrido guiado' });
+    await expect(tour).toBeVisible({ timeout: 20_000 });
+    await expect(tour.getByText('Pacientes: ficha 360°')).toBeVisible();
+    await expect(page.getByText(/Demo con datos ficticios/)).toBeVisible();
+    await tour.getByRole('button', { name: 'Cerrar recorrido' }).click();
+    await expect(tour).toHaveCount(0);
+  });
+});

@@ -67,6 +67,13 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
   
+  // La página de inicio es para visitantes: con sesión se va directo a la app
+  if (user && request.nextUrl.pathname === '/') {
+    const url = request.nextUrl.clone()
+    url.pathname = '/dashboard'
+    return NextResponse.redirect(url)
+  }
+
   if (user && isAuthPage) {
     const url = request.nextUrl.clone()
     if (request.nextUrl.pathname.startsWith('/admin-login')) {

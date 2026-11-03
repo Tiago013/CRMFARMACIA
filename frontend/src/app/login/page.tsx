@@ -1,9 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { apiClient as api } from '@/lib/axios';
-import { createClient } from '@/utils/supabase/client';
 import { Eye, EyeOff, Lock, Mail, AlertCircle, PlayCircle } from 'lucide-react';
 import { DEMO_ACCOUNTS, DEMO_PASSWORD } from '@/lib/roles';
 
@@ -22,17 +20,33 @@ export default function LoginPage() {
   };
 
   // Entrada a la demo con un clic: las credenciales demo son públicas (README)
-  const signInDemo = async (demoEmail: string) => {
+  const signInDemo = async (demoEmail: string, next = '/dashboard') => {
     setEmail(demoEmail);
     setPassword(DEMO_PASSWORD);
-    await signIn(demoEmail, DEMO_PASSWORD);
+    await signIn(demoEmail, DEMO_PASSWORD, next);
   };
 
-  const signIn = async (email: string, password: string) => {
+  // /login?demo=cajero (botón "Probar la demo" de la página de inicio): entra
+  // directo con esa cuenta y abre el recorrido guiado
+  const autoDemo = useRef(false);
+  useEffect(() => {
+    if (autoDemo.current) return;
+    const role = new URLSearchParams(window.location.search).get('demo');
+    const account = DEMO_ACCOUNTS.find((a) => a.role === role);
+    if (account) {
+      autoDemo.current = true;
+      signInDemo(account.email, '/dashboard?tour=1');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const signIn = async (email: string, password: string, next = '/dashboard') => {
     setError('');
     setLoading(true);
 
     try {
+      // Se carga al iniciar sesión: la página abre sin esperar el cliente de Supabase
+      const { createClient } = await import('@/utils/supabase/client');
       const supabase = createClient();
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
@@ -56,7 +70,7 @@ export default function LoginPage() {
       // Ensure Zustand auth store is updated!
       useAuthStore.getState().login(profileData, data.session?.access_token || '');
 
-      router.push('/dashboard');
+      router.push(next);
       router.refresh();
       
     } catch (err: any) {
@@ -67,8 +81,8 @@ export default function LoginPage() {
       if (typeof document !== 'undefined') {
         document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
       }
-      const supabase = createClient();
-      await supabase.auth.signOut();
+      const { createClient } = await import('@/utils/supabase/client');
+      await createClient().auth.signOut();
     } finally {
       setLoading(false);
     }
@@ -88,7 +102,7 @@ export default function LoginPage() {
           <h1 className="text-xl font-semibold text-neutral-900 dark:text-white tracking-tight">
             FarmaAI Enterprise
           </h1>
-          <p className="text-sm text-neutral-500 mt-1">
+          <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-1">
             Ingresa a tu cuenta para continuar
           </p>
         </div>
@@ -144,7 +158,8 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 p-2.5 text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors"
                 >
                   {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
@@ -184,14 +199,14 @@ export default function LoginPage() {
                 className="w-full text-left px-3 py-2 rounded-lg border border-neutral-200 dark:border-neutral-800 hover:border-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition-colors disabled:opacity-50"
               >
                 <span className="block text-sm font-semibold text-neutral-900 dark:text-white">Entrar como {account.label}</span>
-                <span className="block text-[11px] text-neutral-500">{account.description}</span>
+                <span className="block text-[11px] text-neutral-600 dark:text-neutral-400">{account.description}</span>
               </button>
             ))}
           </div>
         </div>
 
 
-        <p className="text-center text-[11px] text-neutral-400 mt-6">
+        <p className="text-center text-[11px] text-neutral-600 dark:text-neutral-400 mt-6">
           FarmaAI · demo de portafolio
         </p>
       </div>
