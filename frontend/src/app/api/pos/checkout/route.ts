@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
             subtotal: item.net,
             tax_rate: TAX_RATE,
             tax_amount: item.tax,
-            total: item.net
+            total: item.total
           }
         });
 

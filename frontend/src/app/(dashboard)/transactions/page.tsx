@@ -332,7 +332,7 @@ function TransactionsContent() {
                         <p className="font-medium text-sm text-neutral-900 dark:text-white">{item.product?.brand_name}</p>
                         <p className="text-xs text-neutral-500">{item.quantity} unds x ${(item.unit_price).toLocaleString('es-CO')}</p>
                       </div>
-                      <p className="font-bold text-sm text-neutral-900 dark:text-white">${item.total.toLocaleString('es-CO')}</p>
+                      <p className="font-bold text-sm text-neutral-900 dark:text-white">${item.subtotal.toLocaleString('es-CO')}</p>
                     </div>
                   ))}
                 </div>
