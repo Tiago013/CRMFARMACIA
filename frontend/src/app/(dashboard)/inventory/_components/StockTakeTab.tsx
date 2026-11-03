@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AdminOnly } from '@/components/AdminOnly';
 import { Check, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
-import { AdjustmentHistory, postAdjustment } from './AdjustmentHistory';
+import { AdjustmentHistory, postAdjustment, type StockAfterAdjustment } from './AdjustmentHistory';
 
 export type StockTakeItem = { id: string; name: string; sku: string; systemStock: number; physicalStock: number };
 
@@ -11,17 +11,17 @@ export type StockTakeItem = { id: string; name: string; sku: string; systemStock
 export function StockTakeTab({ items, setItems, onStockChanged }: {
   items: StockTakeItem[];
   setItems: React.Dispatch<React.SetStateAction<StockTakeItem[]>>;
-  onStockChanged: (productId: string, totalStock: number) => void;
+  onStockChanged: (productId: string, after: StockAfterAdjustment) => void;
 }) {
   const [historyKey, setHistoryKey] = useState(0);
 
   const approve = async (item: StockTakeItem) => {
     const diff = item.physicalStock - item.systemStock;
     try {
-      const totalStock = await postAdjustment(item.id, diff, 'COUNT');
+      const after = await postAdjustment(item.id, diff, 'COUNT');
       toast.success(`Ajuste de ${diff > 0 ? '+' : ''}${diff} registrado`);
-      setItems(prev => prev.map(p => p.id === item.id ? { ...p, systemStock: totalStock, physicalStock: totalStock } : p));
-      onStockChanged(item.id, totalStock);
+      setItems(prev => prev.map(p => p.id === item.id ? { ...p, systemStock: after.total_stock, physicalStock: after.total_stock } : p));
+      onStockChanged(item.id, after);
       setHistoryKey(k => k + 1);
     } catch (e: any) {
       toast.error(e.message);

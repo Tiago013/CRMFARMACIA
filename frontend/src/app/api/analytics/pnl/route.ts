@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
       net_profit
     });
   } catch (error: any) {
-    console.error("Odoo PNL error:", error);
+    console.error("P&L error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

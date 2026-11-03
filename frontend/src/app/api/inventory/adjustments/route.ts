@@ -65,7 +65,18 @@ export async function POST(request: NextRequest) {
       }
 
       const stock = await tx.batch.aggregate({ where: { product_id: product.id, tenant_id: auth.tenantId }, _sum: { quantity: true } });
-      return { movements: changes.length, total_stock: stock._sum.quantity ?? 0 };
+      // Vencimiento más próximo entre los lotes que aún tienen unidades: tras dar de
+      // baja un lote vencido deja de serlo y la pantalla lo actualiza sin recargar
+      const nearest = await tx.batch.findFirst({
+        where: { product_id: product.id, tenant_id: auth.tenantId, quantity: { gt: 0 } },
+        orderBy: { expiration_date: 'asc' },
+        select: { expiration_date: true },
+      });
+      return {
+        movements: changes.length,
+        total_stock: stock._sum.quantity ?? 0,
+        expiration_date: nearest ? nearest.expiration_date.toISOString().split('T')[0] : '',
+      };
     });
 
     return NextResponse.json({ success: true, ...result });

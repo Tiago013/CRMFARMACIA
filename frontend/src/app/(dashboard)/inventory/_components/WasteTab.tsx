@@ -3,7 +3,7 @@ import { AdminOnly } from '@/components/AdminOnly';
 import { FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { expiryStatus } from '@/lib/inventory/fefo';
-import { AdjustmentHistory, postAdjustment } from './AdjustmentHistory';
+import { AdjustmentHistory, postAdjustment, type StockAfterAdjustment } from './AdjustmentHistory';
 
 const REASONS = [
   { id: 'EXPIRED', label: 'Vencido' },
@@ -15,7 +15,7 @@ const REASONS = [
 // del lote que vence primero. Cada baja queda como movimiento WASTE_*.
 export function WasteTab({ products, onStockChanged }: {
   products: any[];
-  onStockChanged: (productId: string, totalStock: number) => void;
+  onStockChanged: (productId: string, after: StockAfterAdjustment) => void;
 }) {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
@@ -26,10 +26,10 @@ export function WasteTab({ products, onStockChanged }: {
     if (qty <= 0 || qty > item.total_stock) return toast.error('Cantidad inválida para dar de baja');
     const reason = reasons[item.id] ?? (expiryStatus(item.expiration_date) === 'expired' ? 'EXPIRED' : 'DAMAGED');
     try {
-      const totalStock = await postAdjustment(item.id, -qty, reason);
+      const after = await postAdjustment(item.id, -qty, reason);
       toast.success(`Se registraron ${qty} unidades como merma`);
       setQuantities(prev => ({ ...prev, [item.id]: 0 }));
-      onStockChanged(item.id, totalStock);
+      onStockChanged(item.id, after);
       setHistoryKey(k => k + 1);
     } catch (e: any) {
       toast.error(e.message);
