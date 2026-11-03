@@ -31,6 +31,7 @@ finanzas, pronóstico de demanda y panel de administración SaaS.
 - [Ejecutarlo en local](#-ejecutarlo-en-local)
 - [Pruebas](#-pruebas)
 - [Estructura del repositorio](#-estructura-del-repositorio)
+- [Caso de estudio: de MVP a demo confiable](#-caso-de-estudio-de-mvp-a-demo-confiable)
 - [Decisiones técnicas y aprendizajes](#-decisiones-técnicas-y-aprendizajes)
 - [Trabajo futuro](#-trabajo-futuro)
 
@@ -296,28 +297,78 @@ CRMFARMACIA/
 │   ├── prisma/                # Esquema, semillas y enable_rls.sql
 │   ├── prisma/sql/            # Migración a Decimal, restauración de la demo y turnos de caja
 │   ├── tests/unit/            # Pruebas Vitest
-│   └── scripts/               # Servicio local de WhatsApp
-├── docs/                      # Arquitectura y capturas
+│   └── scripts/               # Servicio local de WhatsApp y generador del diagrama de datos
+├── docs/                      # ADR, modelo de datos, diseños (pagos, DIAN, multi-sede) y capturas
 ├── legal/                     # Términos y política de privacidad
 └── .github/workflows/ci.yml   # CI: type check + pruebas + build
 ```
 
 ---
 
+## 📖 Caso de estudio: de MVP a demo confiable
+
+**Punto de partida.** El MVP funcionaba en pantalla, pero no resistía una revisión técnica:
+rutas de la API sin autenticación, la farmacia se elegía con un encabezado que mandaba el navegador,
+credenciales y endpoints de depuración en el repositorio, el total de la venta lo calculaba el
+cliente, el dinero se guardaba como `Float`, una docena de indicadores eran números fijos o
+aleatorios y no había pruebas.
+
+**Qué se hizo**, en PR pequeños y revisables:
+
+| Etapa | Cambios | PR |
+|---|---|---|
+| Seguridad | `requireAuth()` con el tenant leído de la base, aislamiento por farmacia en cada consulta, RLS en todas las tablas, borrado de endpoints de depuración y credenciales, validación de archivos | #1–#3 |
+| Calidad visible | Vitest con cobertura mínima del 80 % en CI, recorrido E2E diario con Playwright, dinero en `NUMERIC`, Sentry, farmacia demo que se restaura cada noche | #8–#9 |
+| Demo sin trucos | Indicadores reales contra el periodo anterior, caja con arqueo, conteo físico y mermas como movimientos, roles y cuenta de solo lectura | #12–#18 |
+| Funciones | IA en el servidor con datos seudonimizados y filtro de alergias, pronóstico determinista con su error medido, WhatsApp en modo demo, reporte Z, Excel y PDF | #19–#31 |
+| Presentación | Página de inicio, recorrido guiado, accesibilidad y rendimiento | #32 |
+
+**Lo que salió mal (y cómo se encontró).** Además de la auditoría inicial, revisar los datos reales
+de producción destapó errores que las pruebas no cubrían:
+
+- El pronóstico agrupaba las ventas por día en UTC: el **48 %** de las ventas de la demo caía en el
+  día siguiente. Se agrupa en hora de Colombia y hay pruebas con ventas a las 9 p. m. (PR #25).
+- El aviso de «pico inusual» salía en **69 de 70** productos porque con ventas escasas cualquier
+  día con ventas supera media + 3σ. Ahora sale en los que de verdad triplican un día normal (PR #25).
+- El POS guardaba el total de cada producto **sin IVA**, y siete ventas antiguas tenían el IVA en 0
+  en sus productos. Se corrigió el cálculo, se agregó una prueba de que las líneas suman el total
+  y un script arregló los datos (PR #29).
+
+Cada corrección llegó con una prueba que reproduce el error, para que no vuelva.
+
+**Resultados**
+
+| | Antes | Ahora |
+|---|---|---|
+| Rutas de la API sin autenticación | varias | 0 |
+| Pruebas automáticas | 0 | 225 unitarias + 8 E2E diarias |
+| Cobertura de la lógica crítica | 0 % | ≈ 98 % |
+| Indicadores fijos o aleatorios en pantalla | ≈ 12 | 0 |
+| Error del pronóstico del producto principal (última semana) | sin medir | 46 % (WAPE) |
+| Lighthouse móvil de la página de inicio | sin medir | 99 rendimiento · 100 accesibilidad |
+
+---
+
 ## 🧠 Decisiones técnicas y aprendizajes
 
+Las cuatro decisiones de más peso están documentadas como ADR (contexto, alternativas y consecuencias):
+
+| ADR | Decisión |
+|---|---|
+| [0001](docs/adr/0001-fefo.md) | Descontar inventario por vencimiento (FEFO), no por llegada |
+| [0002](docs/adr/0002-multi-tenant-rls.md) | Multi-farmacia con `tenant_id` por fila y RLS como segunda barrera |
+| [0003](docs/adr/0003-precios-en-servidor.md) | El servidor calcula el precio; el dinero se guarda exacto |
+| [0004](docs/adr/0004-modo-demostracion.md) | Demo pública en «modo demostración»: real donde importa, simulado donde cuesta |
+
+- **Modelo de datos**: 21 tablas, con diagrama generado desde `schema.prisma` en [`docs/modelo-datos.md`](docs/modelo-datos.md) (`npm run docs:erd`; una prueba falla si queda desactualizado).
 - **Monolito modular con Next.js**: frontend y API en un solo despliegue, más simple de operar para un equipo pequeño. La evolución a microservicios está planteada en [`docs/architecture_evolution.md`](docs/architecture_evolution.md).
-- **FEFO en vez de FIFO**: en farmacia importa más la fecha de vencimiento que la de llegada.
-- **Dinero en `NUMERIC`, no en `Float`**: los montos se guardan exactos en la base y el cálculo de la venta vive en una sola función compartida por el POS y el servidor.
-- **Demo que se restaura sola**: una función de Postgres copia cada noche una foto de los datos a la farmacia demo, con IDs nuevos y fechas movidas al día actual, así los gráficos de “últimos 7 días” nunca salen vacíos.
-- **Multi-tenancy por columna** (`tenant_id`) + RLS: el modelo más económico para un SaaS que empieza, con aislamiento verificado en cada consulta.
-- **Seguridad aprendida en el proceso**: la primera versión confiaba en el cliente (tenant, precios). Una auditoría detectó y corrigió endpoints sin autenticación, credenciales en el repositorio y tablas expuestas. Los PR #1 a #3 documentan esas correcciones.
+- **La lógica pura vive en `src/lib/`** (precios, FEFO, caja, pronóstico, reportes) y se prueba sin base de datos; las rutas de la API solo leen, validan y llaman a esas funciones.
 
 ---
 
 ## 🔭 Trabajo futuro
 
-- Facturación electrónica DIAN.
+- Facturación electrónica DIAN con un proveedor tecnológico y **multi-sede** (inventario y caja por sede): [diseño](docs/diseno-dian-multisede.md).
 - Cobro de planes con Wompi en modo prueba ([diseño](docs/diseno-pagos.md)).
 - Políticas RLS por tenant para usar Supabase Realtime directamente desde el cliente.
 - Enviar WhatsApp por la API oficial (WhatsApp Business Cloud API) en lugar de `whatsapp-web.js`.
