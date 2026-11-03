@@ -7,7 +7,7 @@ const DEMO_PASSWORD = process.env.DEMO_PASSWORD ?? '123456';
 
 async function login(page: Page) {
   await page.goto('/login');
-  await page.getByPlaceholder('admin@farmaai.com').fill(DEMO_EMAIL);
+  await page.getByPlaceholder('tu@correo.com').fill(DEMO_EMAIL);
   await page.getByPlaceholder('••••••••').fill(DEMO_PASSWORD);
   await page.getByRole('button', { name: 'Iniciar Sesión' }).click();
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
