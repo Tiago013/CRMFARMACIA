@@ -98,21 +98,21 @@ quiebres de stock y cero seguimiento a pacientes crónicos.
 
 ## 📸 Capturas
 
-**Dashboard de analítica**: ingresos, gastos, utilidad neta y tendencia de ventas.
+**Dashboard**: ingresos, gastos y utilidad con su tendencia real contra el periodo anterior.
 
 ![Dashboard](docs/screenshots/dashboard.jpg)
 
-| Punto de Venta | CRM de pacientes (ficha 360°) |
+| Punto de Venta (caja abierta, IVA y alerta FEFO) | Ficha 360° del paciente con recomendaciones de IA |
 |---|---|
-| ![POS](docs/screenshots/pos.png) | ![CRM](docs/screenshots/crm.png) |
+| ![POS](docs/screenshots/pos.jpg) | ![CRM](docs/screenshots/crm.jpg) |
 
-| Inventario FEFO | Auditoría de ventas |
+| Inventario por vencimiento (FEFO) | Auditoría de ventas |
 |---|---|
-| ![Inventario](docs/screenshots/inventario.png) | ![Ventas](docs/screenshots/ventas.png) |
+| ![Inventario](docs/screenshots/inventario.jpg) | ![Ventas](docs/screenshots/ventas.jpg) |
 
-**Panel Super Admin (SaaS)**: MRR, tenants, adopción y distribución de planes.
+**Analítica**: horas pico, rentabilidad por producto y panel de vencimientos a 30/60/90 días.
 
-![Super Admin](docs/screenshots/superadmin.png)
+![Analítica y vencimientos](docs/screenshots/analitica.jpg)
 
 ---
 
