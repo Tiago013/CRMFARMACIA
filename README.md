@@ -38,8 +38,9 @@ finanzas, pronóstico de demanda y panel de administración SaaS.
 
 ## 🚀 Probar la demo (2 minutos)
 
-1. Abre **https://crmfarmacia.vercel.app**
-2. En la pantalla de inicio de sesión, usa **"Probar la demo"** y elige un rol (no hace falta escribir nada):
+1. Abre **https://crmfarmacia.vercel.app** y pulsa **"Probar la demo"**: entras como cajero, sin escribir nada,
+   con un **recorrido guiado** de 6 pasos (se puede repetir desde la franja superior).
+2. Para probar otro rol, elígelo en la página de inicio o en *Iniciar sesión → Probar la demo*:
 
    | Rol | Usuario | Qué puede hacer |
    |---|---|---|

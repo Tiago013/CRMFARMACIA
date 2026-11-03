@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import UpgradeModal from '@/components/ui/UpgradeModal';
 import { isReadOnlyAccount } from '@/lib/roles';
+import { DemoBanner } from '@/components/demo/DemoBanner';
+import { GuidedTour } from '@/components/tour/GuidedTour';
 
 // Define which nav items are visible per role
 const NAV_ITEMS = [
@@ -203,7 +205,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
-        
+        <DemoBanner />
+
         {/* Topbar */}
         <header className="h-14 bg-[#FBFBFB] dark:bg-[#0A0A0A] border-b border-neutral-200/60 dark:border-neutral-800/60 flex items-center justify-between px-4 md:px-6 shrink-0">
           <div className="flex items-center flex-1">
@@ -369,6 +372,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         )}
         
         <UpgradeModal />
+        <GuidedTour />
       </main>
     </div>
   );
