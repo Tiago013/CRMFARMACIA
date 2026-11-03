@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import { ExpiryPanel } from '@/components/dashboard/ExpiryPanel';
 import dynamic from 'next/dynamic';
 import { apiClient as api } from '@/lib/axios';
 import { Spinner } from '@/components/ui/Spinner';
@@ -44,18 +45,12 @@ interface TopProfitableProduct {
   net_profit: number;
 }
 
-interface ExpirationRiskData {
-  status: string;
-  value: number;
-}
-
 interface DashboardSnapshot {
   kpis: KPIData[];
   sales_trend: SalesChartData[];
   category_distribution: CategoryDistribution[];
   peak_hours: PeakHourData[];
   top_profitable: TopProfitableProduct[];
-  expiration_risk: ExpirationRiskData[];
 }
 
 const AVAILABLE_DIMENSIONS = [
@@ -418,42 +413,8 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Expiration Risk */}
-              <div className="flex flex-col p-6 bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-sm font-bold text-neutral-900 dark:text-white uppercase tracking-wider">Riesgo de Inventario (Vencimientos)</h3>
-                </div>
-                <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
-                  <div className="flex-1 w-full">
-                    <ClientResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={data.expiration_risk}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={60}
-                          outerRadius={90}
-                          paddingAngle={5}
-                          dataKey="value"
-                          stroke="none"
-                        >
-                          {data.expiration_risk?.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.status.includes('Riesgo') ? '#EF4444' : '#10B981'} />
-                          ))}
-                        </Pie>
-                        <RechartsTooltip 
-                          contentStyle={{ borderRadius: '12px', backgroundColor: 'rgba(10, 10, 10, 0.8)', backdropFilter: 'blur(12px)', borderColor: '#262626', padding: '12px' }} 
-                          itemStyle={{color: '#fff', fontWeight: 'bold'}}
-                          formatter={(value: any) => `${Number(value).toLocaleString('es-CO')} Lotes/Productos`}
-                        />
-                      </PieChart>
-                    </ClientResponsiveContainer>
-                  </div>
-                  <div className="mt-2 w-full text-center">
-                    <p className="text-xs text-neutral-500 font-medium">El {data.expiration_risk && data.expiration_risk.length > 1 ? ((data.expiration_risk[1].value / ((data.expiration_risk[0].value + data.expiration_risk[1].value) || 1)) * 100).toFixed(1) : 0}% del inventario está en riesgo por vencimiento cercano.</p>
-                  </div>
-                </div>
-              </div>
+              {/* Vencimientos a 30/60/90 días */}
+              <ExpiryPanel />
             </div>
           </div>
         )}

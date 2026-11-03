@@ -153,31 +153,12 @@ export async function GET(request: NextRequest) {
       };
     }).sort((a, b) => b.net_profit - a.net_profit).slice(0, 5);
 
-    // Riesgo de vencimiento: lotes con existencias que vencen en 30 días o menos
-    const thirtyDaysFromNow = new Date();
-    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-    
-    const atRiskBatches = await prisma.batch.aggregate({
-      where: { tenant_id, quantity: { gt: 0 }, expiration_date: { lte: thirtyDaysFromNow } },
-      _count: { id: true }
-    });
-    const safeBatches = await prisma.batch.aggregate({
-      where: { tenant_id, quantity: { gt: 0 }, expiration_date: { gt: thirtyDaysFromNow } },
-      _count: { id: true }
-    });
-
-    const expiration_risk = [
-      { status: 'Seguro (> 30 días)', value: safeBatches._count.id || 0 },
-      { status: 'En Riesgo (< 30 días)', value: atRiskBatches._count.id || 0 }
-    ];
-
     return NextResponse.json({
       kpis,
       sales_trend,
       category_distribution,
       peak_hours,
-      top_profitable,
-      expiration_risk
+      top_profitable
     });
 
   } catch (error: any) {

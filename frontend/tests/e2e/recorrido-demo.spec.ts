@@ -83,5 +83,8 @@ test.describe('Recorrido demo del README', () => {
     // Regex con límites de palabra y sensible a mayúsculas: getByText('NaN')
     // también encontraría "Fi-nan-zas" en el menú.
     await expect(page.getByText(/\bNaN\b/)).toHaveCount(0);
+    // Panel de vencimientos a 30/60/90 días con datos reales
+    await expect(page.getByText('Vencimientos próximos')).toBeVisible();
+    await expect(page.getByText('≤ 30 días')).toBeVisible();
   });
 });
