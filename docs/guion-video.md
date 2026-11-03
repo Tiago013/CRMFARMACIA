@@ -27,6 +27,8 @@ su versión, `CHROME_PATH=<ruta a chrome>` usa otro.
 | 1:37–1:50 | Dashboard | Cambia el periodo a **Año actual**. | «El dashboard compara contra el periodo anterior con datos reales, no números de adorno.» |
 | 1:50–2:00 | GitHub (README) | Muestra el caso de estudio y las insignias. | «Detrás hay 225 pruebas automáticas, una auditoría de seguridad documentada y las decisiones técnicas por escrito. El enlace está en la descripción.» |
 
+**Versión publicada:** [`docs/video/farmaai-demo.mp4`](video/farmaai-demo.mp4), grabada con `npm run video` el 3 de noviembre de 2026.
+
 **Después de grabar**
 
 - Sube el video (YouTube como «no listado», o Loom) y pega el enlace al inicio del README, debajo del

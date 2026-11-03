@@ -16,6 +16,8 @@ finanzas, pronóstico de demanda y panel de administración SaaS.
 
 ### 🔗 [Ver demo en vivo → crmfarmacia.vercel.app](https://crmfarmacia.vercel.app)
 
+🎬 [Video de la demo en 1:38](docs/video/farmaai-demo.mp4) · recorrido completo con subtítulos
+
 </div>
 
 ---
