@@ -3,7 +3,12 @@
 Grabación de pantalla con voz, en la demo pública. Sigue el mismo orden que el recorrido guiado, así
 quien vea el video y luego entre a la demo reconoce cada paso.
 
-**Antes de grabar**
+**Versión automática (sin voz, con subtítulos).** `npm run video -- <carpeta>` recorre la demo
+pública con Playwright siguiendo esta tabla, pone el texto de «Qué decir» como subtítulo y arma
+`farmaai-demo.mp4` con ffmpeg (debe estar instalado). Si el Chromium de Playwright no coincide con
+su versión, `CHROME_PATH=<ruta a chrome>` usa otro.
+
+**Antes de grabar** (versión con voz)
 
 - Ventana del navegador a 1440×900, modo oscuro, zoom 100 %, sin otras pestañas a la vista.
 - Sesión cerrada, para empezar en la página de inicio.
