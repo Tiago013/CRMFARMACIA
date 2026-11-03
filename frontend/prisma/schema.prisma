@@ -424,3 +424,25 @@ model Subscription {
   @@index([tenant_id])
   @@map("subscriptions")
 }
+
+// Turno de caja del POS: apertura con base, cierre con arqueo.
+// Solo puede haber un turno OPEN por farmacia (índice parcial en prisma/sql/03_cash_sessions.sql).
+model CashSession {
+  id                    String    @id @default(uuid())
+  tenant_id             String
+  status                String    @default("OPEN") // OPEN | CLOSED
+  opened_by             String
+  opened_at             DateTime  @default(now())
+  opening_amount        Decimal   @db.Decimal(12, 2)
+  opening_denominations Json?
+  closed_by             String?
+  closed_at             DateTime?
+  cash_sales            Decimal?  @db.Decimal(12, 2)
+  expected_amount       Decimal?  @db.Decimal(12, 2)
+  counted_amount        Decimal?  @db.Decimal(12, 2)
+  difference            Decimal?  @db.Decimal(12, 2)
+  closing_denominations Json?
+
+  @@index([tenant_id, status])
+  @@map("cash_sessions")
+}

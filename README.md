@@ -273,7 +273,7 @@ CRMFARMACIA/
 │   │   ├── proxy.ts           # Barrera de sesión para páginas y API
 │   │   └── stores/            # Estado global (Zustand)
 │   ├── prisma/                # Esquema, semillas y enable_rls.sql
-│   ├── prisma/sql/            # Migración a Decimal y restauración nocturna de la demo
+│   ├── prisma/sql/            # Migración a Decimal, restauración de la demo y turnos de caja
 │   ├── tests/unit/            # Pruebas Vitest
 │   └── scripts/               # Servicio local de WhatsApp
 ├── crm-farma-ai-engine/       # Microservicio de pronóstico (FastAPI + Prophet)

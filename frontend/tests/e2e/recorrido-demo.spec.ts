@@ -38,20 +38,34 @@ test.describe('Recorrido demo del README', () => {
   test('Punto de Venta: abre caja, vende y la venta aparece en auditoría', async ({ page }) => {
     await page.getByRole('link', { name: 'Punto de Venta' }).click();
 
-    // Cada prueba usa un navegador limpio, así que la caja siempre empieza cerrada
-    // (su estado vive en localStorage). Se espera al botón antes de abrirla.
-    await page.getByRole('button', { name: /Realizar Apertura de Caja/ }).click({ timeout: 20_000 });
-    await page.getByRole('button', { name: 'Confirmar Apertura' }).click();
-    await expect(page.getByText(/Caja abierta exitosamente/)).toBeVisible();
+    // El turno de caja vive en la base: puede estar abierto por otra visita.
+    // Se espera a que el POS sepa el estado y solo se abre si está cerrada.
+    const abrir = page.getByRole('button', { name: /Realizar Apertura de Caja/ });
+    const abierta = page.getByRole('button', { name: /Caja Abierta/ });
+    await expect(abrir.or(abierta)).toBeVisible({ timeout: 20_000 });
+    if (await abrir.isVisible()) {
+      await abrir.click();
+      await page.getByRole('button', { name: 'Confirmar Apertura' }).click();
+      await expect(page.getByText(/Caja abierta exitosamente/)).toBeVisible();
+    }
 
-    // Agrega el primer producto cuando el catálogo ya cargó (cada tarjeta muestra "Stock:")
-    await page.getByRole('button', { name: /Stock:/ }).first().click({ timeout: 20_000 });
+    // Primer producto vendible del catálogo (sin lote vencido)
+    await page.getByRole('button', { name: /Stock:/ }).filter({ hasNotText: /VENCIDO/ }).first().click({ timeout: 20_000 });
     await expect(page.getByRole('button', { name: /COBRAR/ })).toBeEnabled();
 
     await page.getByRole('button', { name: /COBRAR/ }).click();
     await page.getByRole('button', { name: /Tarjeta/ }).click();
     await page.getByRole('button', { name: /CONFIRMAR PAGO/ }).click();
     await expect(page.getByText(/¡Venta Procesada! Total: \$/)).toBeVisible({ timeout: 30_000 });
+
+    // El recibo se abre en otra pestaña con el total de la venta
+    const [recibo] = await Promise.all([
+      page.context().waitForEvent('page'),
+      page.getByRole('button', { name: 'Ver recibo' }).click(),
+    ]);
+    await expect(recibo.getByText(/Recibo N\.º/)).toBeVisible({ timeout: 20_000 });
+    await expect(recibo.getByText('TOTAL')).toBeVisible();
+    await recibo.close();
 
     await page.getByRole('link', { name: 'Ventas y Compras' }).click();
     await expect(page.getByRole('heading', { name: /Auditoría de Ventas/ })).toBeVisible();

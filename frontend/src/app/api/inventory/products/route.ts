@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
         { brand_name: { contains: search, mode: 'insensitive' } },
         { sku: { contains: search, mode: 'insensitive' } },
         { active_ingredient: { contains: search, mode: 'insensitive' } },
+        { barcode: search },
       ];
     }
     
@@ -34,6 +35,7 @@ export async function GET(request: NextRequest) {
             { brand_name: { contains: search, mode: 'insensitive' } },
             { sku: { contains: search, mode: 'insensitive' } },
             { active_ingredient: { contains: search, mode: 'insensitive' } },
+            { barcode: search },
           ]
         });
       }
@@ -76,6 +78,7 @@ export async function GET(request: NextRequest) {
       return {
         id: p.id,
         sku: p.sku,
+        barcode: p.barcode || '',
         name: p.brand_name,
         brand_name: p.brand_name, // Alias para el POS
         price: Number(p.unit_price),
