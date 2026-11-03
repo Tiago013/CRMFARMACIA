@@ -14,7 +14,7 @@ interface FinancialMetrics {
   profit_margin_percentage: number;
 }
 
-interface OdooPNL {
+interface PnL {
   income: number;
   cogs: number;
   opex: number;
@@ -23,7 +23,7 @@ interface OdooPNL {
 
 export default function FinancePage() {
   const [metrics, setMetrics] = useState<FinancialMetrics | null>(null);
-  const [odooPnl, setOdooPnl] = useState<OdooPNL | null>(null);
+  const [pnl, setPnl] = useState<PnL | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('pnl');
   const [period, setPeriod] = useState('7d');
@@ -32,18 +32,18 @@ export default function FinancePage() {
     const fetchMetrics = async () => {
       setLoading(true);
       try {
-        const [metricsRes, odooRes] = await Promise.all([
+        const [metricsRes, pnlRes] = await Promise.all([
           fetch(`/api/finance/metrics?period=${period}`),
-          fetch(`/api/analytics/odoo-pnl?period=${period}`)
+          fetch(`/api/analytics/pnl?period=${period}`)
         ]);
         
-        if (!metricsRes.ok || !odooRes.ok) throw new Error('API Error');
+        if (!metricsRes.ok || !pnlRes.ok) throw new Error('API Error');
         
         const metricsData = await metricsRes.json();
-        const odooData = await odooRes.json();
+        const pnlData = await pnlRes.json();
         
         setMetrics(metricsData);
-        setOdooPnl(odooData);
+        setPnl(pnlData);
       } catch (error) {
         console.error("Error fetching financial metrics:", error);
       } finally {
@@ -118,21 +118,21 @@ export default function FinancePage() {
               <div className="p-5 bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm flex flex-col justify-between">
                 <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Ingresos</h3>
                 <div className="flex items-center justify-between mt-auto">
-                  <span className="text-xl lg:text-2xl font-black text-neutral-900 dark:text-white truncate pr-2" title={formatCurrency(odooPnl?.income)}>{formatCurrency(odooPnl?.income)}</span>
+                  <span className="text-xl lg:text-2xl font-black text-neutral-900 dark:text-white truncate pr-2" title={formatCurrency(pnl?.income)}>{formatCurrency(pnl?.income)}</span>
                   <div className="bg-emerald-50 text-emerald-600 p-2 rounded-lg dark:bg-emerald-900/30 flex-shrink-0"><TrendingUp size={18} /></div>
                 </div>
               </div>
               <div className="p-5 bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm flex flex-col justify-between">
                 <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Gastos</h3>
                 <div className="flex items-center justify-between mt-auto">
-                  <span className="text-xl lg:text-2xl font-black text-neutral-900 dark:text-white truncate pr-2" title={formatCurrency((odooPnl?.cogs || 0) + (odooPnl?.opex || 0))}>{formatCurrency((odooPnl?.cogs || 0) + (odooPnl?.opex || 0))}</span>
+                  <span className="text-xl lg:text-2xl font-black text-neutral-900 dark:text-white truncate pr-2" title={formatCurrency((pnl?.cogs || 0) + (pnl?.opex || 0))}>{formatCurrency((pnl?.cogs || 0) + (pnl?.opex || 0))}</span>
                   <div className="bg-rose-50 text-rose-600 p-2 rounded-lg dark:bg-rose-900/30 flex-shrink-0"><TrendingDown size={18} /></div>
                 </div>
               </div>
               <div className="p-5 bg-indigo-600 border border-indigo-700 rounded-xl shadow-sm text-white flex flex-col justify-between">
                 <h3 className="text-xs font-bold text-indigo-200 uppercase tracking-wider mb-2">Utilidad Neta</h3>
                 <div className="flex items-center justify-between mt-auto">
-                  <span className="text-xl lg:text-2xl font-black truncate pr-2" title={formatCurrency(odooPnl?.net_profit)}>{formatCurrency(odooPnl?.net_profit)}</span>
+                  <span className="text-xl lg:text-2xl font-black truncate pr-2" title={formatCurrency(pnl?.net_profit)}>{formatCurrency(pnl?.net_profit)}</span>
                   <DollarSign className="text-indigo-200 flex-shrink-0" size={24} />
                 </div>
               </div>
@@ -140,7 +140,7 @@ export default function FinancePage() {
                 <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Margen Bruto Total</h3>
                 <div className="flex items-center justify-between mt-auto">
                   <span className="text-xl lg:text-2xl font-black text-emerald-600 dark:text-emerald-400 truncate pr-2">
-                    {odooPnl?.income ? ((odooPnl.net_profit / odooPnl.income) * 100).toFixed(1) : 0}%
+                    {pnl?.income ? ((pnl.net_profit / pnl.income) * 100).toFixed(1) : 0}%
                   </span>
                   <PieChart className="text-neutral-300 dark:text-neutral-700 flex-shrink-0" size={24} />
                 </div>
@@ -159,7 +159,7 @@ export default function FinancePage() {
               <div className="space-y-4 max-w-4xl">
                 <div className="flex justify-between items-center pb-4 border-b border-neutral-100 dark:border-neutral-800">
                   <span className="font-semibold text-neutral-700 dark:text-neutral-300">Ventas Brutas Totales</span>
-                  <span className="font-medium text-neutral-900 dark:text-white">{formatCurrency(odooPnl?.income)}</span>
+                  <span className="font-medium text-neutral-900 dark:text-white">{formatCurrency(pnl?.income)}</span>
                 </div>
                 <div className="flex justify-between items-center pb-4 border-b border-neutral-100 dark:border-neutral-800">
                   <span className="font-semibold text-neutral-700 dark:text-neutral-300 text-sm ml-4">(-) Devoluciones / Reembolsos (Local)</span>
@@ -167,25 +167,25 @@ export default function FinancePage() {
                 </div>
                 <div className="flex justify-between items-center pb-4 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-[#111111] p-3 rounded-lg">
                   <span className="font-bold text-neutral-900 dark:text-white">Ingresos Netos Oficiales</span>
-                  <span className="font-bold text-neutral-900 dark:text-white">{formatCurrency(odooPnl?.income)}</span>
+                  <span className="font-bold text-neutral-900 dark:text-white">{formatCurrency(pnl?.income)}</span>
                 </div>
                 
                 <div className="flex justify-between items-center pt-4 pb-4 border-b border-neutral-100 dark:border-neutral-800">
                   <span className="font-semibold text-neutral-700 dark:text-neutral-300 text-sm ml-4">(-) Costo de Bienes Vendidos (COGS)</span>
-                  <span className="font-medium text-rose-500">-{formatCurrency(odooPnl?.cogs)}</span>
+                  <span className="font-medium text-rose-500">-{formatCurrency(pnl?.cogs)}</span>
                 </div>
                 <div className="flex justify-between items-center pb-4 border-b border-neutral-100 dark:border-neutral-800 bg-indigo-50 dark:bg-indigo-950/20 p-3 rounded-lg">
                   <span className="font-bold text-indigo-700 dark:text-indigo-400">Margen Bruto</span>
-                  <span className="font-bold text-indigo-700 dark:text-indigo-400">{formatCurrency((odooPnl?.income || 0) - (odooPnl?.cogs || 0))}</span>
+                  <span className="font-bold text-indigo-700 dark:text-indigo-400">{formatCurrency((pnl?.income || 0) - (pnl?.cogs || 0))}</span>
                 </div>
 
                 <div className="flex justify-between items-center pt-4 pb-4 border-b border-neutral-100 dark:border-neutral-800">
                   <span className="font-semibold text-neutral-700 dark:text-neutral-300 text-sm ml-4">(-) Gastos Operativos (Arriendo, Nómina, etc)</span>
-                  <span className="font-medium text-rose-500">-{formatCurrency(odooPnl?.opex)}</span>
+                  <span className="font-medium text-rose-500">-{formatCurrency(pnl?.opex)}</span>
                 </div>
                 <div className="flex justify-between items-center pt-2 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-100 dark:border-emerald-800 mt-4">
                   <span className="text-lg font-black text-emerald-700 dark:text-emerald-400">UTILIDAD NETA</span>
-                  <span className="text-2xl font-black text-emerald-700 dark:text-emerald-400">{formatCurrency(odooPnl?.net_profit)}</span>
+                  <span className="text-2xl font-black text-emerald-700 dark:text-emerald-400">{formatCurrency(pnl?.net_profit)}</span>
                 </div>
               </div>
             </div>

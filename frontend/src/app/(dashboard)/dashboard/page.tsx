@@ -105,8 +105,8 @@ export default function DashboardPage() {
   const [builderResult, setBuilderResult] = useState<any[] | null>(null);
   const [builderLoading, setBuilderLoading] = useState(false);
   
-  // Odoo P&L state
-  const [odooPnL, setOdooPnL] = useState<{income: number, cogs: number, opex: number, net_profit: number} | null>(null);
+  // Estado de resultados (P&L) del periodo, calculado con los datos de la app
+  const [pnl, setPnl] = useState<{income: number, cogs: number, opex: number, net_profit: number} | null>(null);
 
   useEffect(() => {
     const fetchAnalytics = async () => {
@@ -123,17 +123,17 @@ export default function DashboardPage() {
       }
     };
     
-    const fetchOdooPnL = async () => {
+    const fetchPnl = async () => {
         try {
-            const res = await api.get(`/analytics/odoo-pnl?period=${period}`);
-            setOdooPnL(res.data);
+            const res = await api.get(`/analytics/pnl?period=${period}`);
+            setPnl(res.data);
         } catch (e) {
-            console.error("Error fetching Odoo P&L", e);
+            console.error("Error cargando el P&L", e);
         }
     };
     
     fetchAnalytics();
-    fetchOdooPnL();
+    fetchPnl();
   }, [period]);
 
   const handleOpenReport = async (endpoint: string) => {
@@ -232,7 +232,7 @@ export default function DashboardPage() {
             </div>
 
             {/* P&L Card */}
-            {odooPnL !== null && (
+            {pnl !== null && (
               <div className="bg-gradient-to-br from-indigo-900 to-[#111111] border border-indigo-500/30 rounded-2xl p-6 shadow-2xl relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-bl-full pointer-events-none transition-transform group-hover:scale-110"></div>
                 <div className="flex justify-between items-center mb-4">
@@ -244,28 +244,29 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-4 gap-4">
                   <div>
                     <p className="text-indigo-200 text-xs font-semibold uppercase tracking-wider">Ingresos Facturados</p>
-                    <p className="text-2xl font-bold mt-1">${odooPnL.income.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
+                    <p className="text-2xl font-bold mt-1">${pnl.income.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
                   </div>
                   <div>
                     <p className="text-rose-300 text-xs font-semibold uppercase tracking-wider">COGS (Productos)</p>
-                    <p className="text-2xl font-bold mt-1">-${odooPnL.cogs.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
+                    <p className="text-2xl font-bold mt-1">-${pnl.cogs.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
                   </div>
                   <div>
                     <p className="text-rose-300 text-xs font-semibold uppercase tracking-wider">OPEX (Operativos)</p>
-                    <p className="text-2xl font-bold mt-1">-${odooPnL.opex.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
+                    <p className="text-2xl font-bold mt-1">-${pnl.opex.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
                   </div>
                   <div className="bg-black/20 p-3 rounded-lg border border-white/10">
                     <p className="text-emerald-300 text-xs font-semibold uppercase tracking-wider">Utilidad Neta</p>
-                    <p className="text-3xl font-black text-emerald-400 mt-1">${odooPnL.net_profit.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
+                    <p className="text-3xl font-black text-emerald-400 mt-1">${pnl.net_profit.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
                   </div>
                 </div>
               </div>
             )}
 
             {/* Charts Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[400px]">
+            {/* En una columna (móvil) cada tarjeta tiene su propio alto; si no, se reparten 400 px y los gráficos quedan aplastados */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:h-[400px]">
               {/* Revenue Area Chart */}
-              <div className="lg:col-span-2 flex flex-col p-6 bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm">
+              <div className="h-[360px] lg:h-auto lg:col-span-2 flex flex-col p-6 bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-sm font-bold text-neutral-900 dark:text-white uppercase tracking-wider">Tendencia de Ingresos</h3>
                   <div className="flex gap-2">
@@ -327,7 +328,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Category Distribution */}
-              <div className="flex flex-col p-6 bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm">
+              <div className="h-[360px] lg:h-auto flex flex-col p-6 bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-sm font-bold text-neutral-900 dark:text-white uppercase tracking-wider">Ventas por Categoría</h3>
                 </div>
@@ -376,9 +377,9 @@ export default function DashboardPage() {
             </div>
 
             {/* NEW ENTERPRISE CHARTS */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[400px]">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:h-[400px]">
               {/* Peak Hours (Heatmap/Bar) */}
-              <div className="flex flex-col p-6 bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm">
+              <div className="h-[360px] lg:h-auto flex flex-col p-6 bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-sm font-bold text-neutral-900 dark:text-white uppercase tracking-wider">Horas Pico de Ventas</h3>
                 </div>
@@ -399,7 +400,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Top Profitable Products */}
-              <div className="flex flex-col p-6 bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm">
+              <div className="h-[360px] lg:h-auto flex flex-col p-6 bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-sm font-bold text-neutral-900 dark:text-white uppercase tracking-wider">Top 5 Rentabilidad (Utilidad Neta)</h3>
                 </div>

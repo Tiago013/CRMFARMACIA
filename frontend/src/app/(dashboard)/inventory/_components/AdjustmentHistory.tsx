@@ -52,7 +52,9 @@ export function AdjustmentHistory({ refreshKey }: { refreshKey: number }) {
 }
 
 // Envía un ajuste y devuelve el stock resultante (o lanza el error del servidor)
-export async function postAdjustment(product_id: string, difference: number, reason: string): Promise<number> {
+export type StockAfterAdjustment = { total_stock: number; expiration_date: string };
+
+export async function postAdjustment(product_id: string, difference: number, reason: string): Promise<StockAfterAdjustment> {
   const res = await fetch('/api/inventory/adjustments', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -60,5 +62,5 @@ export async function postAdjustment(product_id: string, difference: number, rea
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'No se pudo registrar el ajuste');
-  return data.total_stock;
+  return { total_stock: data.total_stock, expiration_date: data.expiration_date ?? '' };
 }

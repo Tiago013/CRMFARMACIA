@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { AdminOnly } from '@/components/AdminOnly';
 import { StockTakeTab, type StockTakeItem } from './_components/StockTakeTab';
 import { WasteTab } from './_components/WasteTab';
+import type { StockAfterAdjustment } from './_components/AdjustmentHistory';
 import { Search, Plus, AlertTriangle, Edit2, Trash2, ShoppingCart, Activity, RefreshCw, FileText, Check } from 'lucide-react';
 import { apiClient as api } from '@/lib/axios';
 import { toast } from 'sonner';
@@ -102,9 +103,11 @@ function InventoryContent() {
   };
   const [suggestedOrders, setSuggestedOrders] = useState<any[]>([]);
   const [stockTake, setStockTake] = useState<StockTakeItem[]>([]);
-  // Tras un ajuste o merma, el listado muestra el stock que quedó en la base
-  const updateProductStock = (productId: string, totalStock: number) =>
-    setProducts(prev => prev.map(p => p.id === productId ? { ...p, total_stock: totalStock, stock: totalStock } : p));
+  // Tras un ajuste o merma, el listado muestra el stock y el vencimiento que quedaron en la base
+  const updateProductStock = (productId: string, after: StockAfterAdjustment) =>
+    setProducts(prev => prev.map(p => p.id === productId
+      ? { ...p, total_stock: after.total_stock, stock: after.total_stock, expiration_date: after.expiration_date }
+      : p));
 
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '');
 
