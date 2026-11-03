@@ -135,11 +135,12 @@ describe('reorderSuggestion', () => {
   const f = [1, 2, 3].map((v, i) => ({ date: `2026-11-0${i + 4}`, value: v, lower_bound: v - 1, upper_bound: v + 1 }));
 
   it('pide lo que falta para el escenario alto', () => {
-    expect(reorderSuggestion(f, 4)).toEqual({ needed: 9, stock: 4, order: 5, coverageDays: 2 });
+    // central 6 + √(1²+1²+1²) ≈ 7,7 → 8, no 9 (la suma de los límites diarios)
+    expect(reorderSuggestion(f, 4)).toEqual({ needed: 8, stock: 4, order: 4, coverageDays: 2 });
   });
 
   it('no pide nada si el stock alcanza', () => {
-    expect(reorderSuggestion(f, 20)).toEqual({ needed: 9, stock: 20, order: 0, coverageDays: null });
+    expect(reorderSuggestion(f, 20)).toEqual({ needed: 8, stock: 20, order: 0, coverageDays: null });
   });
 
   it('sin stock no cubre ningún día', () => {

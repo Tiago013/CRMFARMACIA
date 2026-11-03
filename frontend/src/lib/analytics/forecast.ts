@@ -112,11 +112,16 @@ export function findSpikes(history: DailyPoint[]): DailyPoint[] {
   return history.filter((h) => h.value > threshold);
 }
 
-// Pedido sugerido para cubrir el horizonte en el escenario alto (límite
-// superior de la banda) con el stock vigente. coverageDays: cuántos días del
-// pronóstico central alcanza el stock (null si alcanza todo el horizonte).
+// Pedido sugerido para cubrir el horizonte en el escenario alto con el stock
+// vigente. Sumar el límite superior de cada día exagera: es improbable que
+// todos los días salgan altos a la vez. Los márgenes diarios se suman en
+// cuadratura (errores independientes) para el ~80 % del total del horizonte.
+// coverageDays: cuántos días del pronóstico central alcanza el stock (null si
+// alcanza todo el horizonte).
 export function reorderSuggestion(forecastData: ForecastPoint[], stock: number) {
-  const needed = Math.ceil(forecastData.reduce((acc, d) => acc + d.upper_bound, 0));
+  const central = forecastData.reduce((acc, d) => acc + d.value, 0);
+  const margin = Math.sqrt(forecastData.reduce((acc, d) => acc + (d.upper_bound - d.value) ** 2, 0));
+  const needed = Math.ceil(central + margin);
   let left = stock;
   let coverageDays: number | null = null;
   for (let i = 0; i < forecastData.length; i++) {
