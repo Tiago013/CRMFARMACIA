@@ -76,8 +76,11 @@ cdp.on('Page.screencastFrame', ({ data, metadata, sessionId }) => {
 });
 const screencast = () => cdp.send('Page.startScreencast', { format: 'jpeg', quality: 90, maxWidth: SIZE.width, maxHeight: SIZE.height }).catch(() => {});
 await screencast();
-// Al cambiar de sitio el navegador puede reiniciar el screencast: se vuelve a pedir
+// Tras una navegación el navegador puede dejar de mandar cuadros (el video queda
+// congelado en el primero): al terminar de cargar cada página se reinicia
+const restart = () => cdp.send('Page.stopScreencast').catch(() => {}).then(screencast);
 page.on('framenavigated', (f) => { if (f === page.mainFrame()) screencast(); });
+page.on('load', restart);
 
 try {
   // 0:00 Página de inicio
