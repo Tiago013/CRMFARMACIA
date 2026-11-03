@@ -117,7 +117,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  placeholder="admin@farmaai.com"
+                  placeholder=""
                   className="w-full pl-9 pr-3 py-2.5 bg-white dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-lg text-sm text-neutral-900 dark:text-white focus:border-neutral-400 dark:focus:border-neutral-600 outline-none transition-colors placeholder:text-neutral-400"
                   autoFocus
                   autoComplete="email"
