@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // la IA puede tardar; Vercel corta por defecto antes
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
@@ -29,16 +30,24 @@ async function takeAiQuota(tenantId: string): Promise<{ allowed: boolean; used: 
 // text = respuesta del modelo; problem = por qué no la hay (se muestra al usuario)
 type ModelReply = { text: string | null; problem?: string };
 
-async function askGemini(prompt: string): Promise<ModelReply> {
+// Flash-Lite: rápido y suficiente para elegir 2 productos de una lista
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-flash-lite-latest';
+
+async function askGemini(prompt: string, attempt = 1): Promise<ModelReply> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return { text: null, problem: 'La IA no está configurada en este servidor (falta GEMINI_API_KEY)' };
   try {
-    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent', {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, responseMimeType: 'application/json' } }),
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(25_000),
     });
+    // 503 = servicio de Google saturado: un reintento corto suele bastar
+    if (res.status === 503 && attempt === 1) {
+      await new Promise(r => setTimeout(r, 1500));
+      return askGemini(prompt, 2);
+    }
     if (!res.ok) {
       console.error('Gemini API error:', res.status, await res.text().catch(() => ''));
       return { text: null, problem: res.status === 429 ? 'Gemini alcanzó su cuota gratuita' : `Gemini respondió con error ${res.status}` };
