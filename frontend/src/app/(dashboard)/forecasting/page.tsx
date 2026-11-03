@@ -262,7 +262,7 @@ export default function ForecastingPage() {
               </div>
             </div>
           ) : (
-            <AIAssistantTab data={data} />
+            <AIAssistantTab />
           )}
 
           </div>

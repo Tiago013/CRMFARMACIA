@@ -59,11 +59,16 @@ export function GeneralTab({ patient, aiContext, loadingAi, onGenerateAi }: {
             </div>
           ) : aiContext?.recommendations?.length > 0 ? (
             <div className="space-y-4">
+              {aiContext.notice && (
+                <p className="text-[10px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 rounded p-2">{aiContext.notice}</p>
+              )}
               {aiContext.recommendations.map((rec: any, i: number) => (
                 <div key={i} className="bg-white dark:bg-[#111111] p-3 rounded-lg border border-neutral-100 dark:border-neutral-800">
                   <div className="flex justify-between items-start">
                     <span className="font-semibold text-xs text-neutral-900 dark:text-white">{rec.product_name}</span>
-                    <span className="text-[9px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">{(rec.confidence_score * 100).toFixed(0)}% MATCH</span>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${rec.source === 'rules' ? 'bg-neutral-100 text-neutral-600' : 'bg-indigo-100 text-indigo-700'}`}>
+                      {rec.source === 'rules' ? 'REGLA' : `IA · ${(rec.confidence_score * 100).toFixed(0)}%`}
+                    </span>
                   </div>
                   <p className="text-[10px] text-neutral-500 mt-1 mb-3">{rec.reason}</p>
                   <div className="flex gap-2 w-full mt-2">
@@ -82,7 +87,17 @@ export function GeneralTab({ patient, aiContext, loadingAi, onGenerateAi }: {
                   </div>
                 </div>
               ))}
+              {aiContext.evidence && (
+                <div className="text-[10px] text-neutral-500 border-t border-indigo-100 dark:border-indigo-900/50 pt-3 space-y-0.5">
+                  <p className="font-semibold text-neutral-600 dark:text-neutral-400">Por qué estas sugerencias</p>
+                  <p>Compra: {aiContext.evidence.purchased_categories.join(', ') || 'sin historial'}</p>
+                  <p>Alergias: {aiContext.evidence.allergies}{aiContext.evidence.excluded_by_allergy > 0 && ` · ${aiContext.evidence.excluded_by_allergy} productos excluidos`}</p>
+                  <p>Solo productos con stock y que aún no compra · los datos enviados a la IA no incluyen nombre ni documento</p>
+                </div>
+              )}
             </div>
+          ) : aiContext?.notice ? (
+            <p className="text-xs text-neutral-500 text-center">{aiContext.notice} No hay productos que cumplan las reglas para este paciente.</p>
           ) : (
             <div className="text-center">
               <p className="text-xs text-neutral-500 mb-3">Solicita a la IA que analice el historial de este paciente.</p>
