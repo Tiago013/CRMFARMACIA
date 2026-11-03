@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -34,7 +34,8 @@ async function ping(apiKey: string, model: string) {
   }
 }
 
-export async function GET() {
+// ?models=a,b prueba esos modelos además del configurado
+export async function GET(request: NextRequest) {
   const auth = await requireAuth();
   if (auth instanceof NextResponse) return auth;
 
@@ -61,7 +62,8 @@ export async function GET() {
   const listMs = Date.now() - started;
 
   // 2. Ping al modelo configurado y a los "flash-lite"/"flash" estables que ofrezca la clave
-  const candidates = [configured, ...models.filter((m) => !m.includes('preview') && !m.includes('exp') && !m.includes('tts') && !m.includes('image') && !m.includes('live')).slice(0, 4)];
+  const asked = (request.nextUrl.searchParams.get('models') ?? '').split(',').map((m) => m.trim()).filter((m) => /^[a-z0-9.-]{3,60}$/.test(m)).slice(0, 6);
+  const candidates = asked.length ? [configured, ...asked] : [configured, ...models.filter((m) => !m.includes('preview') && !m.includes('exp') && !m.includes('tts') && !m.includes('image') && !m.includes('live')).slice(0, 4)];
   const pings = await Promise.all([...new Set(candidates)].map((m) => ping(apiKey, m)));
 
   return NextResponse.json({ configured, list: { ms: listMs, error: listError, flashModels: models }, pings });

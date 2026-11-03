@@ -32,54 +32,68 @@ async function takeAiQuota(tenantId: string): Promise<{ allowed: boolean; used: 
 type ModelMeta = { model: string; ms: number; thoughtsTokens: number };
 type ModelReply = { text: string | null; problem?: string; meta?: ModelMeta };
 
-// Flash-Lite: rápido y suficiente para elegir 2 productos de una lista
+// Flash-Lite: rápido y suficiente para elegir 2 productos de una lista.
+// Si el principal no responde a tiempo o está saturado, se prueban los de respaldo
+// (los modelos de Google se saturan por horas: el 3 de noviembre el 3.5-flash-lite
+// tardaba entre 10 s y más de 15 s, o no respondía).
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-flash-lite-latest';
+const GEMINI_FALLBACK_MODELS = (process.env.GEMINI_FALLBACK_MODELS ?? 'gemini-3.1-flash-lite')
+  .split(',').map((m) => m.trim()).filter(Boolean);
+const PER_MODEL_TIMEOUT = 15_000;
+const TOTAL_BUDGET = 40_000; // maxDuration = 60 s: queda margen para el resto de la consulta
 
-// Sin "pensar": elegir 2 productos de una lista corta no necesita razonamiento,
-// y un modelo que razona antes de responder pasa de segundos a más de 25 s. Los
-// alias *-latest pueden cambiar de modelo sin aviso (así pasó el 3 de noviembre).
+// Sin "pensar": elegir 2 productos de una lista corta no necesita razonamiento.
 const NO_THINKING = { thinkingConfig: { thinkingBudget: 0 } };
 
-async function askGemini(prompt: string, attempt = 1, thinkingOff = true): Promise<ModelReply> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return { text: null, problem: 'La IA no está configurada en este servidor (falta GEMINI_API_KEY)' };
+type Attempt = ModelReply & { next: boolean }; // next = vale la pena probar otro modelo
+
+async function askGeminiModel(apiKey: string, model: string, prompt: string, timeoutMs: number, thinkingOff = true): Promise<Attempt> {
   const started = Date.now();
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: { temperature: 0.2, responseMimeType: 'application/json', ...(thinkingOff ? NO_THINKING : {}) },
       }),
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     // Un modelo que no permite apagar el razonamiento rechaza la opción: se pide sin ella
     if (res.status === 400 && thinkingOff) {
-      console.warn('Gemini rechazó thinkingConfig; se reintenta sin él:', await res.text().catch(() => ''));
-      return askGemini(prompt, attempt, false);
-    }
-    // 503 = servicio de Google saturado: un reintento corto suele bastar
-    if (res.status === 503 && attempt === 1) {
-      await new Promise(r => setTimeout(r, 1500));
-      return askGemini(prompt, 2, thinkingOff);
+      console.warn(`Gemini ${model} rechazó thinkingConfig; se reintenta sin él:`, await res.text().catch(() => ''));
+      return askGeminiModel(apiKey, model, prompt, Math.max(1_000, timeoutMs - (Date.now() - started)), false);
     }
     if (!res.ok) {
-      console.error('Gemini API error:', res.status, await res.text().catch(() => ''));
-      return { text: null, problem: res.status === 429 ? 'Gemini alcanzó su cuota gratuita' : `Gemini respondió con error ${res.status}` };
+      console.error(`Gemini ${model} error:`, res.status, await res.text().catch(() => ''));
+      if (res.status === 429) return { text: null, problem: 'Gemini alcanzó su cuota gratuita', next: false };
+      // 503 saturado, 404 retirado, 5xx: otro modelo puede responder
+      return { text: null, problem: `Gemini respondió con error ${res.status}`, next: res.status === 404 || res.status >= 500 };
     }
     const data = await res.json();
-    const meta: ModelMeta = {
-      model: data?.modelVersion ?? GEMINI_MODEL,
-      ms: Date.now() - started,
-      thoughtsTokens: data?.usageMetadata?.thoughtsTokenCount ?? 0,
-    };
+    const meta: ModelMeta = { model: data?.modelVersion ?? model, ms: Date.now() - started, thoughtsTokens: data?.usageMetadata?.thoughtsTokenCount ?? 0 };
     console.info('Gemini respondió', meta);
-    return { text: data?.candidates?.[0]?.content?.parts?.[0]?.text ?? null, problem: 'Gemini no devolvió texto', meta };
+    return { text: data?.candidates?.[0]?.content?.parts?.[0]?.text ?? null, problem: 'Gemini no devolvió texto', meta, next: false };
   } catch (error) {
-    console.error('Gemini request failed:', { model: GEMINI_MODEL, ms: Date.now() - started, thinkingOff }, error);
-    return { text: null, problem: 'Gemini no respondió a tiempo' };
+    console.error('Gemini request failed:', { model, ms: Date.now() - started, thinkingOff }, error);
+    return { text: null, problem: 'Gemini no respondió a tiempo', next: true };
   }
+}
+
+// Prueba el modelo principal y luego los de respaldo, dentro de un tiempo total
+async function askGemini(prompt: string): Promise<ModelReply> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return { text: null, problem: 'La IA no está configurada en este servidor (falta GEMINI_API_KEY)' };
+  const deadline = Date.now() + TOTAL_BUDGET;
+  let last: ModelReply = { text: null, problem: 'Gemini no respondió a tiempo' };
+  for (const model of [...new Set([GEMINI_MODEL, ...GEMINI_FALLBACK_MODELS])]) {
+    const left = deadline - Date.now();
+    if (left < 3_000) break;
+    const reply = await askGeminiModel(apiKey, model, prompt, Math.min(PER_MODEL_TIMEOUT, left));
+    if (reply.text !== null || !reply.next) return reply;
+    last = reply;
+  }
+  return last;
 }
 
 async function askOllama(model: string, prompt: string): Promise<ModelReply> {
