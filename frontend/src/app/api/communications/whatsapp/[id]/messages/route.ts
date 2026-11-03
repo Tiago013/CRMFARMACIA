@@ -2,7 +2,15 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
+import { MESSAGE_EVENT } from '@/lib/whatsapp/messages';
 
+const STATUS_LABEL: Record<string, string> = {
+  simulado: 'Simulado (modo demo)',
+  enviado: 'Enviado',
+  error: 'No se pudo enviar',
+};
+
+// Mensajes de WhatsApp de un paciente (se guardan en su historial)
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -11,29 +19,28 @@ export async function GET(
     const auth = await requireAuth();
     if (auth instanceof NextResponse) return auth;
     const { id } = await params;
-    
-    // In a real system, there would be a dedicated Messages table.
-    // Here we extract them from the timeline events.
-    const timelineEvents = await prisma.patientTimelineEvent.findMany({
-      where: { 
-        tenant_id: auth.tenantId,
-        patient_id: id,
-        event_type: { contains: 'Mensaje' }
-      },
-      orderBy: { created_at: 'desc' }
+
+    const events = await prisma.patientTimelineEvent.findMany({
+      where: { tenant_id: auth.tenantId, patient_id: id, event_type: MESSAGE_EVENT },
+      orderBy: { created_at: 'desc' },
     });
 
-    const messages = timelineEvents.map(ev => ({
-      id: ev.id,
-      text: typeof ev.event_data === 'object' && ev.event_data !== null ? (ev.event_data as any).text || (ev.event_data as any).description : String(ev.event_data),
-      isOutgoing: true, // Assuming system sent them
-      sender: 'Asistente IA',
-      timestamp: ev.created_at
-    }));
+    const messages = events.map(ev => {
+      const data = (ev.event_data ?? {}) as Record<string, string>;
+      return {
+        id: ev.id,
+        text: data.text ?? '',
+        isOutgoing: true,
+        sender: data.trigger === 'SALE_COMPLETED' ? 'Automatización de venta' : (data.template ?? 'Plantilla'),
+        status: STATUS_LABEL[data.status] ?? data.status,
+        demo: data.mode === 'demo',
+        timestamp: ev.created_at,
+      };
+    });
 
-    // Sin historial se devuelve la lista vacía: la pantalla muestra "No hay mensajes"
     return NextResponse.json(messages);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    console.error('communications/whatsapp', error);
+    return NextResponse.json({ error: 'No se pudieron cargar los mensajes' }, { status: 500 });
   }
 }

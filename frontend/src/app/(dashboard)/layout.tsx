@@ -10,7 +10,7 @@ import { apiClient } from '@/lib/axios';
 import { 
   LayoutDashboard, Package, Users, ShoppingCart, Settings,
   Bell, Search, Menu, X, BrainCircuit, DollarSign,
-  CreditCard, LogOut, Shield, ChevronDown, Moon, Sun, Monitor, MapPin, ArrowRightLeft, MessageCircle, MessageSquare, Truck
+  CreditCard, LogOut, Shield, ChevronDown, Moon, Sun, Monitor, MapPin, ArrowRightLeft, MessageCircle, Truck
 } from 'lucide-react';
 import UpgradeModal from '@/components/ui/UpgradeModal';
 import { isReadOnlyAccount } from '@/lib/roles';
@@ -24,7 +24,7 @@ const NAV_ITEMS = [
   { href: '/suppliers', icon: Truck, label: 'Proveedores', roles: ['admin', 'regente'] },
   { href: '/finance', icon: DollarSign, label: 'Finanzas', roles: ['admin', 'regente', 'cajero'] },
   { href: '/crm', icon: Users, label: 'Pacientes', roles: ['admin', 'regente', 'cajero'] },
-  { href: '/whatsapp', icon: MessageCircle, label: 'WhatsApp', roles: ['admin', 'regente'] },
+  { href: '/whatsapp', icon: MessageCircle, label: 'WhatsApp', roles: ['admin', 'regente', 'cajero'] },
 ];
 
 const INTEL_ITEMS = [
@@ -34,7 +34,6 @@ const INTEL_ITEMS = [
 const BOTTOM_ITEMS = [
   { href: '/billing', icon: CreditCard, label: 'Suscripción (SaaS)', roles: ['admin'] },
   { href: '/saas', icon: Shield, label: 'Super Admin', roles: ['admin'] },
-  { href: '/whatsapp', icon: MessageSquare, label: 'WhatsApp', roles: ['admin', 'regente'] },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
