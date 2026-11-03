@@ -6,9 +6,10 @@ import { expiryStatus } from '@/lib/inventory/fefo';
 const HINTS = ['F2 Buscar', 'F4 Cliente', 'F7 Suspender', 'F8 Cobrar/Recuperar', 'F9 Anular'];
 
 // Columna izquierda: estado de conexión y caja, buscador y catálogo
-export function ProductPanel({ products, onAdd, searchQuery, onSearch, searchInputRef, isOffline, isSyncing, offlineCount, drawerStatus, onToggleDrawer, onHelp }: {
+export function ProductPanel({ products, onAdd, onSubmitSearch, searchQuery, onSearch, searchInputRef, isOffline, isSyncing, offlineCount, drawerStatus, onToggleDrawer, onHelp }: {
   products: any[];
   onAdd: (product: any) => void;
+  onSubmitSearch: (query: string) => void; // Enter: código de barras, SKU o primer resultado
   searchQuery: string;
   onSearch: (value: string) => void;
   searchInputRef: RefObject<HTMLInputElement | null>;
@@ -53,7 +54,7 @@ export function ProductPanel({ products, onAdd, searchQuery, onSearch, searchInp
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg shadow-sm border transition-colors ${drawerStatus === 'open' ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-900/30 dark:border-indigo-800 dark:text-indigo-400' : 'bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-900/30 dark:border-rose-800 dark:text-rose-400'}`}
             >
               <Lock size={14} />
-              {drawerStatus === 'open' ? 'Caja Abierta' : 'Caja Cerrada'} [F10]
+              {drawerStatus === 'open' ? 'Caja Abierta' : drawerStatus === 'loading' ? 'Cargando caja…' : 'Caja Cerrada'} [F10]
             </button>
 
             <button onClick={onHelp} className="text-neutral-400 hover:text-neutral-600 transition-colors">
@@ -69,9 +70,7 @@ export function ProductPanel({ products, onAdd, searchQuery, onSearch, searchInp
             value={searchQuery}
             onChange={(e) => onSearch(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && products.length > 0) {
-                onAdd(products[0]);
-              }
+              if (e.key === 'Enter') onSubmitSearch(searchQuery);
             }}
             placeholder="Escanear código o buscar producto (Enter para rápido) [F2]"
             className="w-full pl-9 pr-3 py-2 bg-white dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-md text-sm focus:border-indigo-500 outline-none transition-colors placeholder:text-neutral-400"

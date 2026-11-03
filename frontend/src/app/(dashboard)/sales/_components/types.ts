@@ -4,7 +4,7 @@ export type SelectedPatient = { id: string; name: string; refillSuggestion?: str
 
 export type PaymentMethod = 'cash' | 'card' | 'mixed' | 'fiado';
 
-export type DrawerStatus = 'open' | 'closed';
+export type DrawerStatus = 'loading' | 'open' | 'closed';
 
 export type DrawerMode = 'open' | 'close';
 
@@ -36,6 +36,12 @@ export const EMPTY_DENOMINATIONS: Denominations = { b100: 0, b50: 0, b20: 0, b10
 
 export function denominationsTotal(d: Denominations): number {
   return [...BILLS, ...COINS].reduce((acc, { key, val }) => acc + d[key] * val, 0);
+}
+
+// Coincidencia exacta por código de barras o SKU (lo que envía un lector)
+export function findByCode(products: any[], code: string) {
+  const c = code.trim().toLowerCase();
+  return c ? products.find(p => p.barcode?.toLowerCase() === c || p.sku?.toLowerCase() === c) : undefined;
 }
 
 export const formatCOP = (value: number) => value.toLocaleString('es-CO', { maximumFractionDigits: 0 });

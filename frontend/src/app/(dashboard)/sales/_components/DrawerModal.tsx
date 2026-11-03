@@ -1,5 +1,4 @@
 import { Banknote, Lock, Minus, Plus, Save } from 'lucide-react';
-import { toast } from 'sonner';
 import type { CashDrawer } from './useCashDrawer';
 import { BILLS, COINS, Denominations, formatCOP } from './types';
 
@@ -55,21 +54,9 @@ function DenominationRows({ title, items, denominations, onChange }: {
 
 // Apertura (base inicial) y cierre (arqueo con descuadre) de caja
 export function DrawerModal({ drawer }: { drawer: CashDrawer }) {
-  const { drawerMode, drawerBase, drawerSales, drawerCashIn, drawerCashOut, declaredTotal, denominations, setDenominations } = drawer;
+  const { drawerMode, drawerBase, drawerSales, expected, declaredTotal, denominations, setDenominations } = drawer;
   const isOpening = drawerMode === 'open';
-  const expected = drawerBase + drawerSales;
   const difference = declaredTotal - expected;
-
-  const confirm = () => {
-    if (isOpening) {
-      drawer.saveDrawerState('open', declaredTotal, 0, 0, 0);
-      toast.success(`Caja abierta exitosamente con base de $${declaredTotal.toLocaleString()}`);
-    } else {
-      drawer.saveDrawerState('closed', 0, 0, 0, 0);
-      toast.success(`Turno finalizado. Descuadre: $${difference.toLocaleString()}`);
-    }
-    drawer.setShowDrawerModal(false);
-  };
 
   const updateDenomination = (key: keyof Denominations, value: number) =>
     setDenominations(prev => ({ ...prev, [key]: value }));
@@ -107,18 +94,9 @@ export function DrawerModal({ drawer }: { drawer: CashDrawer }) {
                 <span className="text-neutral-900 dark:text-white font-bold">${formatCOP(drawerBase)}</span>
               </div>
               {!isOpening && (
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center text-sm font-medium bg-emerald-50 dark:bg-emerald-500/10 p-3 rounded-lg border border-emerald-100 dark:border-emerald-500/20">
-                    <span className="text-emerald-700 dark:text-emerald-400">+ Efectivo Recibido:</span>
-                    <span className="text-emerald-800 dark:text-emerald-300 font-bold">${formatCOP(drawerCashIn)}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm font-medium bg-rose-50 dark:bg-rose-500/10 p-3 rounded-lg border border-rose-100 dark:border-rose-500/20">
-                    <span className="text-rose-700 dark:text-rose-400">- Cambios Entregados:</span>
-                    <span className="text-rose-800 dark:text-rose-300 font-bold">-${formatCOP(drawerCashOut)}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs font-bold text-neutral-500 pt-1 px-3">
-                    <span>(= Ventas Netas: ${formatCOP(drawerSales)})</span>
-                  </div>
+                <div className="flex justify-between items-center text-sm font-medium bg-emerald-50 dark:bg-emerald-500/10 p-3 rounded-lg border border-emerald-100 dark:border-emerald-500/20">
+                  <span className="text-emerald-700 dark:text-emerald-400">+ Ventas en efectivo:</span>
+                  <span className="text-emerald-800 dark:text-emerald-300 font-bold">${formatCOP(drawerSales)}</span>
                 </div>
               )}
 
@@ -156,8 +134,9 @@ export function DrawerModal({ drawer }: { drawer: CashDrawer }) {
 
             <div className="mt-8">
               <button
-                onClick={confirm}
-                className={`w-full py-4 text-white rounded-xl font-black text-lg shadow-xl transition-all ${isOpening ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20' : 'bg-neutral-900 hover:bg-black dark:bg-white dark:text-black dark:hover:bg-neutral-200 shadow-black/20'}`}
+                onClick={drawer.confirmDrawer}
+                disabled={drawer.saving}
+                className={`w-full disabled:opacity-60 py-4 text-white rounded-xl font-black text-lg shadow-xl transition-all ${isOpening ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20' : 'bg-neutral-900 hover:bg-black dark:bg-white dark:text-black dark:hover:bg-neutral-200 shadow-black/20'}`}
               >
                 {isOpening ? 'Confirmar Apertura' : 'Finalizar Turno y Cerrar Caja'}
               </button>

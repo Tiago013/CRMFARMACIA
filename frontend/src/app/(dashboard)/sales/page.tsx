@@ -5,10 +5,11 @@ import { toast } from 'sonner';
 import { enqueueSale } from '@/lib/offlineQueue';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { computeSaleTotals } from '@/lib/pos/pricing';
-import { CartItem, PaymentMethod, SelectedPatient, formatCOP } from './_components/types';
+import { CartItem, PaymentMethod, SelectedPatient, findByCode, formatCOP } from './_components/types';
 import { useCashDrawer } from './_components/useCashDrawer';
 import { usePosData } from './_components/usePosData';
 import { usePosShortcuts } from './_components/usePosShortcuts';
+import { useCart } from './_components/useCart';
 import { ProductPanel } from './_components/ProductPanel';
 import { CartPanel } from './_components/CartPanel';
 import { CheckoutModal } from './_components/CheckoutModal';
@@ -23,7 +24,6 @@ const toSelectedPatient = (p: any): SelectedPatient => ({
 });
 
 function POSContent() {
-  const [cart, setCart] = useState<CartItem[]>([]);
   const [suspendedSales, setSuspendedSales] = useState<Array<{ id: string, cart: CartItem[], patient: SelectedPatient | null }>>([]);
 
   const searchParams = useSearchParams();
@@ -43,6 +43,10 @@ function POSContent() {
   const [cashReceived, setCashReceived] = useState<number>(0);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const { cart, setCart, addToCart, updateQty, applyDiscount, removeFromCart } = useCart(() => {
+    setSearchQuery('');
+    searchInputRef.current?.focus();
+  });
 
   const drawer = useCashDrawer();
   const { inventory, patients, isOffline, isSyncing, offlineCount, refreshOfflineCount } =
@@ -108,28 +112,19 @@ function POSContent() {
     },
   });
 
-  const addToCart = (product: any) => {
-    setCart(prev => {
-      const existing = prev.find(item => item.id === product.id);
-      if (existing) {
-        return prev.map(item => item.id === product.id ? { ...item, qty: item.qty + 1 } : item);
-      }
-      return [...prev, { id: product.id, name: product.brand_name, price: product.unit_price, qty: 1, discount: 0 }];
-    });
-    setSearchQuery('');
-    searchInputRef.current?.focus();
-  };
-
-  const updateQty = (id: string, delta: number) => {
-    setCart(prev => prev.map(item => item.id === id ? { ...item, qty: Math.max(1, item.qty + delta) } : item));
-  };
-
-  const applyDiscount = (id: string, discount: number) => {
-    setCart(prev => prev.map(item => item.id === id ? { ...item, discount } : item));
-  };
-
-  const removeFromCart = (id: string) => {
-    setCart(prev => prev.filter(item => item.id !== id));
+  // Enter en el buscador: código exacto; si el lector escribió más rápido que la
+  // búsqueda, se consulta el código directo al servidor
+  const addByCode = async (query: string) => {
+    const hit = findByCode(inventory, query);
+    if (hit) return addToCart(hit);
+    if (/^\d{6,}$/.test(query.trim())) {
+      const res = await fetch(`/api/inventory/products?limit=5&search=${encodeURIComponent(query.trim())}`);
+      const remote = findByCode(await res.json().catch(() => []), query);
+      if (remote) return addToCart(remote);
+      toast.error(`No hay ningún producto con el código ${query.trim()}`);
+      return setSearchQuery('');
+    }
+    if (inventory.length > 0) addToCart(inventory[0]);
   };
 
   const handleSuspendSale = () => {
@@ -199,11 +194,16 @@ function POSContent() {
         throw new Error(err.error || 'Error procesando pago');
       }
 
+      const { sale } = await response.json();
+
       if (savedPaymentMethod === 'cash') {
-        drawer.registerCashSale(total, savedCash);
+        drawer.registerCashSale();
       }
 
-      toast.success(`¡Venta Procesada! Total: $${formatCOP(total)}`);
+      toast.success(`¡Venta Procesada! Total: $${formatCOP(total)}`, {
+        action: { label: 'Ver recibo', onClick: () => window.open(`/recibo/${sale.id}`, '_blank') },
+        duration: 8000,
+      });
     } catch (error: any) {
       // Rollback on failure
       setCart(savedCart);
@@ -227,6 +227,7 @@ function POSContent() {
       <ProductPanel
         products={inventory}
         onAdd={addToCart}
+        onSubmitSearch={addByCode}
         searchQuery={searchQuery}
         onSearch={setSearchQuery}
         searchInputRef={searchInputRef}

@@ -1,41 +1,33 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { Denominations, DrawerMode, DrawerStatus, EMPTY_DENOMINATIONS, OPENING_DENOMINATIONS, denominationsTotal } from './types';
 
-// Estado de la caja (apertura, ventas en efectivo, cierre). Hoy vive en el
-// navegador; la fase 2 del plan lo pasa a la base de datos.
+type Summary = { opening: number; cashSales: number; expected: number; cashSalesCount?: number };
+
+// Turno de caja guardado en la base (/api/pos/cash-session): la apertura y el
+// arqueo quedan registrados y se ven igual desde cualquier navegador.
 export function useCashDrawer() {
-  const [drawerStatus, setDrawerStatus] = useState<DrawerStatus>('closed');
-  const [drawerBase, setDrawerBase] = useState(0);
-  const [drawerSales, setDrawerSales] = useState(0);
-  const [drawerCashIn, setDrawerCashIn] = useState(0);
-  const [drawerCashOut, setDrawerCashOut] = useState(0);
+  const [drawerStatus, setDrawerStatus] = useState<DrawerStatus>('loading');
+  const [summary, setSummary] = useState<Summary>({ opening: 0, cashSales: 0, expected: 0 });
   const [showDrawerModal, setShowDrawerModal] = useState(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('open');
   const [denominations, setDenominations] = useState<Denominations>(EMPTY_DENOMINATIONS);
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    const savedStatus = localStorage.getItem('drawerStatus');
-    if (savedStatus) {
-      setDrawerStatus(savedStatus as DrawerStatus);
-      setDrawerBase(Number(localStorage.getItem('drawerBase')) || 0);
-      setDrawerSales(Number(localStorage.getItem('drawerSales')) || 0);
-      setDrawerCashIn(Number(localStorage.getItem('drawerCashIn')) || 0);
-      setDrawerCashOut(Number(localStorage.getItem('drawerCashOut')) || 0);
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch('/api/pos/cash-session');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setDrawerStatus(data.session ? 'open' : 'closed');
+      setSummary(data.summary ?? { opening: 0, cashSales: 0, expected: 0 });
+    } catch (e) {
+      console.error('Error cargando la caja:', e);
+      setDrawerStatus('closed');
     }
   }, []);
 
-  const saveDrawerState = (status: DrawerStatus, base: number, sales: number, cashIn = 0, cashOut = 0) => {
-    localStorage.setItem('drawerStatus', status);
-    localStorage.setItem('drawerBase', base.toString());
-    localStorage.setItem('drawerSales', sales.toString());
-    localStorage.setItem('drawerCashIn', cashIn.toString());
-    localStorage.setItem('drawerCashOut', cashOut.toString());
-    setDrawerStatus(status);
-    setDrawerBase(base);
-    setDrawerSales(sales);
-    setDrawerCashIn(cashIn);
-    setDrawerCashOut(cashOut);
-  };
+  useEffect(() => { refresh(); }, [refresh]);
 
   // Abre el modal de apertura o de cierre según el estado actual
   const openDrawerModal = (mode: DrawerMode = drawerStatus === 'open' ? 'close' : 'open') => {
@@ -44,17 +36,39 @@ export function useCashDrawer() {
     setShowDrawerModal(true);
   };
 
-  // Suma una venta en efectivo al turno
-  const registerCashSale = (total: number, cashReceived: number) => {
-    saveDrawerState('open', drawerBase, drawerSales + total, drawerCashIn + cashReceived, drawerCashOut + (cashReceived - total));
+  // Confirma la apertura o el cierre en el servidor
+  const confirmDrawer = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/pos/cash-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: drawerMode, denominations }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'No se pudo guardar la caja');
+
+      if (drawerMode === 'open') {
+        toast.success(`Caja abierta exitosamente con base de $${data.summary.opening.toLocaleString('es-CO')}`);
+      } else {
+        const dif = data.summary.difference;
+        toast.success(`Turno finalizado. ${dif === 0 ? 'Caja cuadrada' : `${dif > 0 ? 'Sobrante' : 'Faltante'}: $${Math.abs(dif).toLocaleString('es-CO')}`}`);
+      }
+      setShowDrawerModal(false);
+      await refresh();
+    } catch (e: any) {
+      toast.error(e.message);
+      await refresh();
+    } finally {
+      setSaving(false);
+    }
   };
 
   return {
     drawerStatus,
-    drawerBase,
-    drawerSales,
-    drawerCashIn,
-    drawerCashOut,
+    drawerBase: summary.opening,
+    drawerSales: summary.cashSales,
+    expected: summary.expected,
     drawerMode,
     denominations,
     setDenominations,
@@ -62,8 +76,10 @@ export function useCashDrawer() {
     showDrawerModal,
     setShowDrawerModal,
     openDrawerModal,
-    saveDrawerState,
-    registerCashSale,
+    confirmDrawer,
+    saving,
+    // Tras una venta en efectivo se recalcula lo esperado en el servidor
+    registerCashSale: refresh,
   };
 }
 

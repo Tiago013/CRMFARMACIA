@@ -21,7 +21,10 @@ export async function GET(request: NextRequest) {
   try {
     // Toda la restauración ocurre en una sola transacción dentro de Postgres
     // (función demo_template.reset_demo, ver prisma/demo_reset.sql)
-    const [result] = await prisma.$queryRaw<{ reset_demo: unknown }[]>`select demo_template.reset_demo()`;
+    const [result] = await prisma.$queryRaw<{ reset_demo: { tenant?: string } }[]>`select demo_template.reset_demo()`;
+    // La demo amanece con la caja cerrada: se borran los turnos del día anterior
+    const tenant = result?.reset_demo?.tenant;
+    if (tenant) await prisma.cashSession.deleteMany({ where: { tenant_id: tenant } });
     console.log('Demo restaurada', result?.reset_demo);
     return NextResponse.json({ ok: true, summary: result?.reset_demo });
   } catch (error: any) {
