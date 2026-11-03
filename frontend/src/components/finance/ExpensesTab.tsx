@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { AdminOnly } from '@/components/AdminOnly';
 import { DollarSign, Plus, Filter, FileText, PieChart as PieChartIcon } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
@@ -96,9 +97,11 @@ export default function ExpensesTab({ period = '7d' }: { period?: string }) {
             <h3 className="text-xl font-bold mb-2">Control de Gastos Operativos</h3>
             <p className="text-indigo-100 text-sm max-w-md">Registra y monitorea arriendos, nómina, servicios y otros OPEX para obtener un Estado de Resultados preciso.</p>
           </div>
+          <AdminOnly>
           <button onClick={() => setShowModal(true)} className="bg-white text-indigo-600 px-5 py-3 rounded-lg font-bold text-sm shadow-sm hover:bg-neutral-50 flex items-center gap-2 transition-transform active:scale-95">
             <Plus size={18} /> Registrar Gasto
           </button>
+          </AdminOnly>
         </div>
       </div>
 

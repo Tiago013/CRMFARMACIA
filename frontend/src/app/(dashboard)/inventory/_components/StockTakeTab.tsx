@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AdminOnly } from '@/components/AdminOnly';
 import { Check, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { AdjustmentHistory, postAdjustment } from './AdjustmentHistory';
@@ -83,6 +84,7 @@ export function StockTakeTab({ items, setItems, onStockChanged }: {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
+                    <AdminOnly>
                     <button
                       onClick={() => approve(item)}
                       className="text-xs font-semibold bg-neutral-900 dark:bg-white text-white dark:text-black rounded-md px-3 py-1.5 hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors shadow-sm disabled:opacity-50"
@@ -90,6 +92,7 @@ export function StockTakeTab({ items, setItems, onStockChanged }: {
                     >
                       Aprobar Ajuste
                     </button>
+                    </AdminOnly>
                   </td>
                 </tr>
               );

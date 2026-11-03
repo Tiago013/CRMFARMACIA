@@ -75,6 +75,8 @@ test.describe('Recorrido demo del README', () => {
   test('Inventario: muestra lotes ordenados por vencimiento', async ({ page }) => {
     await page.getByRole('link', { name: 'Inventario' }).click();
     await expect(page.getByPlaceholder('Buscar producto o lote...')).toBeVisible();
+    // Como cajero, crear productos aparece deshabilitado con el aviso de rol
+    await expect(page.getByTitle('Disponible para administradores y regentes').first()).toBeVisible();
   });
 
   test('Dashboard: las cifras llegan como pesos, no como texto roto', async ({ page }) => {

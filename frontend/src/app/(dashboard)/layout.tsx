@@ -13,6 +13,7 @@ import {
   CreditCard, LogOut, Shield, ChevronDown, Moon, Sun, Monitor, MapPin, ArrowRightLeft, MessageCircle, MessageSquare, Truck
 } from 'lucide-react';
 import UpgradeModal from '@/components/ui/UpgradeModal';
+import { isReadOnlyAccount } from '@/lib/roles';
 
 // Define which nav items are visible per role
 const NAV_ITEMS = [
@@ -145,7 +146,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   const visibleNav = NAV_ITEMS.filter(item => item.roles.includes(userRole));
   const visibleIntel = INTEL_ITEMS.filter(item => item.roles.includes(userRole));
-  const visibleBottom = BOTTOM_ITEMS.filter(item => item.roles.includes(userRole));
+  // La cuenta demo de administrador (solo lectura) no ve la gestión del SaaS
+  const visibleBottom = BOTTOM_ITEMS.filter(item =>
+    item.roles.includes(userRole) && !(isReadOnlyAccount(user.email) && ['/billing', '/saas'].includes(item.href))
+  );
   const initials = `${(user.first_name || user.email)[0]}${(user.last_name || '')[0] || ''}`.toUpperCase();
 
   return (

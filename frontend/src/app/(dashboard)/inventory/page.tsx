@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { AdminOnly } from '@/components/AdminOnly';
 import { StockTakeTab, type StockTakeItem } from './_components/StockTakeTab';
 import { WasteTab } from './_components/WasteTab';
 import { Search, Plus, AlertTriangle, Edit2, Trash2, ShoppingCart, Activity, RefreshCw, FileText, Check } from 'lucide-react';
@@ -209,6 +210,7 @@ function InventoryContent() {
               ))}
             </select>
           </div>
+          <AdminOnly>
           <button 
             onClick={() => {
               setIsEditing(false);
@@ -221,6 +223,7 @@ function InventoryContent() {
             <Plus size={16} />
             <span className="hidden sm:inline">Nuevo Producto</span>
           </button>
+          </AdminOnly>
         </div>
       </div>
 
@@ -325,8 +328,12 @@ function InventoryContent() {
                     </td>
                     <td className="px-8 py-4 text-right">
                       <div className="flex justify-end space-x-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <AdminOnly>
                         <button onClick={() => handleEdit(product)} className="text-neutral-400 hover:text-indigo-600 transition-colors"><Edit2 size={16} /></button>
+                        </AdminOnly>
+                        <AdminOnly>
                         <button onClick={() => handleDelete(product.id)} className="text-neutral-400 hover:text-red-600 transition-colors"><Trash2 size={16} /></button>
+                        </AdminOnly>
                       </div>
                     </td>
                   </tr>
@@ -371,6 +378,7 @@ function InventoryContent() {
                   >
                     <ShoppingCart size={16} /> Exportar (.csv)
                   </button>
+                  <AdminOnly>
                   <button 
                     onClick={() => {
                       if (suggestedOrders.length === 0) return alert('No hay sugerencias para ordenar');
@@ -390,6 +398,7 @@ function InventoryContent() {
                   >
                     <Plus size={16} /> Crear Orden
                   </button>
+                  </AdminOnly>
                 </div>
               </div>
               <table className="w-full text-left text-sm">

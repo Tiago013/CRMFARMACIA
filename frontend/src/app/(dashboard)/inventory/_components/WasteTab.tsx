@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AdminOnly } from '@/components/AdminOnly';
 import { FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { expiryStatus } from '@/lib/inventory/fefo';
@@ -87,9 +88,11 @@ export function WasteTab({ products, onStockChanged }: {
                     />
                   </td>
                   <td className="px-6 py-4 text-right">
+                    <AdminOnly>
                     <button onClick={() => writeOff(item)} className="text-xs font-semibold bg-red-600 text-white rounded-md px-3 py-1.5 hover:bg-red-700 transition-colors shadow-sm">
                       Dar de Baja
                     </button>
+                    </AdminOnly>
                   </td>
                 </tr>
               );

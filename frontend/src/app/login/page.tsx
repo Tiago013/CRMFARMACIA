@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient as api } from '@/lib/axios';
 import { createClient } from '@/utils/supabase/client';
-import { Eye, EyeOff, Lock, Mail, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, AlertCircle, PlayCircle } from 'lucide-react';
+import { DEMO_ACCOUNTS, DEMO_PASSWORD } from '@/lib/roles';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -17,6 +18,17 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    await signIn(email, password);
+  };
+
+  // Entrada a la demo con un clic: las credenciales demo son públicas (README)
+  const signInDemo = async (demoEmail: string) => {
+    setEmail(demoEmail);
+    setPassword(DEMO_PASSWORD);
+    await signIn(demoEmail, DEMO_PASSWORD);
+  };
+
+  const signIn = async (email: string, password: string) => {
     setError('');
     setLoading(true);
 
@@ -157,10 +169,30 @@ export default function LoginPage() {
           </form>
         </div>
 
+        {/* Demo pública: entrar con un rol sin escribir credenciales */}
+        <div className="mt-4 bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 shadow-sm">
+          <p className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 flex items-center gap-1.5 mb-3">
+            <PlayCircle size={14} className="text-indigo-500" /> Probar la demo · datos ficticios que se restauran cada noche
+          </p>
+          <div className="space-y-2">
+            {DEMO_ACCOUNTS.map(account => (
+              <button
+                key={account.email}
+                type="button"
+                disabled={loading}
+                onClick={() => signInDemo(account.email)}
+                className="w-full text-left px-3 py-2 rounded-lg border border-neutral-200 dark:border-neutral-800 hover:border-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition-colors disabled:opacity-50"
+              >
+                <span className="block text-sm font-semibold text-neutral-900 dark:text-white">Entrar como {account.label}</span>
+                <span className="block text-[11px] text-neutral-500">{account.description}</span>
+              </button>
+            ))}
+          </div>
+        </div>
 
 
         <p className="text-center text-[11px] text-neutral-400 mt-6">
-          FarmaAI Enterprise v1.0 — Droguería Salud Vital
+          FarmaAI · demo de portafolio
         </p>
       </div>
     </div>
