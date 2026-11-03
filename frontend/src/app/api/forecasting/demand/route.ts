@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
-import { backtest, findSpikes, forecast } from '@/lib/analytics/forecast';
+import { backtest, dailySeries, findSpikes, forecast, reorderSuggestion } from '@/lib/analytics/forecast';
+import { purchaseAdherence } from '@/lib/crm/adherence';
+import { isExpired } from '@/lib/inventory/fefo';
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +16,9 @@ export async function GET(request: NextRequest) {
     const tenant_id = auth.tenantId;
     const searchParams = request.nextUrl.searchParams;
     let productId = searchParams.get('productId');
+    if (productId && !UUID.test(productId)) {
+      return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
+    }
 
     // 1. Determine Product
     // If no product provided, find the one with the most sale items
@@ -48,26 +55,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
     }
 
-    // 2. Historial diario de las últimas 8 semanas (para aprender el patrón semanal)
+    // 2. Historial diario de las últimas 8 semanas completas, en hora de Colombia
     const HISTORY_DAYS = 56;
-    const today = new Date();
-    const since = new Date(today.getTime() - (HISTORY_DAYS - 1) * 86_400_000);
-    since.setUTCHours(0, 0, 0, 0);
+    const since = new Date(Date.now() - (HISTORY_DAYS + 2) * 86_400_000);
 
-    const sales = await prisma.saleItem.findMany({
-      where: { product_id: productId, sale: { tenant_id, status: 'COMPLETED', created_at: { gte: since } } },
-      select: { quantity: true, sale: { select: { created_at: true } } },
-    });
-
-    const dailySalesMap = new Map<string, number>();
-    for (let i = HISTORY_DAYS - 1; i >= 0; i--) {
-      dailySalesMap.set(new Date(today.getTime() - i * 86_400_000).toISOString().split('T')[0], 0);
-    }
-    for (const item of sales) {
-      const dateStr = item.sale.created_at.toISOString().split('T')[0];
-      if (dailySalesMap.has(dateStr)) dailySalesMap.set(dateStr, dailySalesMap.get(dateStr)! + item.quantity);
-    }
-    const historical_data = Array.from(dailySalesMap.entries()).map(([date, value]) => ({ date, value }));
+    const [sales, batches] = await Promise.all([
+      prisma.saleItem.findMany({
+        where: { product_id: productId, sale: { tenant_id, status: 'COMPLETED', created_at: { gte: since } } },
+        select: { quantity: true, sale: { select: { created_at: true } } },
+      }),
+      prisma.batch.findMany({
+        where: { product_id: productId, tenant_id, quantity: { gt: 0 } },
+        select: { quantity: true, expiration_date: true },
+      }),
+    ]);
+    const historical_data = dailySeries(sales.map((s) => ({ at: s.sale.created_at, quantity: s.quantity })), HISTORY_DAYS);
+    // Solo cuenta el stock que se puede vender (lotes sin vencer)
+    const current_stock = batches.filter((b) => !isExpired(b.expiration_date)).reduce((acc, b) => acc + b.quantity, 0);
 
     // 3. Modelo estacional semanal determinista (lib/analytics/forecast.ts)
     const forecast_data = forecast(historical_data, 15);
@@ -75,7 +79,7 @@ export async function GET(request: NextRequest) {
     const spikes = findSpikes(historical_data);
     const anomaly_detected = spikes.length > 0;
     const explanation = anomaly_detected
-      ? `Se detectó un pico inusual el ${spikes[0].date} (${spikes[0].value} unidades). El modelo usa promedios por día de la semana, así que un pico aislado pesa poco en la proyección.`
+      ? `El ${spikes[0].date} se vendieron ${spikes[0].value} unidades, más del triple de un día normal. El modelo usa promedios por día de la semana, así que un pico aislado pesa poco en la proyección.`
       : 'La proyección combina el nivel de las últimas dos semanas, una tendencia amortiguada y el patrón de cada día de la semana.';
 
     // Fetch all products for the dropdown menu
@@ -99,37 +103,34 @@ export async function GET(request: NextRequest) {
       else if (lastVal < firstVal * 0.9) trend_direction = "A la baja";
     }
 
-    // Recommended stock based on the maximum daily upper bound expected in the next 15 days, plus a 20% safety net
-    const maxDailyExpected = forecast_data.reduce((max: number, day: any) => Math.max(max, day.upper_bound), 0);
-    const recommended_stock = total_predicted_demand === 0 ? 0 : Math.ceil(maxDailyExpected * 3); // E.g., keep 3 days worth of the absolute worst-case peak scenario
+    const reorder = reorderSuggestion(forecast_data, current_stock);
 
     // Confianza = 1 − error medido en la última semana (sin validación, no se inventa un número)
     const dynamic_confidence = validation ? Math.max(0, Math.min(1, 1 - validation.wape)) : null;
 
-    // 7. Global Customer Scoring Metrics (Real data approximation)
-    const thirtyDaysAgoGlobal = new Date();
-    thirtyDaysAgoGlobal.setDate(new Date().getDate() - 30);
-    
-    const [totalSalesSum, totalPatientsCount, activePatientsCount, patientSalesCount] = await Promise.all([
-      prisma.sale.aggregate({ 
-        where: { tenant_id, patient_id: { not: null } },
-        _sum: { grand_total: true } 
+    // 7. Métricas de pacientes con datos reales
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000);
+    const [totalSalesSum, totalPatientsCount, activePatientsCount, patientSales] = await Promise.all([
+      prisma.sale.aggregate({
+        where: { tenant_id, patient_id: { not: null }, status: 'COMPLETED' },
+        _sum: { grand_total: true }
       }),
       prisma.patient.count({ where: { tenant_id } }),
-      prisma.patient.count({ where: { tenant_id, sales: { some: { created_at: { gte: thirtyDaysAgoGlobal } } } } }),
-      prisma.sale.count({ where: { tenant_id, patient_id: { not: null } } })
+      prisma.patient.count({ where: { tenant_id, sales: { some: { created_at: { gte: thirtyDaysAgo } } } } }),
+      prisma.sale.findMany({
+        where: { tenant_id, patient_id: { not: null }, status: 'COMPLETED' },
+        select: { patient_id: true, created_at: true },
+      }),
     ]);
 
     const clv = totalPatientsCount > 0 ? Number(totalSalesSum._sum.grand_total || 0) / totalPatientsCount : 0;
     const churn_rate = totalPatientsCount > 0 ? ((totalPatientsCount - activePatientsCount) / totalPatientsCount) * 100 : 0;
-    
-    // Average days between purchases (rough estimate)
-    let avg_purchase_days = 15;
-    if (patientSalesCount > totalPatientsCount && totalPatientsCount > 0) {
-      const avgPurchasesPerPatient = patientSalesCount / totalPatientsCount;
-      // Assuming a 6 month lifespan for simplicity of this metric
-      avg_purchase_days = Math.max(1, Math.round(180 / avgPurchasesPerPatient));
-    }
+
+    // Días promedio entre compras de los pacientes con al menos dos visitas
+    const byPatient = new Map<string, Date[]>();
+    for (const s of patientSales) byPatient.set(s.patient_id!, [...(byPatient.get(s.patient_id!) ?? []), s.created_at]);
+    const intervals = [...byPatient.values()].map((d) => purchaseAdherence(d).avgIntervalDays).filter((x): x is number => x !== null);
+    const avg_purchase_days = intervals.length ? Math.round(intervals.reduce((a, b) => a + b, 0) / intervals.length) : null;
 
     return NextResponse.json({
       product_id: product.id,
@@ -149,16 +150,20 @@ export async function GET(request: NextRequest) {
       executive_summary: {
         total_predicted_demand,
         trend_direction,
-        recommended_stock
+        current_stock,
+        suggested_order: reorder.order,
+        coverage_days: reorder.coverageDays,
       },
       customer_metrics: {
         clv: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(Number(clv)),
         churn_rate: Number(churn_rate).toFixed(1),
-        avg_purchase_days: avg_purchase_days
+        avg_purchase_days,
+        patients_with_repeat: intervals.length,
       }
     });
 
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    console.error('forecasting/demand', error);
+    return NextResponse.json({ error: 'No se pudo calcular el pronóstico' }, { status: 500 });
   }
 }

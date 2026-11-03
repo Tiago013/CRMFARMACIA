@@ -2,13 +2,13 @@
 // semanal. Determinista (mismos datos → mismo resultado) y auditable: el error
 // se mide prediciendo la última semana con los datos anteriores.
 
+import { addDays, localDay } from '@/lib/dates';
+
 export type DailyPoint = { date: string; value: number };
 export type ForecastPoint = DailyPoint & { lower_bound: number; upper_bound: number };
 
-const DAY = 86_400_000;
 const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 const dow = (date: string) => new Date(`${date}T12:00:00Z`).getUTCDay();
-const addDays = (date: string, n: number) => new Date(Date.parse(`${date}T12:00:00Z`) + n * DAY).toISOString().split('T')[0];
 
 export type Model = {
   level: number;           // demanda diaria base (promedio de las últimas 2 semanas)
@@ -83,10 +83,45 @@ export function backtest(history: DailyPoint[], holdout = 7) {
   };
 }
 
-// Días con ventas muy por encima de lo normal (media + 3 desviaciones)
+// Serie diaria de los últimos `days` días completos en hora local: termina
+// ayer, porque el día en curso aún no cierra y bajaría el nivel y el error.
+export function dailySeries(sales: { at: Date | string; quantity: number }[], days: number, now: Date = new Date()): DailyPoint[] {
+  const yesterday = addDays(localDay(now), -1);
+  const totals = new Map<string, number>();
+  for (let i = days - 1; i >= 0; i--) totals.set(addDays(yesterday, -i), 0);
+  for (const s of sales) {
+    const day = localDay(s.at);
+    if (totals.has(day)) totals.set(day, totals.get(day)! + s.quantity);
+  }
+  return Array.from(totals, ([date, value]) => ({ date, value }));
+}
+
+// Días con ventas muy por encima de lo normal. Con ventas escasas casi todo día
+// con ventas supera media + 3σ, así que además se exige historia suficiente y
+// que el pico triplique la venta típica de un día con ventas (y sea ≥ 3 unid.).
+export const MIN_SALE_DAYS_FOR_SPIKES = 8;
+
 export function findSpikes(history: DailyPoint[]): DailyPoint[] {
   const values = history.map((h) => h.value);
+  const selling = values.filter((v) => v > 0).sort((a, b) => a - b);
+  if (selling.length < MIN_SALE_DAYS_FOR_SPIKES) return [];
   const m = mean(values);
   const sd = Math.sqrt(mean(values.map((v) => (v - m) ** 2)));
-  return sd === 0 ? [] : history.filter((h) => h.value > m + 3 * sd);
+  const typical = selling[Math.floor(selling.length / 2)];
+  const threshold = Math.max(m + 3 * sd, 3 * typical, 3);
+  return history.filter((h) => h.value > threshold);
+}
+
+// Pedido sugerido para cubrir el horizonte en el escenario alto (límite
+// superior de la banda) con el stock vigente. coverageDays: cuántos días del
+// pronóstico central alcanza el stock (null si alcanza todo el horizonte).
+export function reorderSuggestion(forecastData: ForecastPoint[], stock: number) {
+  const needed = Math.ceil(forecastData.reduce((acc, d) => acc + d.upper_bound, 0));
+  let left = stock;
+  let coverageDays: number | null = null;
+  for (let i = 0; i < forecastData.length; i++) {
+    left -= forecastData[i].value;
+    if (left < 0) { coverageDays = i; break; }
+  }
+  return { needed, stock, order: Math.max(0, needed - stock), coverageDays };
 }

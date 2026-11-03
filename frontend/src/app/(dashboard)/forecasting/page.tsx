@@ -1,13 +1,23 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
+import { Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, ComposedChart } from 'recharts';
 import { BrainCircuit, AlertTriangle, TrendingUp, HelpCircle } from 'lucide-react';
 import { apiClient as api } from '@/lib/axios';
 import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import FeatureGate from '@/components/ui/FeatureGate';
 import PremiumGuard from '@/components/PremiumGuard';
 import AIAssistantTab from '@/components/forecasting/AIAssistantTab';
+
+// 'YYYY-MM-DD' es un día calendario: se lee a mediodía para que la zona horaria
+// del navegador no lo corra al día anterior
+const dayLabel = (day: string) => format(new Date(`${day}T12:00:00`), 'dd MMM', { locale: es });
+
+const TREND_COLOR: Record<string, string> = {
+  'Al alza': 'text-emerald-600 dark:text-emerald-400',
+  'A la baja': 'text-rose-600 dark:text-rose-400',
+};
 
 export default function ForecastingPage() {
   const [data, setData] = useState<any>(null);
@@ -23,18 +33,16 @@ export default function ForecastingPage() {
       
       const mergedData = [
         ...res.data.historical_data.map((d: any) => ({
-          date: format(new Date(d.date), 'dd MMM'),
+          date: dayLabel(d.date),
           history: d.value,
           forecast: null,
-          lower: null,
-          upper: null
+          band: null
         })),
         ...res.data.forecast_data.map((d: any) => ({
-          date: format(new Date(d.date), 'dd MMM'),
+          date: dayLabel(d.date),
           history: null,
           forecast: d.value,
-          lower: d.lower_bound,
-          upper: d.upper_bound
+          band: [d.lower_bound, d.upper_bound]
         }))
       ];
       
@@ -82,9 +90,9 @@ export default function ForecastingPage() {
               <div>
                 <h1 className="text-2xl font-semibold text-neutral-900 dark:text-white flex items-center gap-2">
                   <BrainCircuit className="text-indigo-600 dark:text-indigo-400" />
-                  Demand Forecasting
+                  Pronóstico de demanda
                 </h1>
-                <p className="text-neutral-500 text-sm mt-1">Predicción de demanda impulsada por Machine Learning.</p>
+                <p className="text-neutral-500 text-sm mt-1">Modelo estadístico por día de la semana, con su error medido a la vista.</p>
               </div>
               
               {data?.all_products && (
@@ -147,7 +155,7 @@ export default function ForecastingPage() {
                 <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-lg flex gap-4">
                   <AlertTriangle className="text-amber-600 dark:text-amber-400 shrink-0" size={20} />
                   <div>
-                    <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-200">Anomalía Detectada</h3>
+                    <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-200">Pico de ventas inusual</h3>
                     <p className="text-sm text-amber-800 dark:text-amber-300 mt-1 opacity-90 leading-relaxed">
                       {data.explanation}
                     </p>
@@ -161,10 +169,14 @@ export default function ForecastingPage() {
                   <div className="p-5 bg-indigo-50/50 dark:bg-[#0A0A0A] border border-indigo-100 dark:border-neutral-800 rounded-xl">
                     <h3 className="text-sm font-semibold text-indigo-900 dark:text-indigo-400 flex items-center gap-2 mb-2">
                       <BrainCircuit size={16} />
-                      Análisis de la Inteligencia Artificial
+                      Resumen del pronóstico
                     </h3>
                     <p className="text-sm text-neutral-700 dark:text-neutral-400 leading-relaxed">
-                      El modelo proyecta una demanda total de <strong className="text-neutral-900 dark:text-white">{data.executive_summary.total_predicted_demand} unidades</strong> para los próximos 15 días, mostrando una tendencia <strong className="text-neutral-900 dark:text-white">{data.executive_summary.trend_direction.toLowerCase()}</strong>. Te sugerimos mantener un stock de seguridad de <strong className="text-neutral-900 dark:text-white">{data.executive_summary.recommended_stock} unidades</strong> para evitar quiebres de inventario.
+                      El modelo proyecta <strong className="text-neutral-900 dark:text-white">{data.executive_summary.total_predicted_demand} unidades</strong> para los próximos 15 días, con tendencia <strong className="text-neutral-900 dark:text-white">{data.executive_summary.trend_direction.toLowerCase()}</strong>. Hay <strong className="text-neutral-900 dark:text-white">{data.executive_summary.current_stock} unidades</strong> en lotes sin vencer:{' '}
+                      {data.executive_summary.coverage_days === null
+                        ? 'alcanzan para todo el horizonte.'
+                        : <>alcanzan para unos <strong className="text-neutral-900 dark:text-white">{data.executive_summary.coverage_days} días</strong>.</>}
+                      {data.executive_summary.suggested_order > 0 && <> Para cubrir el escenario alto conviene pedir <strong className="text-neutral-900 dark:text-white">{data.executive_summary.suggested_order} unidades</strong>.</>}
                     </p>
                     <p className="text-xs text-neutral-500 mt-2">
                       Modelo: {data.model?.name ?? 'estacional semanal'} · determinista (mismos datos, mismo resultado) ·{' '}
@@ -181,11 +193,12 @@ export default function ForecastingPage() {
                     </div>
                     <div className="bg-white dark:bg-[#0A0A0A] p-6 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-sm">
                       <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2">Tendencia</p>
-                      <p className="text-3xl font-black text-emerald-600 dark:text-emerald-400">{data.executive_summary.trend_direction}</p>
+                      <p className={`text-3xl font-black ${TREND_COLOR[data.executive_summary.trend_direction] ?? 'text-neutral-700 dark:text-neutral-300'}`}>{data.executive_summary.trend_direction}</p>
                     </div>
                     <div className="bg-white dark:bg-[#0A0A0A] p-6 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-sm">
-                      <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2">Stock Recomendado</p>
-                      <p className="text-3xl font-black text-blue-600 dark:text-blue-400">{data.executive_summary.recommended_stock} <span className="text-base font-medium text-blue-300 dark:text-blue-900/50">unid.</span></p>
+                      <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2">Pedido sugerido</p>
+                      <p className="text-3xl font-black text-blue-600 dark:text-blue-400">{data.executive_summary.suggested_order} <span className="text-base font-medium text-blue-300 dark:text-blue-900/50">unid.</span></p>
+                      <p className="text-xs text-neutral-400 mt-1">Escenario alto de 15 días menos el stock vigente</p>
                     </div>
                   </div>
                 </>
@@ -208,7 +221,7 @@ export default function ForecastingPage() {
                 
                 <div className="h-[400px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={data?.chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                    <ComposedChart data={data?.chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                       <defs>
                         <linearGradient id="colorForecast" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#818CF8" stopOpacity={0.3}/>
@@ -224,15 +237,13 @@ export default function ForecastingPage() {
                         />
                         
                         {/* Historical Data */}
-                        <Line type="monotone" dataKey="history" stroke="#64748B" strokeWidth={2} dot={false} />
-                        
-                        {/* Forecast Bounds Area */}
-                        <Area type="monotone" dataKey="upper" stroke="none" fill="url(#colorForecast)" />
-                        <Area type="monotone" dataKey="lower" stroke="none" fill="#0A0A0A" />
-                        
-                        {/* Forecast Mean Line */}
-                        <Line type="monotone" dataKey="forecast" stroke="#818CF8" strokeWidth={2} strokeDasharray="5 5" dot={false} />
-                    </AreaChart>
+                        <Line type="monotone" dataKey="history" name="Ventas" stroke="#64748B" strokeWidth={2} dot={false} />
+
+                        {/* Banda de ~80 %: el área va del límite inferior al superior */}
+                        <Area type="monotone" dataKey="band" name="Rango probable" stroke="none" fill="url(#colorForecast)" />
+
+                        <Line type="monotone" dataKey="forecast" name="Pronóstico" stroke="#818CF8" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                    </ComposedChart>
                   </ResponsiveContainer>
                 </div>
               </div>
@@ -241,20 +252,20 @@ export default function ForecastingPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white dark:bg-[#0A0A0A] p-6 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-sm">
                   <div className="flex justify-between items-start mb-4">
-                    <h3 className="text-sm font-medium text-neutral-500">Customer Lifetime Value (Predicho)</h3>
+                    <h3 className="text-sm font-medium text-neutral-500">Valor promedio por paciente</h3>
                     <HelpCircle size={14} className="text-neutral-400" />
                   </div>
                   <p className="text-3xl font-semibold text-neutral-900 dark:text-white">{data?.customer_metrics?.clv || "$0"}</p>
-                  <p className="text-xs text-neutral-400 mt-2">Basado en pacientes actuales</p>
+                  <p className="text-xs text-neutral-400 mt-2">Ventas a pacientes registrados ÷ pacientes</p>
                 </div>
                 
                 <div className="bg-white dark:bg-[#0A0A0A] p-6 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-sm">
                   <div className="flex justify-between items-start mb-4">
-                    <h3 className="text-sm font-medium text-neutral-500">Riesgo de Churn Global</h3>
+                    <h3 className="text-sm font-medium text-neutral-500">Pacientes sin compra en 30 días</h3>
                     <HelpCircle size={14} className="text-neutral-400" />
                   </div>
                   <p className="text-3xl font-semibold text-neutral-900 dark:text-white">{data?.customer_metrics?.churn_rate || "0"}%</p>
-                  <p className="text-xs text-neutral-400 mt-2">Dentro de parámetros normales</p>
+                  <p className="text-xs text-neutral-400 mt-2">Porcentaje del total de pacientes</p>
                 </div>
 
                 <div className="bg-white dark:bg-[#0A0A0A] p-6 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-sm">
@@ -262,8 +273,12 @@ export default function ForecastingPage() {
                     <h3 className="text-sm font-medium text-neutral-500">Frecuencia de Compra</h3>
                     <HelpCircle size={14} className="text-neutral-400" />
                   </div>
-                  <p className="text-3xl font-semibold text-neutral-900 dark:text-white">{data?.customer_metrics?.avg_purchase_days || 0} Días</p>
-                  <p className="text-xs text-indigo-500 dark:text-indigo-400 mt-2">Promedio general</p>
+                  <p className="text-3xl font-semibold text-neutral-900 dark:text-white">{data?.customer_metrics?.avg_purchase_days != null ? `${data.customer_metrics.avg_purchase_days} días` : '—'}</p>
+                  <p className="text-xs text-indigo-500 dark:text-indigo-400 mt-2">
+                    {data?.customer_metrics?.patients_with_repeat
+                      ? `Entre compras, promedio de ${data.customer_metrics.patients_with_repeat} pacientes que volvieron`
+                      : 'Aún no hay pacientes con dos visitas'}
+                  </p>
                 </div>
               </div>
             </div>
