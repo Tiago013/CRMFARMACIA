@@ -3,7 +3,7 @@
 # 💊 FarmaAI — CRM y POS inteligente para droguerías
 
 **Plataforma SaaS multi-farmacia** con punto de venta, inventario FEFO, CRM de pacientes,
-finanzas, pronóstico de demanda con IA y panel de administración SaaS.
+finanzas, pronóstico de demanda y panel de administración SaaS.
 
 [![CI](https://github.com/Tiago013/CRMFARMACIA/actions/workflows/ci.yml/badge.svg)](https://github.com/Tiago013/CRMFARMACIA/actions/workflows/ci.yml)
 ![Tests](https://img.shields.io/badge/tests-Vitest-6E9F18?logo=vitest&logoColor=white)
@@ -89,7 +89,7 @@ quiebres de stock y cero seguimiento a pacientes crónicos.
 | 👥 **CRM de pacientes** | Ficha 360°: datos clínicos, historial de compras, gasto mensual, etiquetas (VIP, crónicos, alto riesgo) y recomendaciones con IA. |
 | 🔄 **Ventas y compras** | Auditoría de tickets, reembolsos (devuelven el stock al lote original) y entrada de mercancía por proveedor. |
 | 💰 **Finanzas** | Estado de resultados (P&L), gastos operativos por categoría y costo de ventas (COGS). |
-| 📈 **Pronóstico** | Demanda a 15 días por producto con un modelo estacional semanal determinista; muestra cuánto se equivocó al predecir la última semana (WAPE). |
+| 📈 **Pronóstico** | Demanda a 15 días por producto con un modelo estacional semanal determinista; muestra cuánto se equivocó al predecir la última semana (WAPE) y sugiere cuánto pedir según el stock vigente. |
 | 💬 **WhatsApp** | Plantillas y automatizaciones de mensajes (servicio local con `whatsapp-web.js`). |
 | 🏢 **SaaS / Super Admin** | MRR, tenants activos, planes (Starter / Pro / Enterprise) y suplantación de farmacias para soporte. |
 | ⚙️ **Configuración** | Datos legales de la farmacia, logo, usuarios y roles (admin, regente, cajero). |
@@ -113,6 +113,10 @@ quiebres de stock y cero seguimiento a pacientes crónicos.
 **Analítica**: horas pico, rentabilidad por producto y panel de vencimientos a 30/60/90 días.
 
 ![Analítica y vencimientos](docs/screenshots/analitica.jpg)
+
+**Pronóstico de demanda**: proyección a 15 días con su rango probable, pedido sugerido según el stock vigente y el error medido al predecir la última semana.
+
+![Pronóstico de demanda](docs/screenshots/pronostico.jpg)
 
 ---
 
