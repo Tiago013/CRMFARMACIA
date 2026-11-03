@@ -241,22 +241,22 @@ export default function DashboardPage() {
                   </h3>
                   <span className="text-xs bg-black/30 px-3 py-1 rounded-full text-indigo-200 font-medium">{PERIOD_LABELS[period]}</span>
                 </div>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <p className="text-indigo-200 text-xs font-semibold uppercase tracking-wider">Ingresos Facturados</p>
-                    <p className="text-xl xl:text-2xl font-bold mt-1 tabular-nums break-words">${pnl.income.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
+                    <p className="text-xl xl:text-2xl font-bold mt-1 tabular-nums whitespace-nowrap">${pnl.income.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
                   </div>
                   <div>
                     <p className="text-rose-300 text-xs font-semibold uppercase tracking-wider">COGS (Productos)</p>
-                    <p className="text-xl xl:text-2xl font-bold mt-1 tabular-nums break-words">-${pnl.cogs.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
+                    <p className="text-xl xl:text-2xl font-bold mt-1 tabular-nums whitespace-nowrap">-${pnl.cogs.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
                   </div>
                   <div>
                     <p className="text-rose-300 text-xs font-semibold uppercase tracking-wider">OPEX (Operativos)</p>
-                    <p className="text-xl xl:text-2xl font-bold mt-1 tabular-nums break-words">-${pnl.opex.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
+                    <p className="text-xl xl:text-2xl font-bold mt-1 tabular-nums whitespace-nowrap">-${pnl.opex.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
                   </div>
                   <div className="bg-black/20 p-3 rounded-lg border border-white/10">
                     <p className="text-emerald-300 text-xs font-semibold uppercase tracking-wider">Utilidad Neta</p>
-                    <p className="text-2xl xl:text-3xl font-black text-emerald-400 mt-1 tabular-nums break-words">${pnl.net_profit.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
+                    <p className="text-2xl xl:text-3xl font-black text-emerald-400 mt-1 tabular-nums whitespace-nowrap">${pnl.net_profit.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</p>
                   </div>
                 </div>
               </div>
