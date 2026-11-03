@@ -80,6 +80,16 @@ test.describe('Recorrido demo del README', () => {
     await expect(page.getByRole('button', { name: 'Conexión Dispositivo' })).toHaveCount(0);
   });
 
+  test('Cierre del día: el reporte Z carga y se puede exportar', async ({ page }) => {
+    await page.getByRole('link', { name: 'Ventas y Compras' }).click();
+    await page.getByRole('button', { name: 'Cierre del día (Z)' }).click();
+    await expect(page.getByRole('heading', { name: 'Reporte Z · Cierre del día' })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText('Total vendido')).toBeVisible({ timeout: 20_000 });
+    const descarga = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Excel' }).click();
+    expect((await descarga).suggestedFilename()).toMatch(/^reporte_z_\d{4}-\d{2}-\d{2}\.xlsx$/);
+  });
+
   test('Inventario: muestra lotes ordenados por vencimiento', async ({ page }) => {
     await page.getByRole('link', { name: 'Inventario' }).click();
     await expect(page.getByPlaceholder('Buscar producto o lote...')).toBeVisible();

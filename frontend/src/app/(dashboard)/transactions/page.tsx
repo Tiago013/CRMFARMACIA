@@ -6,6 +6,7 @@ import { ArrowRightLeft, Search, ShoppingCart, Plus, RefreshCw, FileText, X, Ale
 import { toast } from 'sonner';
 
 import { Suspense } from 'react';
+import { ZReportTab } from './_components/ZReportTab';
 import { useSearchParams } from 'next/navigation';
 
 export default function TransactionsPage() {
@@ -17,7 +18,7 @@ export default function TransactionsPage() {
 }
 
 function TransactionsContent() {
-  const [activeTab, setActiveTab] = useState<'sales' | 'purchases'>('sales');
+  const [activeTab, setActiveTab] = useState<'sales' | 'purchases' | 'cierre'>('sales');
   const [sales, setSales] = useState<any[]>([]);
   const [purchases, setPurchases] = useState<any[]>([]);
   const [inventory, setInventory] = useState<any[]>([]);
@@ -40,7 +41,13 @@ function TransactionsContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const searchParams = useSearchParams();
 
+  // ?tab=cierre abre directo el reporte Z (enlace desde el cierre de caja del POS)
   useEffect(() => {
+    if (searchParams.get('tab') === 'cierre') setActiveTab('cierre');
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (activeTab === 'cierre') return;
     fetchData();
   }, [activeTab, searchParams]);
 
@@ -185,6 +192,12 @@ function TransactionsContent() {
             >
               Compras a Proveedores
             </button>
+            <button 
+              onClick={() => setActiveTab('cierre')}
+              className={`px-6 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'cierre' ? 'bg-white dark:bg-[#222222] shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}
+            >
+              Cierre del día (Z)
+            </button>
           </div>
         </div>
       </div>
@@ -192,7 +205,9 @@ function TransactionsContent() {
       {/* Main Content */}
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-6xl mx-auto">
-          {loading ? (
+          {activeTab === 'cierre' ? (
+            <ZReportTab />
+          ) : loading ? (
             <div className="h-32 flex items-center justify-center">
               <RefreshCw className="animate-spin text-neutral-400" />
             </div>
