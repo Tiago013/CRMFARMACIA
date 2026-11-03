@@ -114,17 +114,6 @@ quiebres de stock y cero seguimiento a pacientes crónicos.
 
 ![Analítica y vencimientos](docs/screenshots/analitica.jpg)
 
----|---|
-| ![POS](docs/screenshots/pos.png) | ![CRM](docs/screenshots/crm.png) |
-
-| Inventario FEFO | Auditoría de ventas |
-|---|---|
-| ![Inventario](docs/screenshots/inventario.png) | ![Ventas](docs/screenshots/ventas.png) |
-
-**Panel Super Admin (SaaS)**: MRR, tenants, adopción y distribución de planes.
-
-![Super Admin](docs/screenshots/superadmin.png)
-
 ---
 
 ## 🏗️ Arquitectura
