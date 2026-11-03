@@ -27,35 +27,57 @@ async function takeAiQuota(tenantId: string): Promise<{ allowed: boolean; used: 
   return rows.length ? { allowed: true, used: rows[0].used } : { allowed: false, used: DAILY_LIMIT };
 }
 
-// text = respuesta del modelo; problem = por qué no la hay (se muestra al usuario)
-type ModelReply = { text: string | null; problem?: string };
+// text = respuesta del modelo; problem = por qué no la hay (se muestra al usuario);
+// meta = qué modelo respondió y cuánto tardó (para diagnosticar sin adivinar)
+type ModelMeta = { model: string; ms: number; thoughtsTokens: number };
+type ModelReply = { text: string | null; problem?: string; meta?: ModelMeta };
 
 // Flash-Lite: rápido y suficiente para elegir 2 productos de una lista
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-flash-lite-latest';
 
-async function askGemini(prompt: string, attempt = 1): Promise<ModelReply> {
+// Sin "pensar": elegir 2 productos de una lista corta no necesita razonamiento,
+// y un modelo que razona antes de responder pasa de segundos a más de 25 s. Los
+// alias *-latest pueden cambiar de modelo sin aviso (así pasó el 3 de noviembre).
+const NO_THINKING = { thinkingConfig: { thinkingBudget: 0 } };
+
+async function askGemini(prompt: string, attempt = 1, thinkingOff = true): Promise<ModelReply> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return { text: null, problem: 'La IA no está configurada en este servidor (falta GEMINI_API_KEY)' };
+  const started = Date.now();
   try {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, responseMimeType: 'application/json' } }),
-      signal: AbortSignal.timeout(25_000),
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.2, responseMimeType: 'application/json', ...(thinkingOff ? NO_THINKING : {}) },
+      }),
+      signal: AbortSignal.timeout(20_000),
     });
+    // Un modelo que no permite apagar el razonamiento rechaza la opción: se pide sin ella
+    if (res.status === 400 && thinkingOff) {
+      console.warn('Gemini rechazó thinkingConfig; se reintenta sin él:', await res.text().catch(() => ''));
+      return askGemini(prompt, attempt, false);
+    }
     // 503 = servicio de Google saturado: un reintento corto suele bastar
     if (res.status === 503 && attempt === 1) {
       await new Promise(r => setTimeout(r, 1500));
-      return askGemini(prompt, 2);
+      return askGemini(prompt, 2, thinkingOff);
     }
     if (!res.ok) {
       console.error('Gemini API error:', res.status, await res.text().catch(() => ''));
       return { text: null, problem: res.status === 429 ? 'Gemini alcanzó su cuota gratuita' : `Gemini respondió con error ${res.status}` };
     }
     const data = await res.json();
-    return { text: data?.candidates?.[0]?.content?.parts?.[0]?.text ?? null, problem: 'Gemini no devolvió texto' };
+    const meta: ModelMeta = {
+      model: data?.modelVersion ?? GEMINI_MODEL,
+      ms: Date.now() - started,
+      thoughtsTokens: data?.usageMetadata?.thoughtsTokenCount ?? 0,
+    };
+    console.info('Gemini respondió', meta);
+    return { text: data?.candidates?.[0]?.content?.parts?.[0]?.text ?? null, problem: 'Gemini no devolvió texto', meta };
   } catch (error) {
-    console.error('Gemini request failed:', error);
+    console.error('Gemini request failed:', { model: GEMINI_MODEL, ms: Date.now() - started, thinkingOff }, error);
     return { text: null, problem: 'Gemini no respondió a tiempo' };
   }
 }
@@ -121,12 +143,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     let recommendations: Recommendation[] = [];
     let notice: string | null = null;
+    let modelMeta: ModelMeta | null = null;
 
     const quota = await takeAiQuota(auth.tenantId);
     if (!quota.allowed) {
       notice = `Se alcanzó el límite de ${DAILY_LIMIT} consultas de IA de hoy. Se muestran recomendaciones por reglas.`;
     } else {
       const reply = model === 'gemini' ? await askGemini(buildPrompt(context, eligible)) : await askOllama(model, buildPrompt(context, eligible));
+      modelMeta = reply.meta ?? null;
       if (reply.text === null) notice = `${reply.problem}. Se muestran recomendaciones por reglas.`;
       else recommendations = validateModelOutput(reply.text, eligible);
     }
@@ -141,6 +165,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       evidence,
       notice,
       usage: { used: quota.used, limit: DAILY_LIMIT },
+      model: modelMeta,
     });
   } catch (error) {
     console.error('AI recommendations error:', error);
