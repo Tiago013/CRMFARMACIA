@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { isReadOnlyAccount } from '@/lib/roles'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -40,6 +41,10 @@ export async function updateSession(request: NextRequest) {
     // Las tareas programadas de Vercel no tienen sesión: se validan con CRON_SECRET
     if (!user && !request.nextUrl.pathname.startsWith('/api/cron/')) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+    // La cuenta demo de administrador mira todo pero no escribe nada
+    if (isReadOnlyAccount(user?.email) && !['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
+      return NextResponse.json({ error: 'Cuenta demo de solo lectura: entra como cajero o regente para hacer cambios' }, { status: 403 })
     }
     return supabaseResponse
   }

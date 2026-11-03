@@ -106,4 +106,4 @@ export async function requireAuth(options: RequireAuthOptions = {}): Promise<Aut
   };
 }
 
-export const ADMIN_ROLES = ['admin', 'regente'];
+export { ADMIN_ROLES } from '@/lib/roles';

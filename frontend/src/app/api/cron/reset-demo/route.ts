@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'node:crypto';
 import prisma from '@/lib/prisma';
+import { DEMO_ACCOUNTS, DEMO_PASSWORD } from '@/lib/roles';
 
 // Restaura la farmacia demo cada noche (vercel.json → crons).
 // Vercel envía "Authorization: Bearer <CRON_SECRET>"; sin ese secreto no se ejecuta.
@@ -24,7 +25,18 @@ export async function GET(request: NextRequest) {
     const [result] = await prisma.$queryRaw<{ reset_demo: { tenant?: string } }[]>`select demo_template.reset_demo()`;
     // La demo amanece con la caja cerrada: se borran los turnos del día anterior
     const tenant = result?.reset_demo?.tenant;
-    if (tenant) await prisma.cashSession.deleteMany({ where: { tenant_id: tenant } });
+    if (tenant) {
+      await prisma.cashSession.deleteMany({ where: { tenant_id: tenant } });
+      // Cada cuenta demo vuelve a su farmacia, su rol y la contraseña pública
+      for (const account of DEMO_ACCOUNTS) {
+        await prisma.$executeRaw`
+          update public.user_profiles set tenant_id = ${tenant}, role = ${account.role}, updated_at = now()
+          where auth_id in (select id::text from auth.users where email = ${account.email})`;
+        await prisma.$executeRaw`
+          update auth.users set encrypted_password = extensions.crypt(${DEMO_PASSWORD}, extensions.gen_salt('bf')), updated_at = now()
+          where email = ${account.email}`;
+      }
+    }
     console.log('Demo restaurada', result?.reset_demo);
     return NextResponse.json({ ok: true, summary: result?.reset_demo });
   } catch (error: any) {

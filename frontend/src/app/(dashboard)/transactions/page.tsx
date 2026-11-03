@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { AdminOnly } from '@/components/AdminOnly';
 import { ArrowRightLeft, Search, ShoppingCart, Plus, RefreshCw, FileText, X, AlertTriangle, Truck, Banknote, Calendar, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -248,12 +249,14 @@ function TransactionsContent() {
               {activeTab === 'purchases' && (
                 <div className="space-y-6">
                   <div className="flex justify-end">
+                    <AdminOnly>
                     <button 
                       onClick={() => setShowPurchaseModal(true)}
                       className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2 text-sm"
                     >
                       <Plus size={16} /> Registrar Ingreso de Factura (Compra)
                     </button>
+                    </AdminOnly>
                   </div>
 
                   <div className="bg-white dark:bg-[#111111] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm overflow-hidden">
@@ -339,6 +342,7 @@ function TransactionsContent() {
                 <p className="text-lg font-black text-neutral-900 dark:text-white">Total: ${selectedSale.grand_total.toLocaleString('es-CO')}</p>
                 
                 {selectedSale.status !== 'REFUNDED' && (
+                  <AdminOnly>
                   <button 
                     onClick={() => handleRefund(selectedSale.id)}
                     disabled={processing}
@@ -346,6 +350,7 @@ function TransactionsContent() {
                   >
                     <AlertTriangle size={14} /> Anular y Devolver Stock
                   </button>
+                  </AdminOnly>
                 )}
                 {selectedSale.status === 'REFUNDED' && (
                   <span className="text-red-500 font-bold text-sm">Venta Anulada</span>

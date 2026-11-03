@@ -39,11 +39,15 @@ finanzas, pronóstico de demanda con IA y panel de administración SaaS.
 ## 🚀 Probar la demo (2 minutos)
 
 1. Abre **https://crmfarmacia.vercel.app**
-2. Inicia sesión con la cuenta de demostración:
+2. En la pantalla de inicio de sesión, usa **"Probar la demo"** y elige un rol (no hace falta escribir nada):
 
-   | Usuario | Contraseña | Rol |
+   | Rol | Usuario | Qué puede hacer |
    |---|---|---|
-   | `demo@farmaai.com` | `123456` | Cajero (solo operación) |
+   | Cajero | `demo@farmaai.com` | Vender, abrir y cerrar caja, registrar pacientes |
+   | Regente | `regente.demo@farmaai.com` | Además: inventario, conteo físico, mermas, compras y reembolsos |
+   | Administrador | `admin.demo@farmaai.com` | Ve todo, incluida la configuración, en **solo lectura** |
+
+   Contraseña de las tres: `123456`. Las acciones que tu rol no permite aparecen deshabilitadas con un candado.
 
 3. Recorrido sugerido:
    - **Pacientes** → abre un paciente y mira su ficha 360° (historial, gasto mensual, alergias).
@@ -54,8 +58,7 @@ finanzas, pronóstico de demanda con IA y panel de administración SaaS.
 
 > ℹ️ Todos los datos (pacientes, productos, ventas) son **ficticios**. La cuenta demo trabaja en su propia farmacia,
 > que **se restaura cada noche**: puedes vender, registrar pacientes o desordenar lo que quieras.
-> La cuenta demo tiene rol **cajero**: puede consultar todos los módulos del recorrido, vender y registrar pacientes, pero no borrar productos,
-> cambiar precios, hacer reembolsos ni modificar la configuración (el servidor lo impide).
+> Los permisos se validan en el servidor: aunque un botón se habilitara a mano, la API responde 403.
 
 ---
 
