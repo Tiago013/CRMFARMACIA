@@ -121,7 +121,7 @@ export default function FinancePage() {
           </div>
         ) : activeTab === 'pnl' ? (
           <div className="max-w-6xl mx-auto space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
               <div className="p-5 bg-white dark:bg-[#0A0A0A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm flex flex-col justify-between">
                 <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Ingresos</h3>
                 <div className="flex items-center justify-between mt-auto">
